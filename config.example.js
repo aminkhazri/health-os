@@ -6,6 +6,7 @@
  * to Apps Script by clasp, so the live project gets it.
  */
 const CONFIG = {
+  NAME: 'Alex',               // used in the app greeting
   TZ: 'America/New_York',
   CALENDAR_NAME: 'Health & Fitness',
   TASKLIST_NAME: 'Daily Health Checklist',
