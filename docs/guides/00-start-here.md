@@ -16,7 +16,7 @@
 
 ## Your day (about 2 minutes of logging)
 
-1. **On waking, before coffee:** do your 5-minute morning ritual: weigh in, sit still for a minute and read your heart rate on the watch, log weight, sleep, resting HR and energy in the Morning card, drink a big glass of water, then the wake-up moves (cat-cow, hip stretch, glute bridges, band pull-aparts).
+1. **On waking, before coffee:** do your 10-minute morning ritual: weigh in, sit still for a minute and read your heart rate on the watch, log weight, sleep, resting HR and energy in the Morning card, drink a big glass of water, then the 5-minute Wake-up stretch in the app's Stretch tab (it fills your Flex bar).
 2. **Every time you eat or drink:** type it in the Food & drinks box, e.g. "2 eggs and coffee". The app works out the calories, files it under the right meal by time of day, and ticks the matching daily quest. Use the quick buttons for water (+8 oz, +24 oz), coffee and Celsius.
 3. **Answer reminders when you can.** If you're on a call, do it at the next break. A missed reminder isn't a failure.
 4. **Workout days (Thu, Sat, Sun):** use the Workout tab (A full body, B legs + core, C upper body). Last session's weights are filled in so you know what to beat.

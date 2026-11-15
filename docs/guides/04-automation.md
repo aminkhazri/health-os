@@ -27,12 +27,20 @@ Everything runs on **Google's servers**: your laptop can be off. Cost: $0 (free 
 | Weekly email | Apps Script MailApp + time-driven trigger | Reads the Weekly Summary tab |
 | Smart nudges | Apps Script trigger every 15 min (checkNudges in Nudges.js) | At set checkpoints, reads today's water and calm minutes; if behind pace, creates a 5-minute calendar event 2 minutes ahead with a popup, which the Google Calendar app turns into a notification. Each checkpoint fires once a day; old nudge events are cleaned up |
 
+## Stretching and demo videos
+
+- `src/Stretch.js` holds three things as plain data: the stretches (name and cue), the three routines (stretch, seconds, each side or not) and the video list (exercise or stretch name → YouTube video ID).
+- The guided timer runs in the phone's browser. When a routine ends, the app calls `addStretch`, which adds the minutes to the Daily Log (column S, "Stretch min") under a lock so two saves can't overwrite each other.
+- Videos are not stored in the app. Tapping Demo creates a YouTube player for that one video; nothing loads until then.
+- To swap a video: change its ID in `src/Stretch.js`, then publish a new version of the web app.
+- Lesson learned: Apps Script's HTML templates treat `//` inside a backtick string as a comment and cut the line, which broke the page once. URLs in the page script are built with normal quotes.
+
 ## Tracker Sheet tabs
 
 | Tab | Holds |
 |---|---|
 | Start Here | Targets: start/goal weight, daily calories, gain band, current phase, UPS exit date |
-| Daily Log | One row per day: weight, sleep, energy, checklist, meals detail, food totals (kcal, protein, water, caffeine), resting HR |
+| Daily Log | One row per day: weight, sleep, energy, checklist, meals detail, food totals (kcal, protein, water, caffeine), resting HR, mindful minutes, stretch minutes (column S) |
 | Food Log | Every food/drink entry with calories and macros |
 | Foods | The food library the app matches against (editable) |
 | Workout Log | One row per exercise per session |

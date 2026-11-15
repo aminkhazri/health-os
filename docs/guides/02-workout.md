@@ -66,14 +66,30 @@ Realistic target for Phase 1, with hard eating: about **4–8 lb** (149 → roug
 - **Eat.** Training only sends the signal; food builds the muscle. If the weekly average weight isn't rising, eat more.
 - If your weight keeps dropping for 2–3 weeks despite eating more, see a doctor.
 
-## Daily morning ritual (5 minutes, every day)
+## Daily morning ritual (about 10 minutes, every day)
 
 1. Bathroom, then weigh in
 2. Sit still 1 minute, read heart rate on the watch
 3. Log weight, sleep, heart rate and energy in Health OS
 4. Big glass of water
-5. Cat-cow × 8 · hip-flexor stretch 30 s each side · glute bridge × 15 · band pull-apart × 15
+5. Wake-up stretch: Stretch tab → Start Wake-up (5 min)
 6. Breakfast, and log it
+
+## Stretching (5 minutes a day)
+
+The app's **Stretch** tab has three guided routines. Press Start and a timer walks you through each stretch: 5 seconds to get into position, then a countdown, left and right sides separately. The minutes fill the **Flex** bar (goal: 5 a day).
+
+| Routine | Length | When | Stretches |
+|---|---|---|---|
+| Wake-up | 5 min | In the morning ritual | Cat-cow, child's pose, world's greatest stretch, downward dog, thread the needle |
+| Legs + hips | 6 min | After every workout | Half-kneeling hip flexor, lying hamstring, figure-four, standing calf, butterfly |
+| Unwind | 5 min | After UPS, before bed | Child's pose, doorway chest, supine spinal twist, figure-four, cat-cow |
+
+Rules: ease in until you feel a pull, never pain. Keep breathing. Don't bounce.
+
+## Demo videos
+
+Every exercise and stretch has a **▶ Demo** button that plays a short how-to video (most are 30–120 seconds) inside the app. They are other people's YouTube videos, picked for clear form. If one is a poor match or disappears, the video IDs live in one list in `src/Stretch.js` and are easy to swap.
 
 ## Phase 2: Engine (outline, detailed when you get there)
 

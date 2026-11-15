@@ -87,9 +87,10 @@ function buildTaskItems_(dow, shiftPhaseActive) {
     [CONFIG.WATER_GOAL, shiftDay ? 'Extra bottle for the shift.' : ''],
     ['Dinner', ''],
     ['Calm: 10 min of breathing', '1 min in the morning ritual, 3 min midday reset, 5 min at wind-down. Use the Breathe buttons in Health OS.'],
-    ['Morning ritual (5 min)', 'Cat-cow x8, hip-flexor stretch 30s each side, glute bridge x15, band pull-apart x15.'],
+    ['Morning ritual + Wake-up stretch (10 min)', 'Weigh in, 1 min of slow breathing, log it, big glass of water, then Stretch tab > Start Wake-up (5 min).'],
+    ['Flex: 5 min of stretching', 'Wake-up in the morning ritual fills it. Missed it? Do Unwind before bed. After a workout: Legs + hips. Stretch tab in Health OS.'],
   ];
-  if (d.workout.includes(dow)) items.push(['Workout ' + ({ 4: 'A: full body', 6: 'B: legs + core', 7: 'C: upper body' }[dow] || '') + ' + log sets', 'About 40 min at home. Log it in the Workout tab.']);
+  if (d.workout.includes(dow)) items.push(['Workout ' + ({ 4: 'A: full body', 6: 'B: legs + core', 7: 'C: upper body' }[dow] || '') + ' + log sets', 'About 40 min at home. Tap Demo for form videos. Log it in the Workout tab, then do the Legs + hips stretch (6 min).']);
   if (shiftDay) items.push(['Pack shift snack + water', '']);
   if (d.prep.includes(dow)) items.push(["Prep tomorrow's lunch", '']);
   items.push([CONFIG.WINDDOWN, 'Last check: anything not logged today? Add it in Health OS.']);

@@ -6,7 +6,7 @@ Reminders come from the **Health & Fitness** calendar in the Google Calendar app
 
 | Time | Reminder |
 |---|---|
-| 5:05 AM | Morning ritual: weigh-in, heart rate, wake-up moves, breakfast |
+| 5:05 AM | Morning ritual: weigh-in, heart rate, wake-up stretch (5 min), breakfast |
 | 8:30 AM | Break: snack + water + stretch |
 | 11:00 AM | Lunch: salmon wraps |
 | 11:35 AM | Midday reset: 3 min of breathing |
@@ -15,20 +15,20 @@ Reminders come from the **Health & Fitness** calendar in the Google Calendar app
 | 5:45 PM | Mon–Wed: Pre-UPS: snack + water + log dinner · Sun: Prep tomorrow's lunch |
 | 6:30 PM | Sun only: Weekly review |
 | 6:45 PM | Sun only: Workout C (upper body) at 7:00 (15-minute heads-up) |
-| 10:15 PM | Wind-down: 5 min of breathing + log check |
+| 10:15 PM | Wind-down: stretch if the Flex bar isn't full, 5 min of breathing + log check |
 
 ## Thu–Sat
 
 | Time | Reminder |
 |---|---|
-| 7:00 AM | Morning ritual: weigh-in, heart rate, wake-up moves, breakfast |
+| 7:00 AM | Morning ritual: weigh-in, heart rate, wake-up stretch (5 min), breakfast |
 | 8:45 AM | Thu: Workout A (full body) · Sat: Workout B (legs + core), at 9:00 (15-minute heads-up) |
 | 12:00 PM | Lunch |
 | 2:00 PM | Movement break + water |
 | 2:10 PM | Midday reset: 3 min of breathing |
 | 5:00 PM | Dinner (no alert) |
 | 5:45 PM | Thu/Fri: Pre-UPS: snack + water + log dinner · Sat: Prep tomorrow's lunch |
-| 10:15 PM | Wind-down: 5 min of breathing + log check |
+| 10:15 PM | Wind-down: stretch if the Flex bar isn't full, 5 min of breathing + log check |
 
 One-time: **Jan 15, 2027, 9:00 AM: UPS transition check** (move it to your real date).
 
@@ -38,7 +38,8 @@ Every day:
 - Weigh in + resting HR + log in Health OS (the task note has the app link)
 - Breakfast · Lunch · 2 protein snacks · Dinner
 - Water ~125 oz (3.7 L)
-- Morning ritual (5 min)
+- Morning ritual + Wake-up stretch (10 min)
+- Flex: 5 min of stretching (Wake-up in the morning, or Unwind before bed; Legs + hips after workouts)
 - Calm: 10 min of breathing (1 min in the ritual, 3 min midday, 5 min at wind-down)
 - Wind-down: last check that today is logged
 
@@ -64,6 +65,10 @@ Alerts can arrive up to ~15 minutes after the checkpoint. Yesterday's nudge even
 ## Calm (10 minutes a day)
 
 The app's Calm bar fills as you use its Breathe buttons (1, 3 or 5 minutes). A circle paces you: in for 4 seconds, out for 6. The minutes log themselves when the timer ends.
+
+## Flex (5 minutes a day)
+
+The Flex bar fills when you finish a routine in the app's Stretch tab: Wake-up (5 min, mornings), Legs + hips (6 min, after workouts) or Unwind (5 min, before bed). There are no separate stretch alerts; stretching rides on the morning ritual, workout and wind-down reminders you already get.
 
 ## Automatic phone syncs (Shortcuts app)
 
