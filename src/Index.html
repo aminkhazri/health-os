@@ -697,8 +697,10 @@ function undoStretch() {
 function demo(name) {
   const id = (D.videos || {})[name];
   $('vTitle').textContent = name; $('vCue').textContent = (D.stretches || {})[name] || '';
+  // Note: no "//" inside a backtick string here. Apps Script's template step treats it as a comment and cuts the line.
+  const src = 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&playsinline=1';
   $('vFrame').innerHTML = id
-    ? `<iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0&playsinline=1" title="${esc(name)} demo" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`
+    ? '<iframe src="' + src + '" title="' + esc(name) + ' demo" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>'
     : '<div class="muted" style="padding:20px">No video saved for this one yet.</div>';
   $('vOpen').href = id ? 'https://www.youtube.com/watch?v=' + id : 'https://www.youtube.com/results?search_query=' + encodeURIComponent('how to ' + name);
   $('vOpen').textContent = id ? 'Open in YouTube' : 'Search YouTube';
