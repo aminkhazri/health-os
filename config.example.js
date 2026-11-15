@@ -16,7 +16,9 @@ const CONFIG = {
   WEEKLY_WORKOUT_TARGET: 2,
   PROTEIN_TARGET: 150,       // g/day — daily bar + auto-tick at 95%
   WATER_OZ_TARGET: 100,      // oz/day (~3 L) — daily bar + auto-tick
-  CAFFEINE_LIMIT_MG: 400,    // mg/day — commonly cited limit for healthy adults; gauge turns red past it
+  CAFFEINE_LIMIT_MG: 400,
+  STEP_GOAL: 8000,           // steps/day for the 👟 gauge (from the iPhone via Apple Health)
+  INBOX_URL: '',             // public URL of the separate "Health OS Inbox" project (see inbox/)    // mg/day — commonly cited limit for healthy adults; gauge turns red past it
 
   // ISO weekdays: 1=Mon … 7=Sun — drive the daily checklist
   DAYS: {

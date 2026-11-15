@@ -61,8 +61,9 @@ function getAppData(dateKey) {
 
   const cal = weekly.filter(w => w.cal).pop() || null;
   const food = getFoodData_(ss, dateKey, tz);
+  const activity = getActivityData_(ss, dateKey, tz);
   return { today, dateKey, entry, series: series.slice(-120), weekly, targets, last,
-    next: lastLetter === 'A' ? 'B' : 'A', lastLetter, lastWorkoutDate: lastDate, workouts: WORKOUTS, calCheck: cal, food, name: CONFIG.NAME || '' };
+    next: lastLetter === 'A' ? 'B' : 'A', lastLetter, lastWorkoutDate: lastDate, workouts: WORKOUTS, calCheck: cal, food, activity, name: CONFIG.NAME || '' };
 }
 
 /** Write one Daily Log row (finds the row by date). */
