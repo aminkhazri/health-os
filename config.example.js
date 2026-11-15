@@ -12,6 +12,8 @@ const CONFIG = {
   SHEET_ID: 'YOUR_TRACKER_SHEET_ID',            // from the Sheet URL: /spreadsheets/d/<ID>/edit
   SERIES_START: new Date(2026, 0, 5),          // first day the recurring reminders begin (month is 0-based)
   WEEKLY_WORKOUT_TARGET: 2,
+  PROTEIN_TARGET: 150,       // g/day — daily bar + auto-tick at 95%
+  WATER_OZ_TARGET: 100,      // oz/day (~3 L) — daily bar + auto-tick
 
   // ISO weekdays: 1=Mon … 7=Sun — drive the daily checklist
   DAYS: {

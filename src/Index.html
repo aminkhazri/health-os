@@ -80,6 +80,30 @@
   .status { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 13px; font-weight: 600; }
   .status.good { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
   .status.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+  .meter { margin: 8px 0 12px; }
+  .meter .mh { display: flex; justify-content: space-between; font-size: 14px; color: var(--text-secondary); }
+  .meter .mh b { color: var(--text-primary); font-weight: 600; }
+  .meter .bar { margin: 6px 0 0; }
+  .bar > i.over { background: var(--warn); }
+  .cats { display: flex; gap: 6px; overflow-x: auto; margin: 10px 0 4px; padding-bottom: 2px; }
+  .cats button { flex: 0 0 auto; font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-primary); }
+  .cats button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .food { padding: 10px 2px; border-top: 1px solid var(--border); cursor: pointer; }
+  .food:first-child { border-top: 0; }
+  .food .fn { font-weight: 600; font-size: 15px; }
+  .food .fm { font-size: 13px; color: var(--text-muted); }
+  .food.sel { background: var(--surface-2); border-radius: 10px; padding: 10px; }
+  .qty { display: flex; gap: 6px; margin-top: 8px; }
+  .qty button { flex: 1; font: inherit; font-size: 15px; padding: 9px 0; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); }
+  .qty button.on { border-color: var(--accent); font-weight: 700; }
+  .qty button.add { flex: 1.6; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .linkbtn { background: none; border: 0; color: var(--series-1); font: inherit; font-size: 15px; padding: 10px 0 0; }
+  .logged .lm { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); margin: 10px 0 2px; }
+  .logged .le { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+  .logged .le .n { flex: 1; font-size: 15px; } .logged .le .v { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+  .logged .le button { border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); border-radius: 8px; font: inherit; font-size: 13px; padding: 4px 8px; }
+  .logged .le button.confirm { background: var(--warn); color: #000; border-color: var(--warn); }
+  .chk { display: flex; align-items: center; gap: 8px; font-size: 15px; margin-top: 8px; } .chk input { width: auto; }
   #loading { text-align: center; padding: 60px 0; color: var(--text-muted); }
 </style>
 </head>
@@ -105,7 +129,39 @@
       <div class="seg" id="energy"></div>
     </div>
     <div class="card">
-      <h2>Food & water</h2>
+      <h2>Today's intake</h2>
+      <div class="meter"><div class="mh"><span>Calories</span><b id="kTxt">0</b></div><div class="bar"><i id="kBar" style="width:0"></i></div></div>
+      <div class="meter"><div class="mh"><span>Protein</span><b id="pTxt">0</b></div><div class="bar"><i id="pBar2" style="width:0"></i></div></div>
+      <div class="meter"><div class="mh"><span>Water</span><b id="wTxt">0</b></div><div class="bar"><i id="wBar" style="width:0"></i></div></div>
+      <div class="chips"><button class="chip" onclick="quickWater('Water')">+ 8 oz water</button><button class="chip" onclick="quickWater('Water bottle')">+ 24 oz bottle</button></div>
+    </div>
+    <div class="card">
+      <h2>Add food or drink</h2>
+      <div class="seg" id="mealSeg"></div>
+      <input id="fq" placeholder="Search your foods…" oninput="sel=-1;renderLib()" style="margin-top:10px;font-size:16px">
+      <div class="cats" id="cats"></div>
+      <div id="lib"></div>
+      <button class="linkbtn" onclick="toggleCustom()">+ Something not on the list</button>
+      <div id="custom" style="display:none;margin-top:8px">
+        <input id="cName" placeholder="What was it? e.g. Turkey sandwich" style="font-size:16px">
+        <div class="row" style="margin-top:8px">
+          <div><label class="f">Calories</label><input id="cK" type="number" inputmode="numeric" placeholder="kcal"></div>
+          <div><label class="f">Protein g</label><input id="cP" type="number" inputmode="numeric" placeholder="g"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label class="f">Carbs g (opt.)</label><input id="cC" type="number" inputmode="numeric"></div>
+          <div><label class="f">Fat g (opt.)</label><input id="cF" type="number" inputmode="numeric"></div>
+        </div>
+        <input id="cPor" placeholder="Portion (opt.) e.g. 1 sandwich" style="margin-top:8px;font-size:16px">
+        <label class="chk"><input type="checkbox" id="cSave" checked> Save to My Foods for next time</label>
+        <p class="muted" style="margin:6px 0 0">Not sure? Use the Small / Medium / Large meal estimates in the list.</p>
+        <button class="primary" onclick="addCustom()">Add</button>
+      </div>
+    </div>
+    <div class="card logged"><h2>Logged</h2><div id="logged" class="muted">Nothing yet.</div></div>
+    <div class="card">
+      <h2>Checklist</h2>
+      <p class="muted" style="margin:-4px 0 10px">Fills in automatically as you log food — or tap to mark manually.</p>
       <div class="chips" id="meals"></div>
       <div class="chips" style="margin-top:8px">
         <button class="chip" id="prot" onclick="tog(this)">Protein ~150g</button>
@@ -116,7 +172,7 @@
       <h2>Notes</h2>
       <textarea id="notes" placeholder="Optional — e.g. slept badly, long shift"></textarea>
     </div>
-    <button class="primary" id="saveDay" onclick="saveDay()">Save</button>
+    <button class="primary" id="saveDay" onclick="saveDay()">Save weight, sleep & checklist</button>
   </section>
 
   <!-- WORKOUT -->
@@ -147,10 +203,13 @@
       <div class="tile"><div class="k">Workouts this week</div><div class="v" id="pWk">—</div><div class="s">target 2</div></div>
       <div class="tile"><div class="k">Avg sleep (7 days)</div><div class="v" id="pSleep">—</div><div class="s">goal 7 h</div></div>
       <div class="tile"><div class="k">Protein days</div><div class="v" id="pProt">—</div><div class="s">this week, of 7</div></div>
+      <div class="tile"><div class="k">Avg calories</div><div class="v" id="pKcal">—</div><div class="s" id="pKcalS">days logged this week</div></div>
+      <div class="tile"><div class="k">Today so far</div><div class="v" id="pToday">—</div><div class="s" id="pTodayS"></div></div>
     </div>
     <div class="card" id="calCard"><h2>Calorie check (every 2 weeks)</h2><div id="calTxt" class="muted"></div></div>
     <div class="card"><h2>Weight</h2><div class="chart"><canvas id="cWeight" role="img" aria-label="Daily weight and weekly average"></canvas></div></div>
     <div class="card"><h2>Weekly change (lb)</h2><div class="chart"><canvas id="cChg" role="img" aria-label="Weekly weight change"></canvas></div><div class="muted">Dashed lines: target band.</div></div>
+    <div class="card"><h2>Calories (days logged)</h2><div class="chart"><canvas id="cKcal" role="img" aria-label="Daily calories vs target"></canvas></div><div class="muted">Dashed line: current calorie target.</div></div>
     <div class="card"><h2>Workouts per week</h2><div class="chart"><canvas id="cWork" role="img" aria-label="Workouts per week"></canvas></div></div>
     <div class="card"><h2>Sleep (hrs)</h2><div class="chart"><canvas id="cSleep" role="img" aria-label="Nightly sleep"></canvas></div></div>
     <p class="muted">Full table view: the Weekly Summary tab in your tracker Sheet.</p>
@@ -206,6 +265,7 @@ function renderToday() {
   $('meals').innerHTML = MEALS.map(([c,l]) => `<button class="chip ${md.includes(c)?'on':''}" data-c="${c}" onclick="tog(this)">${l}</button>`).join('');
   $('prot').classList.toggle('on', e.protein === 'Y'); $('water').classList.toggle('on', e.water === 'Y');
   $('saveDay').disabled = false;
+  renderFood();
 }
 function pickEnergy(i) { [...$('energy').children].forEach((b, j) => b.classList.toggle('on', j + 1 === i && !b.classList.contains('on'))); }
 function shiftDay(n) { const k = addDays(curDate, n); if (k > D.today) return toast('Can\'t log the future 🙂'); $('dlabel').textContent = 'Loading…'; load(k); }
@@ -265,6 +325,11 @@ function renderProgress() {
   const last7 = D.series.filter(x => x.s != null && x.d > addDays(D.today, -7));
   $('pSleep').textContent = last7.length ? (last7.reduce((a, x) => a + x.s, 0) / last7.length).toFixed(1) + ' h' : '—';
   $('pProt').textContent = cur.protein ?? 0;
+  $('pKcal').textContent = cur.kcal ? Math.round(cur.kcal).toLocaleString() : '—';
+  $('pKcalS').textContent = `target ${Number(t.calories).toLocaleString()}`;
+  const tk = D.food ? D.food.totals : null;
+  $('pToday').textContent = tk && curDate === D.today ? tk.kcal.toLocaleString() + ' kcal' : '—';
+  $('pTodayS').textContent = tk && curDate === D.today ? `${tk.p} g protein · ${tk.w} oz water` : '';
   $('calTxt').innerHTML = D.calCheck ? `<b>${D.calCheck.cal}</b> — 2-week average ${D.calCheck.rate2 > 0 ? '+' : ''}${D.calCheck.rate2.toFixed(2)} lb/wk (target ${t.low}–${t.high}). Current target ${t.calories} kcal.`
     : `First check after 3 weeks of weigh-ins. Current target ${t.calories} kcal.`;
   drawCharts();
@@ -299,6 +364,12 @@ function drawCharts() {
       { label: 'Change', data: wc.map(w => w.chg), backgroundColor: blue, borderRadius: 4, maxBarThickness: 28 },
       Object.assign(refLine('Low', D.targets.low, wc.length), { type: 'line' }), Object.assign(refLine('High', D.targets.high, wc.length), { type: 'line' })] },
     options: baseOpts('') });
+  // Calories per logged day + target
+  const ks = S.filter(x => x.k).slice(-28);
+  mk('cKcal', { type: 'bar', data: { labels: ks.map(x => sl(x.d)), datasets: [
+      { label: 'Calories', data: ks.map(x => x.k), backgroundColor: blue, borderRadius: 4, maxBarThickness: 22 },
+      Object.assign(refLine('Target', D.targets.calories, ks.length), { type: 'line' })] },
+    options: baseOpts('', { scales: Object.assign(baseOpts().scales, { y: Object.assign(baseOpts().scales.y, { min: 0 }) }) }) });
   // Workouts per week
   mk('cWork', { type: 'bar', data: { labels: D.weekly.map(w => sl(w.wk)), datasets: [
       { label: 'Workouts', data: D.weekly.map(w => w.workouts), backgroundColor: blue, borderRadius: 4, maxBarThickness: 28 },
@@ -311,6 +382,78 @@ function drawCharts() {
       refLine('Goal 7 h', 7, ss.length)] },
     options: baseOpts('', { scales: Object.assign(baseOpts().scales, { y: Object.assign(baseOpts().scales.y, { suggestedMin: 4, suggestedMax: 8 }) }) }) });
 }
+
+// ---------- FOOD ----------
+let sel = -1, selQty = 1, cat = 'All', meal = null;
+const MEALS_LIST = ['Breakfast','Lunch','Snack','Dinner'];
+const CATS = ['All','Meals','Protein','Carbs','Snacks','Drinks','Recent'];
+function defaultMeal() { const h = new Date().getHours() + new Date().getMinutes() / 60;
+  return h < 10.5 ? 'Breakfast' : h < 14.5 ? 'Lunch' : (h >= 16.5 && h < 20) ? 'Dinner' : 'Snack'; }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function setBar(barId, txtId, val, target, unit) {
+  const pct = target ? Math.min(100, val / target * 100) : 0;
+  const b = $(barId); b.style.width = pct + '%'; b.classList.toggle('over', target && val > target * 1.15);
+  $(txtId).textContent = `${Math.round(val).toLocaleString()} / ${Number(target).toLocaleString()} ${unit}`;
+}
+function renderFood() {
+  const F = D.food;
+  if (!F) { $('lib').innerHTML = '<p class="muted">Food tabs not set up yet.</p>'; return; }
+  if (!meal) meal = defaultMeal();
+  setBar('kBar', 'kTxt', F.totals.kcal, D.targets.calories, 'kcal');
+  setBar('pBar2', 'pTxt', F.totals.p, F.targets.protein, 'g');
+  setBar('wBar', 'wTxt', F.totals.w, F.targets.water, 'oz');
+  $('mealSeg').innerHTML = MEALS_LIST.map(m => `<button class="${m===meal?'on':''}" onclick="meal='${m}';renderFood()">${m}</button>`).join('');
+  $('cats').innerHTML = CATS.map(c => `<button class="${c===cat?'on':''}" onclick="cat='${c}';sel=-1;renderLib()">${c}</button>`).join('');
+  renderLib(); renderLogged();
+}
+function libItems() {
+  const q = $('fq').value.trim().toLowerCase(), L = D.food.library;
+  let items = L.map((f, i) => Object.assign({ i }, f));
+  if (cat === 'Recent') { const names = [...new Set(D.food.entries.map(e => e.name).reverse())]; items = items.filter(f => names.includes(f.name)); }
+  else if (cat !== 'All') items = items.filter(f => f.cat === cat);
+  if (q) items = items.filter(f => f.name.toLowerCase().includes(q));
+  return items.slice(0, 40);
+}
+function renderLib() {
+  $('cats').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.textContent === cat));
+  const items = libItems();
+  $('lib').innerHTML = items.length ? items.map(f => {
+    const meta = `${esc(f.portion)} · ${f.kcal} kcal${f.p ? ' · ' + f.p + ' g protein' : ''}${f.w ? ' · ' + f.w + ' oz' : ''}`;
+    const qty = f.i === sel ? `<div class="qty">${[0.5,1,1.5,2].map(q => `<button class="${q===selQty?'on':''}" onclick="event.stopPropagation();selQty=${q};renderLib()">${q===0.5?'½':q===1.5?'1½':q}×</button>`).join('')}<button class="add" onclick="event.stopPropagation();addSel()">Add · ${Math.round(f.kcal*selQty)} kcal</button></div>` : '';
+    return `<div class="food ${f.i===sel?'sel':''}" onclick="sel=${f.i===sel?-1:f.i};selQty=1;renderLib()"><div class="fn">${esc(f.name)}</div><div class="fm">${meta}</div>${qty}</div>`;
+  }).join('') : '<p class="muted">No match — add it with "Something not on the list".</p>';
+}
+function renderLogged() {
+  const E = D.food.entries;
+  if (!E.length) { $('logged').innerHTML = '<span class="muted">Nothing yet.</span>'; return; }
+  $('logged').innerHTML = MEALS_LIST.filter(m => E.some(e => e.meal === m)).map(m =>
+    `<div class="lm">${m}</div>` + E.filter(e => e.meal === m).map(e =>
+      `<div class="le"><span class="n">${esc(e.name)}${e.qty !== 1 ? ' ×' + e.qty : ''}</span><span class="v">${Math.round(e.kcal)} kcal${e.p ? ' · ' + Math.round(e.p) + 'g' : ''}${e.w ? ' · ' + e.w + 'oz' : ''}</span><button onclick="delFood(this, ${e.row})">✕</button></div>`).join('')).join('');
+}
+function foodCall(fn, arg, msg) {
+  google.script.run.withSuccessHandler(d => { D = d; renderFood(); syncChecklist(); renderProgressIfOpen(); toast(msg); }).withFailureHandler(fail)[fn](...arg);
+}
+function addSel() { const f = D.food.library[sel]; if (!f) return;
+  foodCall('addFood', [{ date: curDate, meal, name: f.name, qty: selQty, kcal: f.kcal, p: f.p, c: f.c, f: f.f, w: f.w }], `Added ${f.name.split(' (')[0]} ✓`);
+  sel = -1; $('fq').value = ''; }
+function quickWater(name) { const f = D.food.library.find(x => x.name === name) || { kcal: 0, p: 0, c: 0, f: 0, w: name === 'Water' ? 8 : 24 };
+  foodCall('addFood', [{ date: curDate, meal: 'Snack', name, qty: 1, kcal: f.kcal, p: f.p, c: f.c, f: f.f, w: f.w }], `+${f.w} oz 💧`); }
+function toggleCustom() { const c = $('custom'); c.style.display = c.style.display === 'none' ? 'block' : 'none'; if (c.style.display === 'block') $('cName').value = $('fq').value; }
+function addCustom() {
+  const name = $('cName').value.trim(), k = Number($('cK').value);
+  if (!name || !k) return toast('Add a name and calories');
+  foodCall('addFood', [{ date: curDate, meal, name, qty: 1, kcal: k, p: Number($('cP').value) || 0, c: Number($('cC').value) || 0, f: Number($('cF').value) || 0, w: 0,
+    portion: $('cPor').value.trim(), cat: meal === 'Snack' ? 'Snacks' : 'Meals', saveToLibrary: $('cSave').checked }], `Added ${name} ✓`);
+  ['cName','cK','cP','cC','cF','cPor'].forEach(i => $(i).value = ''); $('custom').style.display = 'none'; $('fq').value = '';
+}
+function delFood(btn, row) {
+  if (!btn.classList.contains('confirm')) { btn.classList.add('confirm'); btn.textContent = 'Delete?'; setTimeout(() => { btn.classList.remove('confirm'); btn.textContent = '✕'; }, 3000); return; }
+  foodCall('deleteFood', [row, curDate], 'Removed');
+}
+function syncChecklist() { const e = D.entry || {}, md = e.mealsDetail || '';
+  [...$('meals').children].forEach(b => b.classList.toggle('on', md.includes(b.dataset.c)));
+  $('prot').classList.toggle('on', e.protein === 'Y'); $('water').classList.toggle('on', e.water === 'Y'); }
+function renderProgressIfOpen() { if ($('t-prog').classList.contains('on')) renderProgress(); }
 
 load();
 </script>

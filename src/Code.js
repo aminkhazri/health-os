@@ -98,12 +98,12 @@ function buildTaskItems_(dow, shiftPhaseActive) {
 /** WEEKLY (Sunday evening): email last week's summary from the tracker. */
 function weeklyReview() {
   const sh = SpreadsheetApp.openById(CONFIG.SHEET_ID).getSheetByName('Weekly Summary');
-  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, 11).getValues();
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, 12).getValues();
   const lastWeek = new Date(); lastWeek.setHours(0, 0, 0, 0);
   lastWeek.setDate(lastWeek.getDate() - lastWeek.getDay() - 7); // previous Sunday
   const r = rows.find(x => x[0] instanceof Date && x[0].toDateString() === lastWeek.toDateString());
   if (!r) return;
-  const [wk, avg, chg, toGoal, workouts, sleep, protein, trend, rate2, calCheck, goal] = r;
+  const [wk, avg, chg, toGoal, workouts, sleep, protein, trend, rate2, calCheck, goal, kcal] = r;
   const fmt = v => (v === '' || v === null) ? '—' : (typeof v === 'number' ? v.toFixed(1) : v);
   const lines = [
     'Week of ' + Utilities.formatDate(wk, CONFIG.TZ, 'MMM d'),
@@ -113,6 +113,7 @@ function weeklyReview() {
     'Workouts: ' + workouts + ' of ' + CONFIG.WEEKLY_WORKOUT_TARGET,
     'Average sleep: ' + fmt(sleep) + ' h',
     'Protein days: ' + protein + ' of 7',
+    'Avg calories (days with food logged): ' + (kcal === '' ? '—' : Math.round(kcal)),
     '',
     calCheck ? '2-WEEK CALORIE CHECK: ' + calCheck + ' (avg ' + fmt(rate2) + ' lb/wk). If you change it, log it on the Start Here tab.'
              : 'Calorie check: next week.',

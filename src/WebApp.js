@@ -26,7 +26,7 @@ function getAppData(dateKey) {
   dateKey = dateKey || today;
 
   const daily = ss.getSheetByName('Daily Log');
-  const dv = daily.getRange(2, 1, daily.getLastRow() - 1, 12).getValues();
+  const dv = daily.getRange(2, 1, daily.getLastRow() - 1, 15).getValues();
   let entry = null;
   const series = [];
   dv.forEach(r => {
@@ -34,13 +34,13 @@ function getAppData(dateKey) {
     const k = key_(r[0], tz);
     if (k === dateKey) entry = { date: k, weight: num_(r[1]), sleep: num_(r[2]), energy: num_(r[3]),
       protein: r[4], meals: num_(r[5]), water: r[6], notes: r[7], mealsDetail: String(r[11] || '') };
-    if (k <= today && (r[1] !== '' || r[2] !== '')) series.push({ d: k, w: num_(r[1]), s: num_(r[2]), wa: num_(r[8]) });
+    if (k <= today && (r[1] !== '' || r[2] !== '' || num_(r[12]) > 0)) series.push({ d: k, w: num_(r[1]), s: num_(r[2]), wa: num_(r[8]), k: num_(r[12]) || null });
   });
 
-  const weekly = ss.getSheetByName('Weekly Summary').getRange(2, 1, 52, 11).getValues()
+  const weekly = ss.getSheetByName('Weekly Summary').getRange(2, 1, 52, 12).getValues()
     .filter(r => r[0] instanceof Date && key_(r[0], tz) <= today)
     .map(r => ({ wk: key_(r[0], tz), avg: num_(r[1]), chg: num_(r[2]), toGoal: num_(r[3]), workouts: num_(r[4]) || 0,
-      sleep: num_(r[5]), protein: num_(r[6]) || 0, trend: String(r[7] || ''), rate2: num_(r[8]), cal: String(r[9] || '') }));
+      sleep: num_(r[5]), protein: num_(r[6]) || 0, trend: String(r[7] || ''), rate2: num_(r[8]), cal: String(r[9] || ''), kcal: num_(r[11]) }));
 
   const sh = ss.getSheetByName('Start Here');
   const targets = { start: num_(sh.getRange('B5').getValue()), goal: num_(sh.getRange('B6').getValue()),
@@ -57,8 +57,9 @@ function getAppData(dateKey) {
   });
 
   const cal = weekly.filter(w => w.cal).pop() || null;
+  const food = getFoodData_(ss, dateKey, tz);
   return { today, dateKey, entry, series: series.slice(-120), weekly, targets, last,
-    next: lastLetter === 'A' ? 'B' : 'A', lastLetter, lastWorkoutDate: lastDate, workouts: WORKOUTS, calCheck: cal };
+    next: lastLetter === 'A' ? 'B' : 'A', lastLetter, lastWorkoutDate: lastDate, workouts: WORKOUTS, calCheck: cal, food };
 }
 
 /** Write one Daily Log row (finds the row by date). */
