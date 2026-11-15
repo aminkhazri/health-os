@@ -25,6 +25,7 @@ Everything runs on **Google's servers**: your laptop can be off. Cost: $0 (free 
 | Steps sync | iPhone Shortcut → separate project "Health OS Inbox" | See "Steps sync and the sync key" below |
 | Calculations | Sheets formulas (AVERAGEIFS, SUMIFS, COUNTIFS) | Recalculate as data arrives |
 | Weekly email | Apps Script MailApp + time-driven trigger | Reads the Weekly Summary tab |
+| Smart nudges | Apps Script trigger every 15 min (checkNudges in Nudges.js) | At set checkpoints, reads today's water and calm minutes; if behind pace, creates a 5-minute calendar event 2 minutes ahead with a popup, which the Google Calendar app turns into a notification. Each checkpoint fires once a day; old nudge events are cleaned up |
 
 ## Tracker Sheet tabs
 
