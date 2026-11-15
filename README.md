@@ -9,9 +9,10 @@ A personal health & fitness "operating system" built entirely on free Google ser
 - **Timed reminders:** a dedicated Google Calendar with recurring events built around two work schedules. It sends about 5–6 notifications a day, timed to fall between calls.
 - **Daily checklist:** a Google Tasks list rebuilt every morning at 3 AM. Workout tasks only appear on training days, and shift tasks drop off automatically when the routine changes phase.
 - **Mobile web app** (installable on the iPhone home screen):
-  - **Today:** log weight, sleep, energy, meals, protein and water in seconds.
+  - **Today:** log weight, sleep and energy, plus **food & drinks with automatic calorie / protein / water totals**. Tap from a personal food library and pick a portion (½ / 1 / 1½ / 2×), or add a custom item. Live progress bars, and the checklist ticks itself as targets are reached.
   - **Workout:** today's A or B session, pre-filled with *what I lifted last time* (progressive overload).
   - **Progress:** weekly average weight and a progress bar to goal, weekly change vs a target band, workouts per week, sleep, and the calorie check (charts via Chart.js).
+- **Food library & log:** `Foods` and `Food Log` tabs. Daily totals come from `SUMIFS`, and the weekly average calories sit next to the weight trend, so calorie adjustments are based on real intake.
 - **Tracker Sheet:** formulas calculate weekly averages, trend status (on track / slow / fast) and a **2-week calorie recommendation** (+150 / hold / −150 kcal).
 - **Weekly review email** every Sunday evening.
 - **Phase switch:** one cell on the tracker moves the whole system from "two jobs" to "remote only".
@@ -71,6 +72,7 @@ Lesson: when two systems each have a time zone, pin them to the same one explici
 src/                  ← pushed to Apps Script by clasp (rootDir)
   Code.js             automation: setup, daily checklist, weekly email
   WebApp.js           web app backend (doGet, getAppData, saveDaily, saveWorkout)
+  Food.js             food library + log, daily totals, auto-ticking checklist
   Index.html          mobile UI (Today / Workout / Progress)
   appsscript.json     manifest: time zone, OAuth scopes, Tasks advanced service
   config.js           YOUR settings — git-ignored
@@ -95,7 +97,7 @@ tests/                Node unit tests (no dependencies)
    npm test                                # sanity-check the logic and example config
    npx clasp push
    ```
-4. In the Apps Script editor: add the **Tasks API** service (it's declared in the manifest, so this is usually automatic), run **`setup`** and approve the permission screen.
+4. In the Apps Script editor: add the **Tasks API** service (it's declared in the manifest, so this is usually automatic), run **`setup`** and approve the permission screen, then run **`setupFood`** once to create the food tabs.
 5. **Deploy the web app:** Deploy → New deployment → Web app → *Execute as: Me*, *Who has access: Only myself*. Open the URL on your phone → Share → **Add to Home Screen**.
 
 ## Day-to-day dev workflow (clasp)
