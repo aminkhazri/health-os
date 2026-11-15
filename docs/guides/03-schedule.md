@@ -7,10 +7,14 @@ Reminders come from the **Health & Fitness** calendar in the Google Calendar app
 | Time | Reminder |
 |---|---|
 | 5:05 AM | Morning ritual: weigh-in, heart rate, wake-up moves, breakfast |
+| 6:45 AM | Water check: finish a bottle |
 | 8:30 AM | Break: snack + water + stretch |
+| 10:00 AM | Water check |
 | 11:00 AM | Lunch: salmon wraps |
 | 11:35 AM | Midday reset: 3 min of breathing |
+| 12:45 PM | Water check |
 | 2:00 PM | Break: snack + water + stretch |
+| 3:30 PM | Water + 1 min of breathing |
 | 5:00 PM | Dinner (on the calendar, no alert) |
 | 5:45 PM | Mon–Wed: Pre-UPS: snack + water + log dinner · Sun: Prep tomorrow's lunch |
 | 6:30 PM | Sun only: Weekly review |
@@ -23,9 +27,11 @@ Reminders come from the **Health & Fitness** calendar in the Google Calendar app
 |---|---|
 | 7:00 AM | Morning ritual: weigh-in, heart rate, wake-up moves, breakfast |
 | 8:45 AM | Thu: Workout A (full body) · Sat: Workout B (legs + core), at 9:00 (15-minute heads-up) |
+| 10:15 AM | Water check |
 | 12:00 PM | Lunch |
 | 2:00 PM | Movement break + water |
 | 2:10 PM | Midday reset: 3 min of breathing |
+| 4:00 PM | Water + 1 min of breathing |
 | 5:00 PM | Dinner (no alert) |
 | 5:45 PM | Thu/Fri: Pre-UPS: snack + water + log dinner · Sat: Prep tomorrow's lunch |
 | 10:15 PM | Wind-down: 5 min of breathing + log check |
