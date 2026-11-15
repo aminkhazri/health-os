@@ -9,12 +9,13 @@ Reminders come from the **Health & Fitness** calendar in the Google Calendar app
 | 5:05 AM | Morning ritual: weigh-in, heart rate, wake-up moves, breakfast |
 | 8:30 AM | Break: snack + water + stretch |
 | 11:00 AM | Lunch: salmon wraps |
+| 11:35 AM | Midday reset: 3 min of breathing |
 | 2:00 PM | Break: snack + water + stretch |
 | 5:00 PM | Dinner (on the calendar, no alert) |
 | 5:45 PM | Mon–Wed: Pre-UPS: snack + water + log dinner · Sun: Prep tomorrow's lunch |
 | 6:30 PM | Sun only: Weekly review |
 | 6:45 PM | Sun only: Workout C (upper body) at 7:00 (15-minute heads-up) |
-| 10:15 PM | Wind-down + 30-second log check |
+| 10:15 PM | Wind-down: 5 min of breathing + log check |
 
 ## Thu–Sat
 
@@ -24,9 +25,10 @@ Reminders come from the **Health & Fitness** calendar in the Google Calendar app
 | 8:45 AM | Thu: Workout A (full body) · Sat: Workout B (legs + core), at 9:00 (15-minute heads-up) |
 | 12:00 PM | Lunch |
 | 2:00 PM | Movement break + water |
+| 2:10 PM | Midday reset: 3 min of breathing |
 | 5:00 PM | Dinner (no alert) |
 | 5:45 PM | Thu/Fri: Pre-UPS: snack + water + log dinner · Sat: Prep tomorrow's lunch |
-| 10:15 PM | Wind-down + 30-second log check |
+| 10:15 PM | Wind-down: 5 min of breathing + log check |
 
 One-time: **Jan 15, 2027, 9:00 AM: UPS transition check** (move it to your real date).
 
@@ -37,11 +39,16 @@ Every day:
 - Breakfast · Lunch · 2 protein snacks · Dinner
 - Water ~125 oz (3.7 L)
 - Morning ritual (5 min)
+- Calm: 10 min of breathing (1 min in the ritual, 3 min midday, 5 min at wind-down)
 - Wind-down: last check that today is logged
 
 Plus: **Workout** (Thu A, Sat B, Sun C) · **Pack UPS snack + extra water bottle** (Mon–Fri) · **Prep tomorrow's lunch** (Sat–Tue).
 
 The app's **Daily quests** card ticks breakfast, lunch, snacks, dinner, protein and water for you as you log food. Unfinished Google Tasks are cleared at 3 AM, so every day starts clean.
+
+## Calm (10 minutes a day)
+
+The app's Calm bar fills as you use its Breathe buttons (1, 3 or 5 minutes). A circle paces you: in for 4 seconds, out for 6. The minutes log themselves when the timer ends.
 
 ## Automatic phone syncs (Shortcuts app)
 
