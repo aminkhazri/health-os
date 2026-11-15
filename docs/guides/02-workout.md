@@ -1,75 +1,92 @@
-# Workout Plan — Phase 1 (2× per week, 40–50 min)
+# Training Plan — Build, then Engine, then Match Fit
 
-**Days:** Thursday + Saturday, 9:00 AM. Alternate A and B (Thu A → Sat B → Thu A …). The calendar reminds you 15 minutes before. **Equipment:** dumbbells up to 50 lb, Hoist H4400 (use the closest movement if a station doesn't match), apartment gym.
+**The long-term goal:** add muscle first, then build the conditioning to play at least 60 minutes of a full 11v11 adult soccer match.
 
-## Logging in Health OS
+| Phase | When | Focus |
+|---|---|---|
+| 1. Build | 8 weeks, Nov 16 – Jan 10 | Muscle. 3 home strength sessions a week. No running, no jump rope |
+| 2. Engine | Weeks 9–16 (as UPS ends) | Keep the muscle (2 strength sessions), add 3 conditioning days |
+| 3. Match fit | Week 17 onward | Soccer-specific intervals and games, up to a tested 60 minutes |
 
-Open the **Workout** tab. The app picks A or B for you (whichever is next) and fills in last session's weights and reps for each exercise. Tick each exercise as you finish it, adjust the numbers, and tap **Save workout**. It counts toward your weekly target of 2.
+Realistic target for Phase 1, with hard eating: about **4–8 lb** (149 → roughly 155 lb). That is visibly more muscle. "Big" takes longer, and Phase 2 keeps building while you get fit.
 
-## How hard? Leave 2 reps in the tank
+## Phase 1: Build
 
-Stop each set when you could do ~2 more good reps. Weeks 1–2: do the **lower** set count. You're rebuilding the habit, not testing limits.
+**Schedule:** A on Thursday 9:00 AM · B on Saturday 9:00 AM · C on Sunday 7:00 PM. About 40 minutes each, at home with dumbbells, bands and a mat. The calendar reminds you 15 minutes before, and the app's Workout tab picks the right session for the day.
 
-## Warm-up (5 min, every session)
+**How hard:** slow, controlled reps, no jumping. Every set should end with 1–2 good reps left. Easy sets don't build muscle; grinding to failure isn't needed either. Rest 90 seconds to 2 minutes between sets.
 
-Brisk walk or march 2 min · 10 bodyweight squats · 10 arm circles each way · 1 light set of the first exercise.
+**Warm-up (3 min):** 10 bodyweight squats, 10 arm circles each way, one light set of the first exercise.
 
-## Workout A
+### A · Full body (Thursday)
 
-| Exercise | Sets | Reps | Rest |
-|---|---|---|---|
-| Goblet squat (DB) | 2–3 | 8–12 | 2 min |
-| Dumbbell bench press | 2–3 | 8–12 | 2 min |
-| Lat pulldown (Hoist) | 2–3 | 10–12 | 90 s |
-| Dumbbell Romanian deadlift | 2 | 10–12 | 2 min |
-| Seated row (Hoist) | 2 | 10–12 | 90 s |
-| Plank | 2 | 30–45 s | 60 s |
+| Exercise | Sets × reps |
+|---|---|
+| Goblet squat | 3 × 8–12 |
+| Dumbbell floor press | 3 × 8–12 |
+| One-arm dumbbell row | 3 × 10–12 each arm |
+| Dumbbell Romanian deadlift | 3 × 10–12 |
+| Dumbbell shoulder press | 3 × 8–12 |
+| Band pull-apart | 2 × 15–20 |
 
-## Workout B
+### B · Legs + core (Saturday)
 
-| Exercise | Sets | Reps | Rest |
-|---|---|---|---|
-| DB reverse lunge / split squat | 2–3 | 8–10 per leg | 2 min |
-| Hoist chest press / incline DB press | 2–3 | 8–12 | 2 min |
-| One-arm DB row | 2–3 | 10–12 per arm | 90 s |
-| Leg curl (Hoist) | 2 | 10–15 | 90 s |
-| Seated DB shoulder press | 2 | 8–12 | 90 s |
-| DB curl + triceps pushdown (alternate) | 2 | 10–15 | 60 s |
+| Exercise | Sets × reps |
+|---|---|
+| Bulgarian split squat (back foot on a chair) | 3 × 8–10 each leg |
+| Single-leg Romanian deadlift | 3 × 8–10 each leg |
+| Dumbbell hip thrust (shoulders on a couch) | 3 × 10–15 |
+| Heel-raised goblet squat | 2 × 12–15 |
+| Standing calf raise | 3 × 12–20 |
+| Dead bug | 2 × 8 each side, slow |
 
-## Progressive overload (double progression)
+### C · Upper body (Sunday)
 
-1. Pick a weight you can do for the **bottom** of the rep range.
-2. Each session, try to add a rep or two.
-3. When **all sets reach the top** of the range with good form, go up a step (+5 lb dumbbells or one pin on the Hoist) and start at the bottom again.
-4. The app remembers your numbers, so you always know what to beat.
+| Exercise | Sets × reps |
+|---|---|
+| Push-up (band across the back when it gets easy) | 3 × as many as you can, minus 2 |
+| Band row | 3 × 12–15 |
+| Incline dumbbell press (back propped on a couch or cushions) | 3 × 8–12 |
+| Dumbbell lateral raise | 3 × 12–15 |
+| Dumbbell curl | 3 × 10–12 |
+| Overhead triceps extension | 3 × 10–12 |
 
-## Recovery rules
+### How to progress
 
-- **Slept under 5 h?** Do 1 fewer set per exercise, or swap the session for the 10-minute mobility routine. Both count.
-- **Resting heart rate 5+ bpm above your normal?** Same rule: lighter session or mobility only.
-- **Missed a session?** Don't double up. Do the next one in the schedule.
-- **Sore for more than 3 days?** Reduce sets next time.
+1. Start with a weight you can do for the **bottom** of the rep range.
+2. Each session, try to add a rep.
+3. When **every set hits the top** of the range, go up 5 lb and start again at the bottom.
+4. The app shows what you did last time, so you always know what to beat.
 
-## Mobility (5 min)
+### Recovery rules
 
-1. Cat–cow ×8
-2. Half-kneeling hip-flexor stretch 30 s per side (great after sitting)
-3. Side-lying thoracic rotations ×6 per side
-4. Wall slides ×10
-5. Deep squat hold 30–45 s (hold a doorframe)
+- **UPS is already hard physical work.** If a shift wrecked you, do 2 sets instead of 3. Showing up counts.
+- **Slept under 5 hours, or resting heart rate 5+ bpm above normal?** 2 sets per exercise, or just the morning ritual.
+- **Missed a session?** Don't double up. Do the next one on the schedule.
+- **Eat.** Training only sends the signal; food builds the muscle. If the weekly average weight isn't rising, eat more.
+- If your weight keeps dropping for 2–3 weeks despite eating more, see a doctor.
 
-## Steps and movement
+## Daily morning ritual (5 minutes, every day)
 
-Your iPhone sends steps and active calories to the app (goal **8,000 steps** a day). At each desk break: stand, 10 squats or a 2-minute walk, shoulder rolls, water refill.
+1. Bathroom, then weigh in
+2. Sit still 1 minute, read heart rate on the watch
+3. Log weight, sleep, heart rate and energy in Health OS
+4. Big glass of water
+5. Cat-cow × 8 · hip-flexor stretch 30 s each side · glute bridge × 15 · band pull-apart × 15
+6. Breakfast, and log it
 
-## Week-4 check: ready for 3× a week?
+## Phase 2: Engine (outline, detailed when you get there)
 
-Answer in your weekly review around **Dec 13**. Move to 3× only if all are YES:
+- **Strength:** 2 sessions a week (one full body, one legs) to hold muscle.
+- **Conditioning:** 3 days. Weeks 9–12: easy 20–30 minute runs and jump rope to build a base. Weeks 13–16: intervals (for example 4 × 4 minutes hard, 3 minutes easy), short sprints, and ball work.
+- No "cut": at your size there's nothing to cut. Conditioning leans you out on its own, so keep eating at maintenance or slightly above.
 
-- Completed at least 6 of the last 8 sessions
-- Not sore going into sessions
-- Average sleep at least 6 h
-- Energy usually 3 or higher
-- Resting heart rate steady or trending down
+## Phase 3: Match fit (outline)
 
-If yes, add a **Workout C** day (A with different variations). Best slot now: **Sunday at 5:45 PM**. After UPS ends: a weekday at 5:45 PM. If no, stay at 2× and recheck in 2 weeks. Two sessions done consistently beats three done sometimes.
+- Soccer-shaped intervals: repeated sprints, changes of direction, small-sided games.
+- Test: build from 2 × 20 minutes of match play to 60 minutes of 11v11.
+- Strength stays at 1–2 short sessions a week to protect knees, hamstrings and ankles.
+
+## Checkpoint (around Dec 13, week 4)
+
+In your weekly review, check: weekly average weight rising 0.5–1 lb a week, at least 9 of 12 sessions done, lifts going up. If weight is flat, add 200–300 kcal a day. If sessions are being missed, tell Claude and we'll reshape the schedule.

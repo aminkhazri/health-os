@@ -16,10 +16,10 @@
 
 ## Your day (about 2 minutes of logging)
 
-1. **On waking, before coffee:** weigh in, then sit still for a minute and read your heart rate on the watch. Open Health OS and fill in the Morning card: weight, sleep, resting HR, energy. Tap Save.
+1. **On waking, before coffee:** do your 5-minute morning ritual: weigh in, sit still for a minute and read your heart rate on the watch, log weight, sleep, resting HR and energy in the Morning card, drink a big glass of water, then the wake-up moves (cat-cow, hip stretch, glute bridges, band pull-aparts).
 2. **Every time you eat or drink:** type it in the Food & drinks box, e.g. "2 eggs and coffee". The app works out the calories, files it under the right meal by time of day, and ticks the matching daily quest. Use the quick buttons for water (+8 oz, +24 oz), coffee and Celsius.
 3. **Answer reminders when you can.** If you're on a call, do it at the next break. A missed reminder isn't a failure.
-4. **Workout days (Thu, Sat):** use the Workout tab. Last session's weights are filled in so you know what to beat.
+4. **Workout days (Thu, Sat, Sun):** use the Workout tab (A full body, B legs + core, C upper body). Last session's weights are filled in so you know what to beat.
 5. **Wind-down (10:15 PM):** 30-second check that nothing is missing from today.
 
 Skipped a day? Leave it blank. Averages only use the days you logged.
@@ -43,7 +43,7 @@ Skipped a day? Leave it blank. Averages only use the days you logged.
 ## Weekly review (Sunday 6:30 PM, 10 minutes)
 
 1. Read the weekly email, or open the app's Progress tab.
-2. Look at: **weekly weight change**, **workouts (target 2)**, **average sleep**, **average resting HR**, **average steps**.
+2. Look at: **weekly weight change**, **workouts (target 3)**, **average sleep**, **average resting HR**, **average steps**.
 3. Every 2nd week the **calorie check** says *Add ~150 kcal / Hold / Cut ~150 kcal*. Act on it (below).
 4. Pick ONE small focus for next week, not five.
 
