@@ -1,0 +1,7 @@
+# Personal settings (Sheet ID, schedule) — copy config.example.js to src/config.js
+src/config.js
+# clasp project binding + credentials
+.clasp.json
+.clasprc.json
+node_modules/
+.DS_Store

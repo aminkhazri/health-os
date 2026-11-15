@@ -1,0 +1,17 @@
+{
+  "name": "health-os",
+  "version": "1.0.0",
+  "description": "Personal health & fitness system on Google Apps Script: reminders, daily checklist, tracker and a mobile logging app.",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "deploy": "clasp push && clasp deploy -i $DEPLOYMENT_ID -d \"update\"",
+    "open": "clasp open-script"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.0.0"
+  },
+  "license": "MIT"
+}
