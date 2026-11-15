@@ -57,7 +57,9 @@ function cleanDay_(b, todayKey) {
     const n = Number(t);
     return isFinite(n) && n >= 0 && n <= max ? Math.round(n) : null;
   };
-  const steps = num(b.steps, 150000), kcal = num(b.active_kcal, 10000);
+  // Steps are always whole numbers, so any dot or comma is a thousands separator ("1.708" or "1,708" = 1708 steps).
+  const steps = (b.steps === undefined || b.steps === null || b.steps === '') ? null : num(String(b.steps).replace(/[^0-9]/g, ''), 150000);
+  const kcal = num(b.active_kcal, 10000);
   if (steps === null && kcal === null) return null;
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || '')) ? String(b.date) : todayKey;
   if (date > todayKey) return null;

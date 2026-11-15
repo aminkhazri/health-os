@@ -28,3 +28,7 @@ test('normalizeFields_ accepts spaced / capitalized names', () => {
   assert.deepStrictEqual({ ...normalizeFields_({ 'Steps ': 5, 'active kcal': 7, key: 'x' }) }, { steps: 5, active_kcal: 7 });
   assert.deepStrictEqual({ ...normalizeFields_({ 'Active Energy': 9 }) }, { active_kcal: 9 });
 });
+test('steps with a dot thousands separator ("1.708") mean 1708', () => {
+  assert.strictEqual(cleanDay_({ steps: '1.708' }, T).steps, 1708);
+  assert.strictEqual(cleanDay_({ steps: 1708 }, T).steps, 1708);
+});
