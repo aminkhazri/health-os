@@ -13,7 +13,7 @@ const CONFIG = {
   TASKLIST_NAME: 'Daily Health Checklist',
   SHEET_ID: 'YOUR_TRACKER_SHEET_ID',            // from the Sheet URL: /spreadsheets/d/<ID>/edit
   SERIES_START: new Date(2026, 0, 5),          // first day the recurring reminders begin (month is 0-based)
-  WEEKLY_WORKOUT_TARGET: 2,
+  WEEKLY_WORKOUT_TARGET: 3,
   PROTEIN_TARGET: 150,       // g/day — daily bar + auto-tick at 95%
   WATER_OZ_TARGET: 125,      // oz/day (~3.7 L) from drinks — active adult male; daily gauge + auto-tick
   CAFFEINE_LIMIT_MG: 400,

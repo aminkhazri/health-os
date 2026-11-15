@@ -86,9 +86,9 @@ function buildTaskItems_(dow, shiftPhaseActive) {
     ['2 protein snacks', 'Greek yogurt, eggs, cheese + tortilla, nuts, PB, milk.'],
     [CONFIG.WATER_GOAL, shiftDay ? 'Extra bottle for the shift.' : ''],
     ['Dinner', ''],
-    ['5-min mobility', 'Hips, shoulders, upper back.'],
+    ['Morning ritual (5 min)', 'Cat-cow x8, hip-flexor stretch 30s each side, glute bridge x15, band pull-apart x15.'],
   ];
-  if (d.workout.includes(dow)) items.push(['Workout (A/B) + log sets', '40–50 min. See Workout Plan.']);
+  if (d.workout.includes(dow)) items.push(['Workout ' + ({ 4: 'A: full body', 6: 'B: legs + core', 7: 'C: upper body' }[dow] || '') + ' + log sets', 'About 40 min at home. Log it in the Workout tab.']);
   if (shiftDay) items.push(['Pack shift snack + water', '']);
   if (d.prep.includes(dow)) items.push(["Prep tomorrow's lunch", '']);
   items.push([CONFIG.WINDDOWN, 'Last check: anything not logged today? Add it in Health OS.']);

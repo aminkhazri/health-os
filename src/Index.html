@@ -190,6 +190,10 @@
   .bar > i { border-radius: 2px; background: linear-gradient(90deg, #17574c, var(--accent)); box-shadow: 0 0 10px rgba(57,194,166,.6); }
   .check { border-radius: 4px; transform: rotate(45deg); width: 26px; height: 26px; margin: 3px 6px; border-color: var(--brass-lo); }
   .check.on { box-shadow: 0 0 10px rgba(57,194,166,.6); }
+  .ritual { margin-top: 12px; border-top: 1px solid rgba(207,169,85,.25); padding-top: 10px; }
+  .ritual summary { color: var(--brass-hi); font-size: 14px; cursor: pointer; }
+  .ritual ol { margin: 8px 0 0; padding-left: 22px; color: var(--text-secondary); font-size: 15px; line-height: 1.7; }
+  .ex .muted b { color: var(--brass-hi); font-weight: 600; }
   nav { background: linear-gradient(180deg, #132132, #0a121c); border-top: 1px solid var(--brass); box-shadow: 0 -6px 18px rgba(0,0,0,.5); }
   nav button { font-family: var(--display); letter-spacing: .1em; font-size: 11px; }
   nav button.on { color: var(--brass-hi); text-shadow: 0 0 10px rgba(241,213,138,.6); }
@@ -226,6 +230,9 @@
       </div>
       <label class="f" style="margin-top:12px">Energy</label>
       <div class="seg" id="energy"></div>
+      <details class="ritual"><summary>Morning ritual · 5 minutes, same order every day</summary>
+        <ol><li>Bathroom, then weigh in</li><li>Sit still 1 minute, read heart rate on the watch</li><li>Log weight, sleep, heart rate and energy above</li><li>Big glass of water</li>
+        <li>Cat-cow × 8</li><li>Hip-flexor stretch, 30 seconds each side</li><li>Glute bridge × 15</li><li>Band pull-apart × 15</li><li>Breakfast, and log it</li></ol></details>
     </div>
     <div class="card">
       <h2>Food & drinks</h2>
@@ -293,7 +300,7 @@
     </div>
     <div class="tiles">
       <div class="tile"><div class="k">vs last week</div><div class="v" id="pChg">—</div><div class="s" id="pTrend"></div></div>
-      <div class="tile"><div class="k">Workouts this week</div><div class="v" id="pWk">—</div><div class="s">target 2</div></div>
+      <div class="tile"><div class="k">Workouts this week</div><div class="v" id="pWk">—</div><div class="s" id="pWkS">target 3</div></div>
       <div class="tile"><div class="k">Avg sleep (7 days)</div><div class="v" id="pSleep">—</div><div class="s">goal 7 h</div></div>
       <div class="tile"><div class="k">Protein days</div><div class="v" id="pProt">—</div><div class="s">this week, of 7</div></div>
       <div class="tile"><div class="k">Avg calories</div><div class="v" id="pKcal">—</div><div class="s" id="pKcalS">days logged this week</div></div>
@@ -392,17 +399,20 @@ function saveDay() {
 // ---------- WORKOUT ----------
 function renderWorkout() {
   if (!$('wdate').value) { $('wdate').value = D.today; $('wdate').max = D.today; letter = D.next; }
-  $('letter').innerHTML = ['A','B'].map(l => `<button class="${l===letter?'on':''}" onclick="letter='${l}';renderWorkout()">Workout ${l}${l===D.next?' · next':''}</button>`).join('');
-  $('lastw').textContent = D.lastWorkoutDate ? `Last session: ${fmtDate(D.lastWorkoutDate)} (Workout ${D.lastLetter})` : 'No sessions logged yet — start light and leave 2 reps in the tank.';
+  const WI = D.workoutInfo || { names: {}, targets: {} };
+  if (!D.workouts[letter]) letter = D.next;
+  $('letter').innerHTML = Object.keys(D.workouts).map(l => `<button class="${l===letter?'on':''}" onclick="letter='${l}';renderWorkout()">${l} · ${WI.names[l] || 'Workout'}${l===D.next?' ★':''}</button>`).join('');
+  $('lastw').textContent = D.lastWorkoutDate ? `Last session: ${fmtDate(D.lastWorkoutDate)} (Workout ${D.lastLetter})` : 'No sessions logged yet. Start light: every set should end with 1–2 good reps left.';
   $('exlist').innerHTML = D.workouts[letter].map((ex, i) => {
     const L = D.last[ex];
-    const hint = L ? `Last: ${L.sets ?? '?'}×${L.reps || '?'}${L.weight ? ' @ ' + L.weight + ' lb' : ''} (${fmtDate(L.date)})` : 'First time — pick a light weight';
+    const goal = WI.targets[ex] ? `<b>Goal ${WI.targets[ex]}</b> · ` : '';
+    const hint = goal + (L ? `Last: ${L.sets ?? '?'}×${L.reps || '?'}${L.weight ? ' @ ' + L.weight + ' lb' : ''} (${fmtDate(L.date)})` : 'first time, pick a light weight');
     return `<div class="ex" data-ex="${ex.replace(/"/g,'&quot;')}">
       <div class="exhead"><div class="name">${ex}</div><button class="check" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓':''" aria-label="Done"></button></div>
       <div class="muted">${hint}</div>
       <div class="row">
         <div><label class="f">Weight</label><input inputmode="decimal" type="number" value="${L && L.weight != null ? L.weight : ''}" placeholder="lb"></div>
-        <div><label class="f">Sets</label><input inputmode="numeric" type="number" value="${L && L.sets != null ? L.sets : 2}"></div>
+        <div><label class="f">Sets</label><input inputmode="numeric" type="number" value="${L && L.sets != null ? L.sets : 3}"></div>
         <div><label class="f">Reps</label><input inputmode="text" value="${L && L.reps ? L.reps : ''}" placeholder="e.g. 10,10,9"></div>
       </div>
       <input style="margin-top:8px;font-size:15px" placeholder="Note (optional)">
@@ -430,7 +440,7 @@ function renderProgress() {
   $('pBarLbl').textContent = avg == null ? `Start ${t.start} → goal ${t.goal} lb` : `${n1(t.goal - avg)} lb to ${t.goal} · ${Math.round(pct)}% of the way from ${t.start}`;
   $('pChg').textContent = cur.chg == null ? '—' : (cur.chg > 0 ? '+' : '') + cur.chg.toFixed(2);
   $('pTrend').innerHTML = cur.trend ? `<span class="status ${cur.trend === 'On track' ? 'good' : 'warn'}">${cur.trend === 'On track' ? '✓ ' : '! '}${cur.trend}</span>` : `target +${t.low}–${t.high}/wk`;
-  $('pWk').textContent = (cur.workouts || 0) + ' / 2';
+  $('pWk').textContent = (cur.workouts || 0) + ' / ' + (t.workouts || 3); $('pWkS').textContent = 'target ' + (t.workouts || 3);
   const last7 = D.series.filter(x => x.s != null && x.d > addDays(D.today, -7));
   $('pSleep').textContent = last7.length ? (last7.reduce((a, x) => a + x.s, 0) / last7.length).toFixed(1) + ' h' : '—';
   $('pProt').textContent = cur.protein ?? 0;
@@ -524,8 +534,8 @@ function drawCharts() {
   // Workouts per week
   mk('cWork', { type: 'bar', data: { labels: D.weekly.map(w => sl(w.wk)), datasets: [
       { label: 'Workouts', data: D.weekly.map(w => w.workouts), backgroundColor: blue, borderRadius: 4, maxBarThickness: 28 },
-      Object.assign(refLine('Target', 2, D.weekly.length), { type: 'line' })] },
-    options: baseOpts('', { scales: Object.assign(baseOpts().scales, { y: Object.assign(baseOpts().scales.y, { min: 0, suggestedMax: 3, ticks: { stepSize: 1, color: css('--text-secondary') } }) }) }) });
+      Object.assign(refLine('Target', D.targets.workouts || 3, D.weekly.length), { type: 'line' })] },
+    options: baseOpts('', { scales: Object.assign(baseOpts().scales, { y: Object.assign(baseOpts().scales.y, { min: 0, suggestedMax: 4, ticks: { stepSize: 1, color: css('--text-secondary') } }) }) }) });
   // Sleep
   const ss = S.filter(x => x.s != null).slice(-28);
   mk('cSleep', { type: 'line', data: { labels: ss.map(x => sl(x.d)), datasets: [

@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 
 // Code.js reads CONFIG at call time; provide a test schedule as a global.
 global.CONFIG = {
-  DAYS: { work: [7, 1, 2, 3], shift: [1, 2, 3, 4, 5], workout: [4, 6], prep: [6, 7, 1, 2] },
+  DAYS: { work: [7, 1, 2, 3], shift: [1, 2, 3, 4, 5], workout: [4, 6, 7], prep: [6, 7, 1, 2] },
   WORKDAY_LUNCH: 'Packed lunch.',
   WATER_GOAL: 'Water ~3 L',
   WINDDOWN: 'Wind-down',
@@ -22,9 +22,9 @@ test('every day has the core checklist, in order, ending with wind-down', () => 
   }
 });
 
-test('workout task only on configured training days (Thu=4, Sat=6)', () => {
+test('workout task only on configured training days (Thu=4, Sat=6, Sun=7)', () => {
   for (let dow = 1; dow <= 7; dow++) {
-    assert.equal(titles(dow).includes('Workout (A/B) + log sets'), [4, 6].includes(dow), `dow ${dow}`);
+    assert.equal(titles(dow).some(t => t.startsWith('Workout ')), [4, 6, 7].includes(dow), `dow ${dow}`);
   }
 });
 
@@ -47,4 +47,11 @@ test('firstMatchingDay_ skips to the first configured weekday', () => {
   assert.equal(firstMatchingDay_(mon, ['THURSDAY', 'SATURDAY']).getDate(), 19);
   assert.equal(firstMatchingDay_(mon, ['MONDAY']).getDate(), 16);
   assert.equal(firstMatchingDay_(mon, ['SUNDAY']).getDate(), 22);
+});
+
+test('next workout: planned day wins, otherwise rotate A -> B -> C', () => {
+  global.CONFIG = global.CONFIG || {};
+  const { nextWorkout_ } = require('../src/WebApp.js');
+  assert.equal(nextWorkout_(4, 'C'), 'A'); assert.equal(nextWorkout_(6, null), 'B'); assert.equal(nextWorkout_(7, 'A'), 'C');
+  assert.equal(nextWorkout_(1, 'A'), 'B'); assert.equal(nextWorkout_(2, 'C'), 'A'); assert.equal(nextWorkout_(3, null), 'A');
 });

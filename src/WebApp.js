@@ -4,10 +4,32 @@
  * The page calls these functions with google.script.run; all data lives in the tracker Sheet.
  */
 
+// Phase 1 "Build" (8 weeks): home workouts with dumbbells, bands and a mat. 3 sets, stop 1-2 reps short of failure.
 const WORKOUTS = {
-  A: ['Goblet squat (DB)', 'Dumbbell bench press', 'Lat pulldown (Hoist)', 'Dumbbell Romanian deadlift', 'Seated row (Hoist)', 'Plank (sec)'],
-  B: ['DB reverse lunge / split squat', 'Hoist chest press / incline DB press', 'One-arm DB row', 'Leg curl (Hoist)', 'Seated DB shoulder press', 'DB curl + triceps pushdown'],
+  A: ['Goblet squat', 'Dumbbell floor press', 'One-arm dumbbell row', 'Dumbbell Romanian deadlift', 'Dumbbell shoulder press', 'Band pull-apart'],
+  B: ['Bulgarian split squat', 'Single-leg Romanian deadlift', 'Dumbbell hip thrust', 'Heel-raised goblet squat', 'Standing calf raise', 'Dead bug'],
+  C: ['Push-up', 'Band row', 'Incline dumbbell press', 'Dumbbell lateral raise', 'Dumbbell curl', 'Overhead triceps extension'],
 };
+const WORKOUT_INFO = {
+  names: { A: 'Full body', B: 'Legs + core', C: 'Upper body' },
+  day: { 4: 'A', 6: 'B', 7: 'C' },                 // ISO weekday -> planned workout (Thu, Sat, Sun)
+  targets: {
+    'Goblet squat': '3 × 8–12', 'Dumbbell floor press': '3 × 8–12', 'One-arm dumbbell row': '3 × 10–12 each arm',
+    'Dumbbell Romanian deadlift': '3 × 10–12', 'Dumbbell shoulder press': '3 × 8–12', 'Band pull-apart': '2 × 15–20',
+    'Bulgarian split squat': '3 × 8–10 each leg', 'Single-leg Romanian deadlift': '3 × 8–10 each leg', 'Dumbbell hip thrust': '3 × 10–15',
+    'Heel-raised goblet squat': '2 × 12–15', 'Standing calf raise': '3 × 12–20', 'Dead bug': '2 × 8 each side, slow',
+    'Push-up': '3 × as many as you can, minus 2', 'Band row': '3 × 12–15', 'Incline dumbbell press': '3 × 8–12',
+    'Dumbbell lateral raise': '3 × 12–15', 'Dumbbell curl': '3 × 10–12', 'Overhead triceps extension': '3 × 10–12',
+  },
+};
+
+/** Pure: which workout is next. A planned day (Thu/Sat/Sun) wins; otherwise rotate A -> B -> C after the last one logged. */
+function nextWorkout_(isoDow, lastLetter) {
+  if (WORKOUT_INFO.day[isoDow]) return WORKOUT_INFO.day[isoDow];
+  const order = Object.keys(WORKOUTS), i = order.indexOf(lastLetter);
+  return order[(i + 1) % order.length];
+}
+
 
 function doGet() {
   return HtmlService.createTemplateFromFile('Index').evaluate()
@@ -47,7 +69,7 @@ function getAppData(dateKey) {
 
   const sh = ss.getSheetByName('Start Here');
   const targets = { start: num_(sh.getRange('B5').getValue()), goal: num_(sh.getRange('B6').getValue()),
-    calories: num_(sh.getRange('B7').getValue()), low: num_(sh.getRange('B12').getValue()),
+    calories: num_(sh.getRange('B7').getValue()), workouts: CONFIG.WEEKLY_WORKOUT_TARGET || 3, low: num_(sh.getRange('B12').getValue()),
     high: num_(sh.getRange('B13').getValue()), phase: String(sh.getRange('B14').getValue()) };
 
   const wl = ss.getSheetByName('Workout Log');
@@ -63,7 +85,7 @@ function getAppData(dateKey) {
   const food = getFoodData_(ss, dateKey, tz);
   const activity = getActivityData_(ss, dateKey, tz);
   return { today, dateKey, entry, series: series.slice(-120), weekly, targets, last,
-    next: lastLetter === 'A' ? 'B' : 'A', lastLetter, lastWorkoutDate: lastDate, workouts: WORKOUTS, calCheck: cal, food, activity, name: CONFIG.NAME || '' };
+    next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, workouts: WORKOUTS, calCheck: cal, food, activity, name: CONFIG.NAME || '' };
 }
 
 /** Write one Daily Log row (finds the row by date). */
@@ -124,3 +146,5 @@ function maintenance() {
   wv.forEach((r, i) => { if (r[0] === 'TEST') wl.getRange(i + 2, 1, 1, 7).clearContent(); });
   console.log('Sheet time zone: ' + ss.getSpreadsheetTimeZone());
 }
+
+if (typeof module !== 'undefined') module.exports = { nextWorkout_, WORKOUTS, WORKOUT_INFO }; // Node tests only
