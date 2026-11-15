@@ -18,7 +18,8 @@ const NUDGE_PLAN = (() => {
   const work = [{ at: 6 * 60 + 45, water: 24, calm: 0 }, { at: 10 * 60, water: 50, calm: 0 },
                 { at: 12 * 60 + 45, water: 75, calm: 0 }, { at: 15 * 60 + 30, water: 100, calm: 3 }];
   const off  = [{ at: 10 * 60 + 15, water: 40, calm: 0 }, { at: 16 * 60, water: 90, calm: 3 }];
-  return { 7: work, 1: work, 2: work, 3: work, 4: off, 5: off, 6: off };
+  const shift = { at: 20 * 60, water: 110, calm: 0 };   // UPS nights (Mon–Fri): one check mid-shift, water only
+  return { 7: work, 1: work.concat(shift), 2: work.concat(shift), 3: work.concat(shift), 4: off.concat(shift), 5: off.concat(shift), 6: off };
 })();
 
 /** Pure: the checkpoint that just passed (within the last `windowMin` minutes) and hasn't fired today. */

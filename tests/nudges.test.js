@@ -22,3 +22,10 @@ test('water, calm, or both', () => {
   assert.match(nudgeFor_({ at: 600, water: 50, calm: 0 }, 20, 0).desc, /full 24 oz bottle/);
   assert.match(nudgeFor_({ at: 600, water: 50, calm: 0 }, 45, 0).desc, /few big sips/);
 });
+
+test('UPS nights get one 8 PM water check; Saturday and Sunday do not', () => {
+  [1, 2, 3, 4, 5].forEach(d => assert.deepEqual(dueCheckpoint_(NUDGE_PLAN, d, 1205, [], 30), { at: 1200, water: 110, calm: 0 }));
+  [6, 7].forEach(d => assert.equal(dueCheckpoint_(NUDGE_PLAN, d, 1205, [], 30), null));
+  assert.equal(nudgeFor_({ at: 1200, water: 110, calm: 0 }, 112, 0), null);
+  assert.match(nudgeFor_({ at: 1200, water: 110, calm: 0 }, 96, 0).title, /96\/110/);
+});

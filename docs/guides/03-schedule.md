@@ -59,6 +59,7 @@ Every 15 minutes the system checks whether a checkpoint just passed. If you're b
 | Sun–Wed | 3:30 PM | 100 oz | 3 calm minutes |
 | Thu–Sat | 10:15 AM | 40 oz | |
 | Thu–Sat | 4:00 PM | 90 oz | 3 calm minutes |
+| Mon–Fri (UPS nights) | 8:00 PM | 110 oz | |
 
 Alerts can arrive up to ~15 minutes after the checkpoint. Yesterday's nudge events are removed automatically.
 
