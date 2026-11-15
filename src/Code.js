@@ -80,12 +80,13 @@ function buildTaskItems_(dow, shiftPhaseActive) {
   const isWork = d.work.includes(dow);
   const shiftDay = shiftPhaseActive && d.shift.includes(dow);
   const items = [
-    ['Weigh in + resting HR + log in Health OS (1 min)', 'Right after waking, before coffee: weigh in, then sit still a minute and read your heart rate on the watch.' + (CONFIG.APP_URL ? ' Open: ' + CONFIG.APP_URL : '')],
+    ['Weigh in + resting HR + log in Health OS (1 min)', 'Right after waking, before coffee: weigh in, then sit still a minute, breathe slowly (in 4, out 6) and read your heart rate on the watch.' + (CONFIG.APP_URL ? ' Open: ' + CONFIG.APP_URL : '')],
     ['Breakfast', isWork ? 'Before your shift starts.' : ''],
     ['Lunch', isWork ? CONFIG.WORKDAY_LUNCH : 'Plate template.'],
     ['2 protein snacks', 'Greek yogurt, eggs, cheese + tortilla, nuts, PB, milk.'],
     [CONFIG.WATER_GOAL, shiftDay ? 'Extra bottle for the shift.' : ''],
     ['Dinner', ''],
+    ['Calm: 10 min of breathing', '1 min in the morning ritual, 3 min midday reset, 5 min at wind-down. Use the Breathe buttons in Health OS.'],
     ['Morning ritual (5 min)', 'Cat-cow x8, hip-flexor stretch 30s each side, glute bridge x15, band pull-apart x15.'],
   ];
   if (d.workout.includes(dow)) items.push(['Workout ' + ({ 4: 'A: full body', 6: 'B: legs + core', 7: 'C: upper body' }[dow] || '') + ' + log sets', 'About 40 min at home. Log it in the Workout tab.']);

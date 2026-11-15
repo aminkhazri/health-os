@@ -190,6 +190,17 @@
   .bar > i { border-radius: 2px; background: linear-gradient(90deg, #17574c, var(--accent)); box-shadow: 0 0 10px rgba(57,194,166,.6); }
   .check { border-radius: 4px; transform: rotate(45deg); width: 26px; height: 26px; margin: 3px 6px; border-color: var(--brass-lo); }
   .check.on { box-shadow: 0 0 10px rgba(57,194,166,.6); }
+  .calm .g-fill { background: linear-gradient(90deg, #1f6f8f, #7fe3d4); box-shadow: 0 0 14px rgba(127,227,212,.7); }
+  .qbtns.three { grid-template-columns: 1fr 1fr 1fr; }
+  .breath { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    background: radial-gradient(circle at 50% 40%, #12304a, #060b12 70%); }
+  .breath[hidden] { display: none; }
+  .b-orb { width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--brass); transform: scale(.7);
+    background: radial-gradient(circle, rgba(127,227,212,.55), rgba(57,194,166,.12)); box-shadow: 0 0 40px rgba(127,227,212,.45); }
+  .b-orb.in { transform: scale(1.5); transition: transform 4s ease-in-out; }
+  .b-orb.out { transform: scale(.7); transition: transform 6s ease-in-out; }
+  .b-word { font-family: var(--display); font-size: 22px; letter-spacing: .12em; color: var(--brass-hi); margin-top: 40px; }
+  .b-left { color: var(--text-secondary); font-size: 15px; }
   .ritual { margin-top: 12px; border-top: 1px solid rgba(207,169,85,.25); padding-top: 10px; }
   .ritual summary { color: var(--brass-hi); font-size: 14px; cursor: pointer; }
   .ritual ol { margin: 8px 0 0; padding-left: 22px; color: var(--text-secondary); font-size: 15px; line-height: 1.7; }
@@ -231,7 +242,7 @@
       <label class="f" style="margin-top:12px">Energy</label>
       <div class="seg" id="energy"></div>
       <details class="ritual"><summary>Morning ritual · 5 minutes, same order every day</summary>
-        <ol><li>Bathroom, then weigh in</li><li>Sit still 1 minute, read heart rate on the watch</li><li>Log weight, sleep, heart rate and energy above</li><li>Big glass of water</li>
+        <ol><li>Bathroom, then weigh in</li><li>Sit still 1 minute: slow breaths (in 4, out 6) while the watch reads your heart rate</li><li>Log weight, sleep, heart rate and energy above</li><li>Big glass of water</li>
         <li>Cat-cow × 8</li><li>Hip-flexor stretch, 30 seconds each side</li><li>Glute bridge × 15</li><li>Band pull-apart × 15</li><li>Breakfast, and log it</li></ol></details>
     </div>
     <div class="card">
@@ -254,6 +265,11 @@
         <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
       <div class="gauge steps" id="gS"><div class="g-head"><span>👟 Steps</span><span class="g-sub" id="gSs"></span></div>
         <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
+      <div class="gauge calm" id="gM"><div class="g-head"><span>🧘 Calm</span><span class="g-sub" id="gMs"></span></div>
+        <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
+      <div class="qbtns three" style="margin-bottom:8px">
+        <button onclick="breathe(1)">Breathe 1 min</button><button onclick="breathe(3)">3 min</button><button onclick="breathe(5)">5 min</button>
+      </div>
       <div class="qbtns">
         <button onclick="quickItem('Water')">+8 oz 💧</button><button onclick="quickItem('Water bottle')">+24 oz 💧</button>
         <button onclick="quickItem('Coffee, black')">+ Coffee ☕</button><button onclick="quickItem('Celsius energy drink')">+ Celsius ⚡</button>
@@ -307,6 +323,7 @@
       <div class="tile"><div class="k">Today so far</div><div class="v" id="pToday">—</div><div class="s" id="pTodayS"></div></div>
       <div class="tile"><div class="k">Avg steps (7 days)</div><div class="v" id="pSteps">—</div><div class="s" id="pStepsS"></div></div>
       <div class="tile"><div class="k">Resting HR (7 days)</div><div class="v" id="pHr">—</div><div class="s" id="pHrS">bpm, from morning check</div></div>
+      <div class="tile"><div class="k">Calm (7 days)</div><div class="v" id="pMind">—</div><div class="s" id="pMindS">avg minutes a day</div></div>
       <div class="tile"><div class="k">Active calories</div><div class="v" id="pBurn">—</div><div class="s">avg burned, 7 days</div></div>
     </div>
     <div class="card" id="calCard"><h2>Calorie check (every 2 weeks)</h2><div id="calTxt" class="muted"></div></div>
@@ -329,6 +346,12 @@
   <button id="n-work" onclick="show('work')"><span>🏋️</span>Workout</button>
   <button id="n-prog" onclick="show('prog')"><span>📈</span>Progress</button>
 </nav>
+<div class="breath" id="breath" hidden>
+  <div class="b-orb" id="bOrb"></div>
+  <div class="b-word" id="bWord">Breathe in</div>
+  <div class="b-left" id="bLeft"></div>
+  <button class="btn2" onclick="stopBreath(false)">Stop</button>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -459,8 +482,31 @@ function renderProgress() {
   $('pBurn').textContent = ab == null ? '—' : ab.toLocaleString() + ' kcal';
   const h7 = D.series.filter(x => x.hr != null && x.d > addDays(D.today, -7));
   $('pHr').textContent = h7.length ? Math.round(h7.reduce((s, x) => s + x.hr, 0) / h7.length) + ' bpm' : '—';
+  const m7 = D.series.filter(x => x.d > addDays(D.today, -7)).reduce((s, x) => s + (x.m || 0), 0);
+  $('pMind').textContent = m7 ? (m7 / 7).toFixed(1) + ' min' : '—'; $('pMindS').textContent = 'avg a day · goal ' + (t.mindful || 10);
   renderSync();
   drawCharts();
+}
+
+// ---------- Breathing timer: in for 4 s, out for 6 s (6 breaths a minute). Logs the minutes when it finishes. ----------
+let bTimer = null, bEnd = 0, bMin = 0, bStart = 0;
+function breathe(min) {
+  bMin = min; bStart = Date.now(); bEnd = bStart + min * 60000;
+  $('breath').hidden = false;
+  const cycle = () => {
+    const left = bEnd - Date.now();
+    if (left <= 0) return stopBreath(true);
+    $('bOrb').className = 'b-orb in'; $('bWord').textContent = 'Breathe in';
+    $('bLeft').textContent = Math.ceil(left / 60000) + ' min left';
+    bTimer = setTimeout(() => { $('bOrb').className = 'b-orb out'; $('bWord').textContent = 'Breathe out'; bTimer = setTimeout(cycle, 6000); }, 4000);
+  };
+  cycle();
+}
+function stopBreath(done) {
+  clearTimeout(bTimer); $('breath').hidden = true; $('bOrb').className = 'b-orb';
+  const mins = done ? bMin : Math.floor((Date.now() - bStart) / 60000);   // stopping early still counts the full minutes done
+  if (mins < 1) return toast('Stopped');
+  google.script.run.withSuccessHandler(d => { D = d; renderFood(); renderProgressIfOpen(); toast(`+${mins} min of calm 🧘`); }).withFailureHandler(fail).addMindful(curDate, mins);
 }
 
 // ---------- iPhone sync (key shown once; only a fingerprint is stored) ----------
@@ -609,6 +655,8 @@ function renderGauges() {
   const st = day.st || 0, sg = A.stepGoal || 8000;
   setGauge('gS', st, sg, `${st.toLocaleString()} / ${sg.toLocaleString()}`,
     A.lastSync ? `🔥 ${(day.ak || 0).toLocaleString()} active kcal · ${day.synced ? 'synced ' + fmtClock(day.synced) : 'no sync this day'}` : 'connect your iPhone in Progress');
+  const mind = (D.entry && D.entry.mind) || 0, mg = D.targets.mindful || 10;
+  setGauge('gM', mind, mg, `${mind} / ${mg} min`, mind >= mg ? 'calm banked for today' : `${mg - mind} min to go · tap Breathe below`);
   setGauge('gC', T.caf, G.caffeine, `${T.caf} / ${G.caffeine} mg`, T.caf > G.caffeine ? 'over the daily limit' : `${G.caffeine - T.caf} mg left today`, T.caf > G.caffeine);
 }
 function sendItems(items, msg) {

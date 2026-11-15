@@ -17,6 +17,7 @@ const CONFIG = {
   PROTEIN_TARGET: 150,       // g/day — daily bar + auto-tick at 95%
   WATER_OZ_TARGET: 125,      // oz/day (~3.7 L) from drinks — active adult male; daily gauge + auto-tick
   CAFFEINE_LIMIT_MG: 400,
+  MINDFUL_GOAL_MIN: 10,      // minutes/day of breathing or meditation for the 🧘 Calm gauge
   STEP_GOAL: 8000,           // steps/day for the 👟 gauge (from the iPhone via Apple Health)
   INBOX_URL: '',             // public URL of the separate "Health OS Inbox" project (see inbox/)    // mg/day — commonly cited limit for healthy adults; gauge turns red past it
 
