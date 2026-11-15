@@ -8,6 +8,7 @@
 const CONFIG = {
   NAME: 'Alex',               // used in the app greeting
   TZ: 'America/New_York',
+  APP_URL: '',   // web app link, shown in the daily checklist
   CALENDAR_NAME: 'Health & Fitness',
   TASKLIST_NAME: 'Daily Health Checklist',
   SHEET_ID: 'YOUR_TRACKER_SHEET_ID',            // from the Sheet URL: /spreadsheets/d/<ID>/edit

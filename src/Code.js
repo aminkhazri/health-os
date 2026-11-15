@@ -80,7 +80,7 @@ function buildTaskItems_(dow, shiftPhaseActive) {
   const isWork = d.work.includes(dow);
   const shiftDay = shiftPhaseActive && d.shift.includes(dow);
   const items = [
-    ['Weigh in + log tracker row (1 min)', 'Morning, before food.'],
+    ['Weigh in + log in Health OS (1 min)', 'Morning, before food.' + (CONFIG.APP_URL ? ' Open: ' + CONFIG.APP_URL : '')],
     ['Breakfast', isWork ? 'Before your shift starts.' : ''],
     ['Lunch', isWork ? CONFIG.WORKDAY_LUNCH : 'Plate template.'],
     ['2 protein snacks', 'Greek yogurt, eggs, cheese + tortilla, nuts, PB, milk.'],
@@ -91,7 +91,7 @@ function buildTaskItems_(dow, shiftPhaseActive) {
   if (d.workout.includes(dow)) items.push(['Workout (A/B) + log sets', '40–50 min. See Workout Plan.']);
   if (shiftDay) items.push(['Pack shift snack + water', '']);
   if (d.prep.includes(dow)) items.push(["Prep tomorrow's lunch", '']);
-  items.push([CONFIG.WINDDOWN, '']);
+  items.push([CONFIG.WINDDOWN, 'Last check: anything not logged today? Add it in Health OS.']);
   return items;
 }
 

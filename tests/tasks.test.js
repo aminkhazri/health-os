@@ -16,7 +16,7 @@ const titles = (dow, active = true) => buildTaskItems_(dow, active).map(([t]) =>
 test('every day has the core checklist, in order, ending with wind-down', () => {
   for (let dow = 1; dow <= 7; dow++) {
     const t = titles(dow);
-    assert.equal(t[0], 'Weigh in + log tracker row (1 min)');
+    assert.equal(t[0], 'Weigh in + log in Health OS (1 min)');
     assert.ok(t.includes('Breakfast') && t.includes('Lunch') && t.includes('Dinner'));
     assert.equal(t[t.length - 1], 'Wind-down');
   }
