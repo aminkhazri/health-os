@@ -108,7 +108,28 @@ function setupFood() {
   const wf = [];
   for (let r = 2; r <= wn + 1; r++) wf.push([`=IFERROR(AVERAGEIFS('Daily Log'!M:M,'Daily Log'!K:K,A${r},'Daily Log'!M:M,">0"),"")`]);
   wk.getRange(2, 12, wn, 1).setFormulas(wf).setNumberFormat('0');
-  console.log('Foods: ' + (foods.getLastRow() - 1) + ' items | Food Log ready | daily totals incl. caffeine');
+  const moved = refileDrinks_(ss);
+  console.log('Foods: ' + (foods.getLastRow() - 1) + ' items | Food Log ready | daily totals incl. caffeine | drinks re-filed: ' + moved);
+}
+
+/** Upgrade helper: older app versions logged drinks under a meal. Move them to 'Drink' and fix the meal ticks. */
+function refileDrinks_(ss) {
+  const tz = ss.getSpreadsheetTimeZone(), log = ss.getSheetByName('Food Log');
+  if (log.getLastRow() < 2) return 0;
+  const drinkNames = new Set(ss.getSheetByName('Foods').getRange(2, 1, ss.getSheetByName('Foods').getLastRow() - 1, 3).getValues()
+    .filter(r => r[2] === 'Drinks').map(r => r[0]));
+  const days = {};
+  let moved = 0;
+  const full = log.getRange(2, 1, log.getLastRow() - 1, 4).getValues();
+  full.forEach((r, i) => {
+    if (r[0] instanceof Date && drinkNames.has(r[3]) && r[2] !== 'Drink') {
+      log.getRange(i + 2, 3).setValue('Drink'); moved++;
+      days[key_(r[0], tz)] = r[2];
+    }
+  });
+  SpreadsheetApp.flush();
+  Object.entries(days).forEach(([k, meal]) => untickMealIfEmpty_(ss, k, tz, meal));
+  return moved;
 }
 
 /** Food data for one day: library, entries (with sheet row for deletion), totals, targets, frequent items. */

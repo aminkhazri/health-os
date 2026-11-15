@@ -503,7 +503,7 @@ function renderAsk() {
     <div class="row"><div><input type="number" inputmode="numeric" placeholder="or type kcal" value="${u.kcal && ![100,200,350,500,700,900].includes(u.kcal) ? u.kcal : ''}" oninput="pending.unknown[${k}].kcal=Number(this.value)||null"></div>
     <div><input type="number" inputmode="numeric" placeholder="protein g (optional)" oninput="pending.unknown[${k}].p=Number(this.value)||0"></div></div>`).join('') +
     `<p class="muted" style="margin:8px 0">It'll be remembered — next time just type it.</p>
-     <div class="row"><button class="primary" style="margin:0" onclick="confirmAsk()">Add</button><button class="primary" style="margin:0;background:var(--surface-1);color:var(--text-primary);border:1px solid var(--border)" onclick="pending=null;renderAsk()">Cancel</button></div></div>`;
+     <div class="row"><button class="primary" style="margin:0" onclick="confirmAsk()">Add</button><button class="primary" style="margin:0;background:var(--surface-1);color:var(--text-primary);border:1px solid var(--border)" onclick="pending=null;renderAsk();$('qa').value='';renderSuggest()">Cancel</button></div></div>`;
 }
 function confirmAsk() {
   const missing = pending.unknown.filter(u => !u.kcal);
