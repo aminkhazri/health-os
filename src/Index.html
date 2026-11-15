@@ -384,7 +384,7 @@ function drawCharts() {
 }
 
 // ---------- FOOD ----------
-let sel = -1, selQty = 1, cat = 'All', meal = null;
+let sel = -1, selQty = 1, cat = 'All', meal = null, showAll = false;
 const MEALS_LIST = ['Breakfast','Lunch','Snack','Dinner'];
 const CATS = ['All','Meals','Protein','Carbs','Snacks','Drinks','Recent'];
 function defaultMeal() { const h = new Date().getHours() + new Date().getMinutes() / 60;
@@ -412,7 +412,8 @@ function libItems() {
   if (cat === 'Recent') { const names = [...new Set(D.food.entries.map(e => e.name).reverse())]; items = items.filter(f => names.includes(f.name)); }
   else if (cat !== 'All') items = items.filter(f => f.cat === cat);
   if (q) items = items.filter(f => f.name.toLowerCase().includes(q));
-  return items.slice(0, 40);
+  if (!q && cat === 'All' && !showAll) return items.slice(0, 8);
+  return items;
 }
 function renderLib() {
   $('cats').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.textContent === cat));
@@ -421,7 +422,8 @@ function renderLib() {
     const meta = `${esc(f.portion)} · ${f.kcal} kcal${f.p ? ' · ' + f.p + ' g protein' : ''}${f.w ? ' · ' + f.w + ' oz' : ''}`;
     const qty = f.i === sel ? `<div class="qty">${[0.5,1,1.5,2].map(q => `<button class="${q===selQty?'on':''}" onclick="event.stopPropagation();selQty=${q};renderLib()">${q===0.5?'½':q===1.5?'1½':q}×</button>`).join('')}<button class="add" onclick="event.stopPropagation();addSel()">Add · ${Math.round(f.kcal*selQty)} kcal</button></div>` : '';
     return `<div class="food ${f.i===sel?'sel':''}" onclick="sel=${f.i===sel?-1:f.i};selQty=1;renderLib()"><div class="fn">${esc(f.name)}</div><div class="fm">${meta}</div>${qty}</div>`;
-  }).join('') : '<p class="muted">No match — add it with "Something not on the list".</p>';
+  }).join('') + (!$('fq').value.trim() && cat === 'All' && !showAll ? `<button class="linkbtn" onclick="showAll=true;renderLib()">Show all ${D.food.library.length} foods</button><br>` : '')
+    : '<p class="muted">No match — add it with "Something not on the list".</p>';
 }
 function renderLogged() {
   const E = D.food.entries;

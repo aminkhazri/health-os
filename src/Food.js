@@ -136,10 +136,11 @@ function addFood(o) {
 /** Remove one Food Log row (checks the date so a stale screen can't delete the wrong row). */
 function deleteFood(row, dateKey) {
   const ss = ss_(), tz = ss.getSpreadsheetTimeZone(), log = ss.getSheetByName('Food Log');
-  const d = log.getRange(row, 1).getValue();
+  const [d, , meal] = log.getRange(row, 1, 1, 3).getValues()[0];
   if (!(d instanceof Date) || key_(d, tz) !== dateKey) throw new Error('That entry changed — refresh and try again.');
   log.deleteRow(row);
   SpreadsheetApp.flush();
+  untickMealIfEmpty_(ss, dateKey, tz, String(meal));
   return getAppData(dateKey);
 }
 
@@ -158,4 +159,20 @@ function autoMarkDay_(ss, dateKey, tz) {
   const codes = ['B', 'L', 'S', 'D'].filter(c => have.has(c)).join('');
   daily.getRange(row, 12).setValue(codes);
   daily.getRange(row, 6).setValue(codes.length);
+}
+
+/** After a delete: if no food is left for that meal, un-tick it on the Daily Log checklist. */
+function untickMealIfEmpty_(ss, dateKey, tz, meal) {
+  const code = MEAL_CODES[meal];
+  if (!code) return;
+  const fd = getFoodData_(ss, dateKey, tz);
+  if (fd.entries.some(e => e.meal === meal && !(e.kcal === 0 && e.meal === 'Snack'))) return;
+  const daily = ss.getSheetByName('Daily Log');
+  const col = daily.getRange(2, 1, daily.getLastRow() - 1, 1).getValues();
+  const i = col.findIndex(r => r[0] instanceof Date && key_(r[0], tz) === dateKey);
+  if (i < 0) return;
+  const row = i + 2;
+  const codes = String(daily.getRange(row, 12).getValue() || '').replace(code, '');
+  daily.getRange(row, 12).setValue(codes);
+  daily.getRange(row, 6).setValue(codes.length || '');
 }
