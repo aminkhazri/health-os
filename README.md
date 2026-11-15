@@ -9,7 +9,7 @@ A personal health & fitness "operating system" built entirely on free Google ser
 - **Timed reminders:** a dedicated Google Calendar with recurring events built around two work schedules. It sends about 5–6 notifications a day, timed to fall between calls.
 - **Daily checklist:** a Google Tasks list rebuilt every morning at 3 AM. Workout tasks only appear on training days, and shift tasks drop off automatically when the routine changes phase.
 - **Mobile web app** (installable on the iPhone home screen):
-  - **Today:** log weight, sleep and energy, plus **food & drinks with automatic calorie / protein / water totals**. Tap from a personal food library and pick a portion (½ / 1 / 1½ / 2×), or add a custom item. Live progress bars, and the checklist ticks itself as targets are reached.
+  - **Today:** log weight, sleep and energy, plus a **quick-add box**: type what you had ("2 eggs and coffee", "16 oz water"). A small parser matches it to your food library, works out the amounts, files it under Breakfast, Lunch, Snack, Dinner or Drinks by time of day, and adds the calories. Unknown foods ask for calories once, then get remembered. Game-style **gauges** show calories (with protein), water and **caffeine** against the daily limit.
   - **Workout:** today's A or B session, pre-filled with *what I lifted last time* (progressive overload).
   - **Progress:** weekly average weight and a progress bar to goal, weekly change vs a target band, workouts per week, sleep, and the calorie check (charts via Chart.js).
 - **Food library & log:** `Foods` and `Food Log` tabs. Daily totals come from `SUMIFS`, and the weekly average calories sit next to the weight trend, so calorie adjustments are based on real intake.
@@ -57,7 +57,7 @@ flowchart LR
 - **Tasks API has no recurrence.** Instead of fighting it, a daily job deletes and re-creates the checklist. Unfinished items never pile up, which keeps the system guilt-free.
 - **Idempotent setup.** `setup()` checks for an existing calendar, task list and a script-property flag before creating anything, so re-running it never duplicates events. Tested by running it twice.
 - **Private by default.** The web app is deployed *Execute as: me / Access: only myself*. It needs no API keys and no public endpoint. Personal settings live in a git-ignored `config.js`.
-- **Testable core.** Scheduling logic (`buildTaskItems_`, `firstMatchingDay_`) is written as pure functions, so it can be unit-tested in Node without Google services.
+- **Testable core.** Scheduling logic (`buildTaskItems_`, `firstMatchingDay_`) and the quick-add parser (`parseQuick`) are written as pure functions, so it can be unit-tested in Node without Google services.
 
 ### Bug worth noting: time zones
 End-to-end testing caught workouts being saved under the *previous day*. The spreadsheet had kept the default time zone from its import, while the script ran on America/New_York. So `new Date(y, m, d)` at local midnight landed on the evening before in the Sheet's zone. Two changes fixed it:
@@ -72,7 +72,8 @@ Lesson: when two systems each have a time zone, pin them to the same one explici
 src/                  ← pushed to Apps Script by clasp (rootDir)
   Code.js             automation: setup, daily checklist, weekly email
   WebApp.js           web app backend (doGet, getAppData, saveDaily, saveWorkout)
-  Food.js             food library + log, daily totals, auto-ticking checklist
+  Food.js             food library + log, daily totals (kcal, protein, water, caffeine), auto-ticking checklist
+  Parser.html         quick-add text parser (pure JS, unit-tested in Node, included into Index.html)
   Index.html          mobile UI (Today / Workout / Progress)
   appsscript.json     manifest: time zone, OAuth scopes, Tasks advanced service
   config.js           YOUR settings — git-ignored
