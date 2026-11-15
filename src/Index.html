@@ -191,7 +191,7 @@
   .check { border-radius: 4px; transform: rotate(45deg); width: 26px; height: 26px; margin: 3px 6px; border-color: var(--brass-lo); }
   .check.on { box-shadow: 0 0 10px rgba(57,194,166,.6); }
   .calm .g-fill { background: linear-gradient(90deg, #1f6f8f, #7fe3d4); box-shadow: 0 0 14px rgba(127,227,212,.7); }
-  .qbtns.three { grid-template-columns: 1fr 1fr 1fr; }
+  .qbtns.three { grid-template-columns: 2fr 1fr 1fr .7fr; }
   .breath { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
     background: radial-gradient(circle at 50% 40%, #12304a, #060b12 70%); }
   .breath[hidden] { display: none; }
@@ -268,7 +268,7 @@
       <div class="gauge calm" id="gM"><div class="g-head"><span>🧘 Calm</span><span class="g-sub" id="gMs"></span></div>
         <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
       <div class="qbtns three" style="margin-bottom:8px">
-        <button onclick="breathe(1)">Breathe 1 min</button><button onclick="breathe(3)">3 min</button><button onclick="breathe(5)">5 min</button>
+        <button onclick="breathe(1)">Breathe 1 min</button><button onclick="breathe(3)">3 min</button><button onclick="breathe(5)">5 min</button><button onclick="undoMindful()" aria-label="Remove one minute">−1</button>
       </div>
       <div class="qbtns">
         <button onclick="quickItem('Water')">+8 oz 💧</button><button onclick="quickItem('Water bottle')">+24 oz 💧</button>
@@ -507,6 +507,11 @@ function stopBreath(done) {
   const mins = done ? bMin : Math.floor((Date.now() - bStart) / 60000);   // stopping early still counts the full minutes done
   if (mins < 1) return toast('Stopped');
   google.script.run.withSuccessHandler(d => { D = d; renderFood(); renderProgressIfOpen(); toast(`+${mins} min of calm 🧘`); }).withFailureHandler(fail).addMindful(curDate, mins);
+}
+
+function undoMindful() {
+  if (!((D.entry && D.entry.mind) > 0)) return toast('Nothing to remove');
+  google.script.run.withSuccessHandler(d => { D = d; renderFood(); renderProgressIfOpen(); toast('Removed 1 min'); }).withFailureHandler(fail).addMindful(curDate, -1);
 }
 
 // ---------- iPhone sync (key shown once; only a fingerprint is stored) ----------
