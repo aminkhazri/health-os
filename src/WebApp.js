@@ -59,7 +59,7 @@ function getAppData(dateKey) {
     const k = key_(r[0], tz);
     if (k === dateKey) entry = { date: k, weight: num_(r[1]), sleep: num_(r[2]), energy: num_(r[3]),
       protein: r[4], meals: num_(r[5]), water: r[6], notes: r[7], mealsDetail: String(r[11] || ''), hr: num_(r[16]), mind: num_(r[17]) || 0 };
-    if (k <= today && (r[1] !== '' || r[2] !== '' || num_(r[12]) > 0 || r[16] !== '' || num_(r[17]) > 0)) series.push({ m: num_(r[17]) || null, d: k, w: num_(r[1]), s: num_(r[2]), wa: num_(r[8]), k: num_(r[12]) || null, hr: num_(r[16]) });
+    if (k <= today && (r[1] !== '' || r[2] !== '' || num_(r[12]) > 0 || r[16] !== '' || num_(r[17]) > 0)) series.push({ m: num_(r[17]) || null, p: num_(r[13]) || null, wo: num_(r[14]) || null, d: k, w: num_(r[1]), s: num_(r[2]), wa: num_(r[8]), k: num_(r[12]) || null, hr: num_(r[16]) });
   });
 
   const weekly = ss.getSheetByName('Weekly Summary').getRange(2, 1, 52, 12).getValues()

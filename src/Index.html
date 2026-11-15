@@ -6,18 +6,19 @@
 <meta name="apple-mobile-web-app-title" content="Health OS">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Spectral:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700;1,800&display=swap" rel="stylesheet">
 <?!= include('Parser'); ?>
 <style>
-  /* Theme: "Adventurer's journal" — night-lake navy panels, brass trim, spirit-teal accent. One look in light and dark. */
+  /* Theme: "Matchday" — floodlit-night slate, pitch-lime accent, condensed scoreboard type. One look in light and dark. */
   :root {
     color-scheme: dark;
-    --bg: #0a121c; --surface-1: #111d2b; --surface-2: #1a2a3d; --border: #2c3f55;
-    --text-primary: #efe6cf; --text-secondary: #b9b196; --text-muted: #8a8a7c;
-    --brass: #cfa955; --brass-hi: #f1d58a; --brass-lo: #7d6226;
-    --series-1: #39c2a6; --series-1-soft: rgba(57,194,166,.38); --ref: #9a927a;
-    --accent: #39c2a6; --accent-ink: #06211c; --good: #56d08a; --warn: #e6ae45;
-    --radius: 6px; --display: "Cinzel", "Trajan Pro", Georgia, serif;
+    --bg: #0e1217; --surface-1: #161b23; --surface-2: #1f2630; --border: #2a3340;
+    --text-primary: #f3f6f8; --text-secondary: #a9b4c0; --text-muted: #7b8795;
+    --lime: #b8f23e; --lime-ink: #10160a; --teal: #2dd4bf;
+    --brass: var(--lime); --brass-hi: var(--lime); --brass-lo: var(--border);   /* older rules still read these names */
+    --series-1: #2dd4bf; --series-1-soft: rgba(45,212,191,.38); --ref: #8b96a3;
+    --accent: #b8f23e; --accent-ink: #10160a; --good: #5fdc7a; --warn: #f0c33c; --bad: #f2716b;
+    --radius: 10px; --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { margin: 0; background: var(--bg); color: var(--text-primary);
@@ -145,72 +146,84 @@
   .qbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .qbtns button { font: inherit; font-size: 15px; font-weight: 600; padding: 10px 0; border-radius: 10px; border: 1px solid #34343f; background: #1d1d24; color: #f2f2f5; }
 
-  /* ---------- Adventurer's journal theme ---------- */
-  body { background: radial-gradient(120% 60% at 50% -10%, #16304a 0%, rgba(22,48,74,0) 60%), linear-gradient(180deg, #0a121c, #070d15 70%); background-attachment: fixed; min-height: 100vh; }
-  header .greet { font-family: var(--display); font-size: 14px; letter-spacing: .12em; color: var(--brass); }
-  header .bigdate { font-family: var(--display); font-weight: 800; font-size: 31px; letter-spacing: .01em;
-    background: linear-gradient(180deg, var(--brass-hi), var(--brass) 55%, var(--brass-lo)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  header .quote { font-family: "Spectral", Georgia, serif; font-size: 16px; border-left: 0; border-radius: 4px; text-align: center;
-    background: linear-gradient(90deg, rgba(207,169,85,0), rgba(207,169,85,.1) 20%, rgba(207,169,85,.1) 80%, rgba(207,169,85,0));
-    border-top: 1px solid rgba(207,169,85,.35); border-bottom: 1px solid rgba(207,169,85,.35); color: var(--text-primary); }
+  /* ---------- Matchday theme ---------- */
+  body { background: radial-gradient(90% 40% at 50% -5%, #1c2a33 0%, rgba(28,42,51,0) 70%), var(--bg); background-attachment: fixed; min-height: 100vh; }
+  header { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; align-items: center; }
+  header .greet, header .bigdate { grid-column: 1; }
+  header .ovr { grid-column: 2; grid-row: 1 / span 2; }
+  header .quote, header .sub { grid-column: 1 / -1; }
+  header .greet { font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: .1em; text-transform: uppercase; color: var(--lime); }
+  header .bigdate { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 38px; line-height: 1; letter-spacing: .01em; text-transform: uppercase; margin: 2px 0 12px; }
+  header .quote { border-left: 3px solid var(--lime); border-radius: 0 8px 8px 0; background: var(--surface-1); font-style: normal; color: var(--text-secondary); font-size: 15px; }
   header .sub { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  header .sub span { border: 1px solid var(--brass-lo); border-radius: 3px; padding: 2px 8px; color: var(--text-secondary); background: rgba(207,169,85,.06); }
-  header .sub span.streak { color: var(--brass-hi); border-color: var(--brass); }
-  .card { position: relative; border: 1px solid var(--brass-lo); border-radius: var(--radius); margin: 16px 0; padding: 16px 14px 14px;
-    background: linear-gradient(180deg, #14233440, #0e1926 60%), var(--surface-1);
-    box-shadow: inset 0 0 0 3px #0a121c, inset 0 0 0 4px rgba(207,169,85,.22), 0 6px 18px rgba(0,0,0,.45); }
-  .card::before { content: ''; position: absolute; top: -6px; left: 50%; width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg);
-    background: linear-gradient(135deg, var(--brass-hi), var(--brass-lo)); border: 1px solid #0a121c; box-shadow: 0 0 8px rgba(241,213,138,.5); }
-  .card h2 { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: .14em; color: var(--brass); display: flex; align-items: center; gap: 10px; }
-  .card h2::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(207,169,85,.6), rgba(207,169,85,0)); }
-  input, textarea { background: #0b1520; border: 1px solid var(--border); border-radius: 4px; box-shadow: inset 0 2px 6px rgba(0,0,0,.5); }
-  input:focus, textarea:focus { border-color: var(--brass); box-shadow: inset 0 2px 6px rgba(0,0,0,.5), 0 0 0 2px rgba(207,169,85,.25); }
-  input::placeholder, textarea::placeholder { color: #5f6b78; }
+  header .sub span { font-family: var(--display); font-weight: 600; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; border-radius: 4px; padding: 2px 8px; background: var(--surface-2); color: var(--text-secondary); }
+  header .sub span.streak { background: var(--lime); color: var(--lime-ink); }
+  .ovr { width: 68px; height: 68px; border-radius: 14px; border: 0; padding: 0; background: linear-gradient(160deg, #d6ff6b, var(--lime) 55%, #7fbf1e); color: var(--lime-ink);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(184,242,62,.25); font-family: var(--display); }
+  .ovr b { font-size: 34px; line-height: .9; font-weight: 800; font-style: italic; } .ovr i { font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: .14em; }
+  .card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); margin: 12px 0; padding: 14px; }
+  .card h2 { font-family: var(--display); font-size: 17px; font-weight: 700; letter-spacing: .08em; color: var(--text-primary); display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .card h2::before { content: ''; width: 4px; height: 16px; border-radius: 2px; background: var(--lime); transform: skewX(-12deg); }
+  input, textarea { background: #0f141a; border: 1px solid var(--border); border-radius: 8px; }
+  input:focus, textarea:focus { border-color: var(--lime); box-shadow: 0 0 0 2px rgba(184,242,62,.2); }
+  input::placeholder, textarea::placeholder { color: #5b6673; }
   .seg button, .chip, .sugg button, .cats button, .qbtns button, .btn2, .ask .chips2 button, .flist .fr button {
-    border-radius: 4px; border: 1px solid var(--border); background: linear-gradient(180deg, #1d3046, #142233); color: var(--text-primary); }
-  .seg button.on, .chip.on, .ask .chips2 button.on { background: linear-gradient(180deg, #2a8f7c, #17574c); color: #eafff9; border-color: var(--accent);
-    box-shadow: 0 0 12px rgba(57,194,166,.45), inset 0 1px 0 rgba(255,255,255,.25); }
+    border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-primary); }
+  .seg button.on, .chip.on, .ask .chips2 button.on { background: var(--lime); color: var(--lime-ink); border-color: var(--lime); font-weight: 700; }
   .chip.on::before { content: '✓ '; }
-  .primary, .qa button { font-family: var(--display); letter-spacing: .08em; border-radius: 4px; color: #1c1403; border: 1px solid var(--brass-hi);
-    background: linear-gradient(180deg, var(--brass-hi), var(--brass) 45%, #a57f33); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 3px 10px rgba(0,0,0,.5); text-shadow: 0 1px 0 rgba(255,255,255,.3); }
-  .primary:active, .qa button:active { transform: translateY(1px); filter: brightness(.92); }
-  .mealtag { border-radius: 3px; border-color: var(--brass); color: var(--brass-hi); }
-  .datebar { padding: 10px 14px; } .datebar .d { font-family: var(--display); letter-spacing: .06em; }
-  .datebar button { border-radius: 4px; border-color: var(--brass-lo); background: #0b1520; color: var(--brass); }
-  .gauges { background: linear-gradient(180deg, #101b29, #0a121c); border-color: var(--brass-lo); }
-  .g-head { font-family: var(--display); letter-spacing: .12em; }
-  .g-track { border-radius: 5px; border: 1px solid var(--brass-lo); box-shadow: inset 0 3px 8px rgba(0,0,0,.8), 0 0 0 2px #0a121c, 0 0 0 3px rgba(207,169,85,.3); height: 24px; }
-  .g-fill { border-radius: 3px; }
-  .flist .fh { font-family: var(--display); color: var(--brass); letter-spacing: .1em; border-bottom: 1px solid rgba(207,169,85,.25); padding-bottom: 3px; }
-  .flist .fr .kc { color: var(--brass-hi); }
-  .tile { border: 1px solid var(--brass-lo); border-radius: var(--radius); background: linear-gradient(180deg, #132132, #0e1926); box-shadow: inset 0 0 0 3px #0a121c, inset 0 0 0 4px rgba(207,169,85,.16); padding: 14px; }
-  .tile .v { font-family: var(--display); font-size: 22px; color: var(--text-primary); }
-  .hero .v { font-family: var(--display); color: var(--brass-hi); }
-  .bar { border-radius: 3px; border: 1px solid var(--brass-lo); background: #0b1520; height: 12px; }
-  .bar > i { border-radius: 2px; background: linear-gradient(90deg, #17574c, var(--accent)); box-shadow: 0 0 10px rgba(57,194,166,.6); }
-  .check { border-radius: 4px; transform: rotate(45deg); width: 26px; height: 26px; margin: 3px 6px; border-color: var(--brass-lo); }
-  .check.on { box-shadow: 0 0 10px rgba(57,194,166,.6); }
-  .calm .g-fill { background: linear-gradient(90deg, #1f6f8f, #7fe3d4); box-shadow: 0 0 14px rgba(127,227,212,.7); }
+  .primary, .qa button { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; letter-spacing: .06em; text-transform: uppercase;
+    border-radius: 8px; border: 0; color: var(--lime-ink); background: var(--lime); }
+  .qa button { font-size: 18px; }
+  .primary:active, .qa button:active { transform: translateY(1px); filter: brightness(.9); }
+  .mealtag { border-radius: 4px; border-color: var(--lime); color: var(--lime); }
+  .datebar { padding: 8px 12px; } .datebar .d { font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: .05em; text-transform: uppercase; }
+  .datebar button { border-radius: 8px; border-color: var(--border); background: var(--surface-2); color: var(--text-primary); }
+  .gauges { background: var(--surface-1); border-color: var(--border); }
+  .g-head { font-family: var(--display); font-size: 16px; letter-spacing: .08em; }
+  .g-sub { font-family: inherit; }
+  .g-track { border-radius: 6px; border: 1px solid var(--border); box-shadow: inset 0 2px 6px rgba(0,0,0,.7); height: 24px; transform: skewX(-8deg); }
+  .g-fill { border-radius: 4px; } .g-text { transform: skewX(8deg); }
+  .calm .g-fill { background: linear-gradient(90deg, #178f84, #5eead4); box-shadow: 0 0 14px rgba(94,234,212,.6); }
   .qbtns.three { grid-template-columns: 2fr 1fr 1fr .7fr; }
+  .flist .fh { font-family: var(--display); font-size: 15px; color: var(--lime); letter-spacing: .08em; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+  .flist .fr .kc { color: var(--text-primary); }
+  .tile { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); padding: 12px 14px; }
+  .tile .k { font-family: var(--display); font-weight: 600; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; }
+  .tile .v { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 30px; line-height: 1.1; }
+  .hero .v { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 48px; color: var(--lime); }
+  .bar { border-radius: 4px; background: var(--surface-2); height: 10px; }
+  .bar > i { border-radius: 4px; background: var(--lime); }
+  .check { border-radius: 8px; border-color: var(--border); }
+  .check.on { background: var(--lime); border-color: var(--lime); color: var(--lime-ink); }
+  .ex .muted b { color: var(--lime); font-weight: 600; }
+  .ritual { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .ritual summary { color: var(--lime); font-size: 14px; cursor: pointer; }
+  .ritual ol { margin: 8px 0 0; padding-left: 22px; color: var(--text-secondary); font-size: 15px; line-height: 1.7; }
   .breath { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-    background: radial-gradient(circle at 50% 40%, #12304a, #060b12 70%); }
+    background: radial-gradient(circle at 50% 40%, #16303a, #080b0f 70%); }
   .breath[hidden] { display: none; }
-  .b-orb { width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--brass); transform: scale(.7);
-    background: radial-gradient(circle, rgba(127,227,212,.55), rgba(57,194,166,.12)); box-shadow: 0 0 40px rgba(127,227,212,.45); }
+  .b-orb { width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--teal); transform: scale(.7);
+    background: radial-gradient(circle, rgba(94,234,212,.55), rgba(45,212,191,.12)); box-shadow: 0 0 40px rgba(94,234,212,.4); }
   .b-orb.in { transform: scale(1.5); transition: transform 4s ease-in-out; }
   .b-orb.out { transform: scale(.7); transition: transform 6s ease-in-out; }
-  .b-word { font-family: var(--display); font-size: 22px; letter-spacing: .12em; color: var(--brass-hi); margin-top: 40px; }
+  .b-word { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 28px; letter-spacing: .08em; text-transform: uppercase; margin-top: 40px; }
   .b-left { color: var(--text-secondary); font-size: 15px; }
-  .ritual { margin-top: 12px; border-top: 1px solid rgba(207,169,85,.25); padding-top: 10px; }
-  .ritual summary { color: var(--brass-hi); font-size: 14px; cursor: pointer; }
-  .ritual ol { margin: 8px 0 0; padding-left: 22px; color: var(--text-secondary); font-size: 15px; line-height: 1.7; }
-  .ex .muted b { color: var(--brass-hi); font-weight: 600; }
-  nav { background: linear-gradient(180deg, #132132, #0a121c); border-top: 1px solid var(--brass); box-shadow: 0 -6px 18px rgba(0,0,0,.5); }
-  nav button { font-family: var(--display); letter-spacing: .1em; font-size: 11px; }
-  nav button.on { color: var(--brass-hi); text-shadow: 0 0 10px rgba(241,213,138,.6); }
-  nav button.on span { filter: drop-shadow(0 0 6px rgba(241,213,138,.7)); }
-  .toast { background: linear-gradient(180deg, var(--brass-hi), var(--brass)); color: #1c1403; border-radius: 4px; font-weight: 700; border: 1px solid #0a121c; }
-  button:focus-visible, input:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
+  /* Player profile (radar + attribute bars) */
+  .prof-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .prof-head .muted { font-size: 13px; }
+  .radar { position: relative; height: 290px; margin: 4px 0 10px; }
+  .attrs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+  .attr .ah { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; color: var(--text-secondary); }
+  .attr .ah b { font-family: var(--display); font-weight: 800; font-size: 20px; }
+  .attr .bar { margin: 5px 0 0; height: 8px; }
+  .scale { height: 5px; border-radius: 3px; margin: 16px 0 4px; background: linear-gradient(90deg, var(--bad), var(--warn) 45%, var(--lime) 72%, var(--good)); }
+  .scale-l { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
+  .prof-foot { display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid var(--border); margin-top: 12px; padding-top: 10px; font-size: 14px; color: var(--text-secondary); }
+  nav { background: #11161c; border-top: 1px solid var(--border); }
+  nav button { font-family: var(--display); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 13px; }
+  nav button.on { color: var(--lime); box-shadow: inset 0 3px 0 var(--lime); }
+  .toast { background: var(--lime); color: var(--lime-ink); border-radius: 8px; font-weight: 700; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
   #loading { text-align: center; padding: 60px 0; color: var(--text-muted); }
 </style>
@@ -218,6 +231,7 @@
 <body>
 <header>
   <div class="greet" id="greet">&nbsp;</div>
+  <button class="ovr" id="ovr" onclick="show('prog')" aria-label="Overall score, open progress" hidden><b id="ovrN">–</b><i>OVR</i></button>
   <h1 class="bigdate" id="bigdate">&nbsp;</h1>
   <p class="quote" id="quote"></p>
   <div class="sub" id="hdr">Loading…</div>
@@ -276,7 +290,7 @@
       </div>
     </div>
     <div class="card">
-      <h2>Daily quests</h2>
+      <h2>Objectives</h2>
       <p class="muted" style="margin:-4px 0 10px">Fills in automatically as you log food — or tap to mark manually.</p>
       <div class="chips" id="meals"></div>
       <div class="chips" style="margin-top:8px">
@@ -308,6 +322,13 @@
 
   <!-- PROGRESS -->
   <section class="tab" id="t-prog">
+    <div class="card" id="profCard">
+      <div class="prof-head"><h2>Player profile</h2><span class="muted">Last 7 days · score / 100</span></div>
+      <div class="radar"><canvas id="cRadar" role="img" aria-label="Player profile radar: seven scores out of 100"></canvas></div>
+      <div class="attrs" id="attrs"></div>
+      <div class="scale"></div><div class="scale-l"><span>25 or below</span><span>50</span><span>75</span><span>100</span></div>
+      <div class="prof-foot"><span id="profBest"></span><span id="profWorst"></span></div>
+    </div>
     <div class="card hero">
       <h2>This week's average</h2>
       <div class="v" id="pAvg">—</div>
@@ -383,7 +404,7 @@ function render() {
   if (!document.querySelector('.tab.on')) $('t-today').classList.add('on');
   $('hdr').innerHTML = (D.targets.phase ? `<span>${D.targets.phase}</span>` : '') + streakBadge();
   renderHeader();
-  renderToday(); renderWorkout();
+  renderToday(); renderWorkout(); renderOvr();
   if ($('t-prog').classList.contains('on')) renderProgress();
 }
 
@@ -392,6 +413,50 @@ function streakBadge() {
   const days = new Set(D.series.map(x => x.d)); let k = days.has(D.today) ? D.today : addDays(D.today, -1), n = 0;
   while (days.has(k)) { n++; k = addDays(k, -1); }
   return n ? `<span class="streak">🔥 ${n}-day streak</span>` : '';
+}
+
+// ---------- Player profile: seven scores out of 100, from the last 7 days ----------
+// Each score = your average on the days you logged that thing, as a share of its target (capped at 100).
+// Training uses this week's sessions; Calm uses all 7 days, so a skipped day counts as zero.
+function profile() {
+  const t = D.targets, G = (D.food && D.food.targets) || {}, A = D.activity || { series: [] };
+  const from = addDays(D.today, -7), S = D.series.filter(x => x.d > from), AS = (A.series || []).filter(x => x.d > from);
+  const avg = (rows, f) => { const v = rows.map(f).filter(x => x != null && x > 0); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; };
+  const pct = (v, goal) => goal ? Math.max(0, Math.min(100, v / goal * 100)) : 0;
+  const cur = D.weekly[D.weekly.length - 1] || {};
+  return [
+    ['Fuel', pct(avg(S, x => x.k), t.calories)],
+    ['Protein', pct(avg(S, x => x.p), G.protein || 150)],
+    ['Hydration', pct(avg(S, x => x.wo), G.water || 125)],
+    ['Sleep', pct(avg(S, x => x.s), 7)],
+    ['Training', pct(cur.workouts || 0, t.workouts || 3)],
+    ['Movement', pct(avg(AS, x => x.st), A.stepGoal || 8000)],
+    ['Calm', pct(S.reduce((a, x) => a + (x.m || 0), 0) / 7, t.mindful || 10)],
+  ].map(([name, v]) => ({ name, v: Math.round(v * 10) / 10 }));
+}
+function scoreColor(v) { return css(v >= 85 ? '--good' : v >= 65 ? '--lime' : v >= 40 ? '--warn' : '--bad'); }
+function renderOvr() {
+  const P = profile(), ovr = Math.round(P.reduce((a, x) => a + x.v, 0) / P.length);
+  $('ovrN').textContent = ovr; $('ovr').hidden = false;
+  return P;
+}
+function renderProfile() {
+  const P = renderOvr();
+  $('attrs').innerHTML = P.map(x => `<div class="attr"><div class="ah"><span>${x.name}</span><b style="color:${scoreColor(x.v)}">${x.v.toFixed(1)}</b></div>
+    <div class="bar"><i style="width:${x.v}%;background:${scoreColor(x.v)}"></i></div></div>`).join('');
+  const sorted = [...P].sort((a, b) => b.v - a.v), best = sorted[0], worst = sorted[sorted.length - 1];
+  $('profBest').innerHTML = `Strongest: <b style="color:${scoreColor(best.v)}">${best.name}</b>`;
+  $('profWorst').innerHTML = `Lowest score: <b style="color:${scoreColor(worst.v)}">${worst.name}</b>`;
+  if (typeof Chart === 'undefined') return;
+  const teal = css('--teal'), grid = css('--border');
+  mk('cRadar', { type: 'radar', data: { labels: P.map(x => x.name), datasets: [{ label: 'Score', data: P.map(x => x.v),
+      borderColor: teal, backgroundColor: 'rgba(45,212,191,.22)', borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
+      pointBackgroundColor: P.map(x => scoreColor(x.v)), pointBorderColor: css('--surface-1'), pointBorderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false },
+        tooltip: { backgroundColor: css('--surface-2'), titleColor: css('--text-primary'), bodyColor: css('--text-primary'), borderColor: grid, borderWidth: 1, padding: 10,
+          callbacks: { label: c => ` ${c.parsed.r.toFixed(1)} / 100` } } },
+      scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 25 }, grid: { color: grid }, angleLines: { color: grid },
+        pointLabels: { color: css('--text-secondary'), font: { size: 13 } } } } } });
 }
 
 // ---------- TODAY ----------
@@ -455,6 +520,7 @@ function saveW() {
 
 // ---------- PROGRESS ----------
 function renderProgress() {
+  renderProfile();
   const W = D.weekly, cur = W[W.length - 1] || {}, t = D.targets;
   const avg = cur.avg ?? (D.series.filter(x => x.w != null).slice(-1)[0] || {}).w ?? null;
   $('pAvg').textContent = avg == null ? 'No weigh-ins yet' : n1(avg) + ' lb';
