@@ -5,24 +5,19 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Health OS">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Spectral:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
 <?!= include('Parser'); ?>
 <style>
+  /* Theme: "Adventurer's journal" — night-lake navy panels, brass trim, spirit-teal accent. One look in light and dark. */
   :root {
-    color-scheme: light;
-    --bg: #f4f4f1; --surface-1: #fcfcfb; --surface-2: #ecebe6; --border: #dcdbd4;
-    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #7a7974;
-    --series-1: #2a78d6; --series-1-soft: rgba(42,120,214,.28); --ref: #8e8d86;
-    --accent: #2e5e4e; --accent-ink: #ffffff; --good: #0a7d3c; --warn: #9a6200;
-    --radius: 14px;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      color-scheme: dark;
-      --bg: #111110; --surface-1: #1a1a19; --surface-2: #262624; --border: #34342f;
-      --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
-      --series-1: #3987e5; --series-1-soft: rgba(57,135,229,.35); --ref: #8f8e86;
-      --accent: #4f9a80; --accent-ink: #0b0b0b; --good: #3fbf72; --warn: #e0a43a;
-    }
+    color-scheme: dark;
+    --bg: #0a121c; --surface-1: #111d2b; --surface-2: #1a2a3d; --border: #2c3f55;
+    --text-primary: #efe6cf; --text-secondary: #b9b196; --text-muted: #8a8a7c;
+    --brass: #cfa955; --brass-hi: #f1d58a; --brass-lo: #7d6226;
+    --series-1: #39c2a6; --series-1-soft: rgba(57,194,166,.38); --ref: #9a927a;
+    --accent: #39c2a6; --accent-ink: #06211c; --good: #56d08a; --warn: #e6ae45;
+    --radius: 6px; --display: "Cinzel", "Trajan Pro", Georgia, serif;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { margin: 0; background: var(--bg); color: var(--text-primary);
@@ -149,6 +144,59 @@
   @keyframes glow { 50% { filter: brightness(1.2) saturate(1.2); } }
   .qbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .qbtns button { font: inherit; font-size: 15px; font-weight: 600; padding: 10px 0; border-radius: 10px; border: 1px solid #34343f; background: #1d1d24; color: #f2f2f5; }
+
+  /* ---------- Adventurer's journal theme ---------- */
+  body { background: radial-gradient(120% 60% at 50% -10%, #16304a 0%, rgba(22,48,74,0) 60%), linear-gradient(180deg, #0a121c, #070d15 70%); background-attachment: fixed; min-height: 100vh; }
+  header .greet { font-family: var(--display); font-size: 14px; letter-spacing: .12em; color: var(--brass); }
+  header .bigdate { font-family: var(--display); font-weight: 800; font-size: 31px; letter-spacing: .01em;
+    background: linear-gradient(180deg, var(--brass-hi), var(--brass) 55%, var(--brass-lo)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  header .quote { font-family: "Spectral", Georgia, serif; font-size: 16px; border-left: 0; border-radius: 4px; text-align: center;
+    background: linear-gradient(90deg, rgba(207,169,85,0), rgba(207,169,85,.1) 20%, rgba(207,169,85,.1) 80%, rgba(207,169,85,0));
+    border-top: 1px solid rgba(207,169,85,.35); border-bottom: 1px solid rgba(207,169,85,.35); color: var(--text-primary); }
+  header .sub { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  header .sub span { border: 1px solid var(--brass-lo); border-radius: 3px; padding: 2px 8px; color: var(--text-secondary); background: rgba(207,169,85,.06); }
+  header .sub span.streak { color: var(--brass-hi); border-color: var(--brass); }
+  .card { position: relative; border: 1px solid var(--brass-lo); border-radius: var(--radius); margin: 16px 0; padding: 16px 14px 14px;
+    background: linear-gradient(180deg, #14233440, #0e1926 60%), var(--surface-1);
+    box-shadow: inset 0 0 0 3px #0a121c, inset 0 0 0 4px rgba(207,169,85,.22), 0 6px 18px rgba(0,0,0,.45); }
+  .card::before { content: ''; position: absolute; top: -6px; left: 50%; width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg);
+    background: linear-gradient(135deg, var(--brass-hi), var(--brass-lo)); border: 1px solid #0a121c; box-shadow: 0 0 8px rgba(241,213,138,.5); }
+  .card h2 { font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: .14em; color: var(--brass); display: flex; align-items: center; gap: 10px; }
+  .card h2::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(207,169,85,.6), rgba(207,169,85,0)); }
+  input, textarea { background: #0b1520; border: 1px solid var(--border); border-radius: 4px; box-shadow: inset 0 2px 6px rgba(0,0,0,.5); }
+  input:focus, textarea:focus { border-color: var(--brass); box-shadow: inset 0 2px 6px rgba(0,0,0,.5), 0 0 0 2px rgba(207,169,85,.25); }
+  input::placeholder, textarea::placeholder { color: #5f6b78; }
+  .seg button, .chip, .sugg button, .cats button, .qbtns button, .btn2, .ask .chips2 button, .flist .fr button {
+    border-radius: 4px; border: 1px solid var(--border); background: linear-gradient(180deg, #1d3046, #142233); color: var(--text-primary); }
+  .seg button.on, .chip.on, .ask .chips2 button.on { background: linear-gradient(180deg, #2a8f7c, #17574c); color: #eafff9; border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(57,194,166,.45), inset 0 1px 0 rgba(255,255,255,.25); }
+  .chip.on::before { content: '✓ '; }
+  .primary, .qa button { font-family: var(--display); letter-spacing: .08em; border-radius: 4px; color: #1c1403; border: 1px solid var(--brass-hi);
+    background: linear-gradient(180deg, var(--brass-hi), var(--brass) 45%, #a57f33); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 3px 10px rgba(0,0,0,.5); text-shadow: 0 1px 0 rgba(255,255,255,.3); }
+  .primary:active, .qa button:active { transform: translateY(1px); filter: brightness(.92); }
+  .mealtag { border-radius: 3px; border-color: var(--brass); color: var(--brass-hi); }
+  .datebar { padding: 10px 14px; } .datebar .d { font-family: var(--display); letter-spacing: .06em; }
+  .datebar button { border-radius: 4px; border-color: var(--brass-lo); background: #0b1520; color: var(--brass); }
+  .gauges { background: linear-gradient(180deg, #101b29, #0a121c); border-color: var(--brass-lo); }
+  .g-head { font-family: var(--display); letter-spacing: .12em; }
+  .g-track { border-radius: 5px; border: 1px solid var(--brass-lo); box-shadow: inset 0 3px 8px rgba(0,0,0,.8), 0 0 0 2px #0a121c, 0 0 0 3px rgba(207,169,85,.3); height: 24px; }
+  .g-fill { border-radius: 3px; }
+  .flist .fh { font-family: var(--display); color: var(--brass); letter-spacing: .1em; border-bottom: 1px solid rgba(207,169,85,.25); padding-bottom: 3px; }
+  .flist .fr .kc { color: var(--brass-hi); }
+  .tile { border: 1px solid var(--brass-lo); border-radius: var(--radius); background: linear-gradient(180deg, #132132, #0e1926); box-shadow: inset 0 0 0 3px #0a121c, inset 0 0 0 4px rgba(207,169,85,.16); padding: 14px; }
+  .tile .v { font-family: var(--display); font-size: 22px; color: var(--text-primary); }
+  .hero .v { font-family: var(--display); color: var(--brass-hi); }
+  .bar { border-radius: 3px; border: 1px solid var(--brass-lo); background: #0b1520; height: 12px; }
+  .bar > i { border-radius: 2px; background: linear-gradient(90deg, #17574c, var(--accent)); box-shadow: 0 0 10px rgba(57,194,166,.6); }
+  .check { border-radius: 4px; transform: rotate(45deg); width: 26px; height: 26px; margin: 3px 6px; border-color: var(--brass-lo); }
+  .check.on { box-shadow: 0 0 10px rgba(57,194,166,.6); }
+  nav { background: linear-gradient(180deg, #132132, #0a121c); border-top: 1px solid var(--brass); box-shadow: 0 -6px 18px rgba(0,0,0,.5); }
+  nav button { font-family: var(--display); letter-spacing: .1em; font-size: 11px; }
+  nav button.on { color: var(--brass-hi); text-shadow: 0 0 10px rgba(241,213,138,.6); }
+  nav button.on span { filter: drop-shadow(0 0 6px rgba(241,213,138,.7)); }
+  .toast { background: linear-gradient(180deg, var(--brass-hi), var(--brass)); color: #1c1403; border-radius: 4px; font-weight: 700; border: 1px solid #0a121c; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
   #loading { text-align: center; padding: 60px 0; color: var(--text-muted); }
 </style>
 </head>
@@ -190,7 +238,7 @@
       <div id="ask"></div>
       <div class="flist" id="flist"></div>
     </div>
-    <div class="card gauges">
+    <div class="card gauges"><h2>Vitals</h2>
       <div class="gauge kcal" id="gK"><div class="g-head"><span>🔥 Calories</span><span class="g-sub" id="gKs"></span></div>
         <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
       <div class="gauge water" id="gW"><div class="g-head"><span>💧 Water</span><span class="g-sub" id="gWs"></span></div>
@@ -205,7 +253,7 @@
       </div>
     </div>
     <div class="card">
-      <h2>Checklist</h2>
+      <h2>Daily quests</h2>
       <p class="muted" style="margin:-4px 0 10px">Fills in automatically as you log food — or tap to mark manually.</p>
       <div class="chips" id="meals"></div>
       <div class="chips" style="margin-top:8px">
@@ -303,10 +351,17 @@ function load(dateKey) {
 function render() {
   $('loading').style.display = 'none';
   if (!document.querySelector('.tab.on')) $('t-today').classList.add('on');
-  $('hdr').textContent = D.targets.phase || '';
+  $('hdr').innerHTML = (D.targets.phase ? `<span>${D.targets.phase}</span>` : '') + streakBadge();
   renderHeader();
   renderToday(); renderWorkout();
   if ($('t-prog').classList.contains('on')) renderProgress();
+}
+
+// Consecutive days with something logged, counting back from today (or yesterday if today is still empty).
+function streakBadge() {
+  const days = new Set(D.series.map(x => x.d)); let k = days.has(D.today) ? D.today : addDays(D.today, -1), n = 0;
+  while (days.has(k)) { n++; k = addDays(k, -1); }
+  return n ? `<span class="streak">🔥 ${n}-day streak</span>` : '';
 }
 
 // ---------- TODAY ----------
