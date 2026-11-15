@@ -80,7 +80,7 @@ function buildTaskItems_(dow, shiftPhaseActive) {
   const isWork = d.work.includes(dow);
   const shiftDay = shiftPhaseActive && d.shift.includes(dow);
   const items = [
-    ['Weigh in + log in Health OS (1 min)', 'Morning, before food.' + (CONFIG.APP_URL ? ' Open: ' + CONFIG.APP_URL : '')],
+    ['Weigh in + resting HR + log in Health OS (1 min)', 'Right after waking, before coffee: weigh in, then sit still a minute and read your heart rate on the watch.' + (CONFIG.APP_URL ? ' Open: ' + CONFIG.APP_URL : '')],
     ['Breakfast', isWork ? 'Before your shift starts.' : ''],
     ['Lunch', isWork ? CONFIG.WORKDAY_LUNCH : 'Plate template.'],
     ['2 protein snacks', 'Greek yogurt, eggs, cheese + tortilla, nuts, PB, milk.'],

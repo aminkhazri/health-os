@@ -42,6 +42,13 @@ function setupActivity() {
   const n = wk.getLastRow() - 1, f = [];
   for (let r = 2; r <= n + 1; r++) f.push([`=IFERROR(AVERAGEIFS(Activity!B:B,Activity!A:A,">="&A${r},Activity!A:A,"<"&A${r}+7),"")`]);
   wk.getRange(2, 13, n, 1).setFormulas(f).setNumberFormat('#,##0');
+  // Weekly average resting heart rate from the Daily Log (column Q, typed in each morning).
+  wk.getRange(1, 14).setValue('Avg resting HR').setFontWeight('bold');
+  const h = [];
+  for (let r = 2; r <= n + 1; r++) h.push([`=IFERROR(AVERAGEIFS('Daily Log'!Q:Q,'Daily Log'!A:A,">="&A${r},'Daily Log'!A:A,"<"&A${r}+7),"")`]);
+  wk.getRange(2, 14, n, 1).setFormulas(h).setNumberFormat('0');
+  const dl = ss.getSheetByName('Daily Log');
+  if (dl.getRange(1, 17).getValue() === '') dl.getRange(1, 17).setValue('Resting HR').setFontWeight('bold');
   return 'Activity ready';
 }
 

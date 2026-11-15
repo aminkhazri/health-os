@@ -174,6 +174,7 @@
       <div class="row">
         <div><label class="f" for="w">Weight (lb)</label><input id="w" type="number" inputmode="decimal" step="0.1" placeholder="e.g. 160.4"></div>
         <div><label class="f" for="s">Sleep (hrs)</label><input id="s" type="number" inputmode="decimal" step="0.25" placeholder="6"></div>
+        <div><label class="f" for="hr">Resting HR ❤️</label><input id="hr" type="number" inputmode="numeric" step="1" min="30" max="220" placeholder="bpm"></div>
       </div>
       <label class="f" style="margin-top:12px">Energy</label>
       <div class="seg" id="energy"></div>
@@ -250,6 +251,7 @@
       <div class="tile"><div class="k">Avg calories</div><div class="v" id="pKcal">—</div><div class="s" id="pKcalS">days logged this week</div></div>
       <div class="tile"><div class="k">Today so far</div><div class="v" id="pToday">—</div><div class="s" id="pTodayS"></div></div>
       <div class="tile"><div class="k">Avg steps (7 days)</div><div class="v" id="pSteps">—</div><div class="s" id="pStepsS"></div></div>
+      <div class="tile"><div class="k">Resting HR (7 days)</div><div class="v" id="pHr">—</div><div class="s" id="pHrS">bpm, from morning check</div></div>
       <div class="tile"><div class="k">Active calories</div><div class="v" id="pBurn">—</div><div class="s">avg burned, 7 days</div></div>
     </div>
     <div class="card" id="calCard"><h2>Calorie check (every 2 weeks)</h2><div id="calTxt" class="muted"></div></div>
@@ -258,6 +260,7 @@
     <div class="card"><h2>Calories (days logged)</h2><div class="chart"><canvas id="cKcal" role="img" aria-label="Daily calories vs target"></canvas></div><div class="muted">Dashed line: current calorie target.</div></div>
     <div class="card"><h2>Workouts per week</h2><div class="chart"><canvas id="cWork" role="img" aria-label="Workouts per week"></canvas></div></div>
     <div class="card"><h2>Sleep (hrs)</h2><div class="chart"><canvas id="cSleep" role="img" aria-label="Nightly sleep"></canvas></div></div>
+    <div class="card"><h2>Resting heart rate (bpm)</h2><div class="chart"><canvas id="cHr" role="img" aria-label="Morning resting heart rate"></canvas></div><div class="muted">Taken each morning before coffee. A slow downward drift usually means fitness is improving; a jump of 5+ bpm can mean poor sleep, stress or getting sick.</div></div>
     <div class="card"><h2>Steps per day</h2><div class="chart"><canvas id="cSteps" role="img" aria-label="Daily steps vs goal"></canvas></div><div class="muted">From your iPhone (Apple Health). Dashed line: step goal.</div></div>
     <div class="card" id="syncCard"><h2>📲 iPhone sync</h2><div id="syncTxt" class="muted"></div>
       <div id="syncKey"></div>
@@ -310,7 +313,7 @@ function render() {
 function renderToday() {
   const e = D.entry || {};
   $('dlabel').textContent = (curDate === D.today ? 'Today · ' : '') + fmtDate(curDate);
-  $('w').value = e.weight ?? ''; $('s').value = e.sleep ?? ''; $('notes').value = e.notes || '';
+  $('w').value = e.weight ?? ''; $('s').value = e.sleep ?? ''; $('hr').value = e.hr ?? ''; $('notes').value = e.notes || '';
   $('energy').innerHTML = [1,2,3,4,5].map(i => `<button class="${e.energy===i?'on':''}" onclick="pickEnergy(${i})">${i}</button>`).join('');
   const md = e.mealsDetail || '';
   $('meals').innerHTML = MEALS.map(([c,l]) => `<button class="chip ${md.includes(c)?'on':''}" data-c="${c}" onclick="tog(this)">${l}</button>`).join('');
@@ -323,8 +326,8 @@ function shiftDay(n) { const k = addDays(curDate, n); if (k > D.today) return to
 function saveDay() {
   const chips = [...$('meals').children].filter(b => b.classList.contains('on')).map(b => b.dataset.c);
   const en = [...$('energy').children].findIndex(b => b.classList.contains('on'));
-  const w = $('w').value, s = $('s').value;
-  const o = { date: curDate, weight: w === '' ? null : Number(w), sleep: s === '' ? null : Number(s), energy: en < 0 ? null : en + 1,
+  const w = $('w').value, s = $('s').value, hr = $('hr').value;
+  const o = { date: curDate, weight: w === '' ? null : Number(w), sleep: s === '' ? null : Number(s), energy: en < 0 ? null : en + 1, hr: hr === '' ? null : Number(hr),
     protein: $('prot').classList.contains('on') ? 'Y' : 'N', water: $('water').classList.contains('on') ? 'Y' : 'N',
     meals: chips.length, mealsDetail: chips.join(''), notes: $('notes').value };
   $('saveDay').disabled = true;
@@ -389,6 +392,8 @@ function renderProgress() {
   $('pSteps').textContent = as == null ? '—' : as.toLocaleString();
   $('pStepsS').textContent = `goal ${(A.stepGoal || 8000).toLocaleString()}`;
   $('pBurn').textContent = ab == null ? '—' : ab.toLocaleString() + ' kcal';
+  const h7 = D.series.filter(x => x.hr != null && x.d > addDays(D.today, -7));
+  $('pHr').textContent = h7.length ? Math.round(h7.reduce((s, x) => s + x.hr, 0) / h7.length) + ' bpm' : '—';
   renderSync();
   drawCharts();
 }
@@ -472,6 +477,11 @@ function drawCharts() {
       { label: 'Sleep', data: ss.map(x => x.s), borderColor: blue, backgroundColor: blue, borderWidth: 2, pointRadius: 3, pointHoverRadius: 6, tension: .2 },
       refLine('Goal 7 h', 7, ss.length)] },
     options: baseOpts('', { scales: Object.assign(baseOpts().scales, { y: Object.assign(baseOpts().scales.y, { suggestedMin: 4, suggestedMax: 8 }) }) }) });
+  // Resting heart rate
+  const hs = S.filter(x => x.hr != null).slice(-60);
+  mk('cHr', { type: 'line', data: { labels: hs.map(x => sl(x.d)), datasets: [
+      { label: 'Resting HR', data: hs.map(x => x.hr), borderColor: blue, backgroundColor: blue, borderWidth: 2, pointRadius: 3, pointHoverRadius: 6, tension: .2 }] },
+    options: baseOpts('bpm') });
   // Steps per day + goal
   const st = ((D.activity || {}).series || []).filter(x => x.st != null).slice(-28), sg = (D.activity || {}).stepGoal || 8000;
   mk('cSteps', { type: 'bar', data: { labels: st.map(x => sl(x.d)), datasets: [

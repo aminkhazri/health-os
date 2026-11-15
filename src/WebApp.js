@@ -29,15 +29,15 @@ function getAppData(dateKey) {
   dateKey = dateKey || today;
 
   const daily = ss.getSheetByName('Daily Log');
-  const dv = daily.getRange(2, 1, daily.getLastRow() - 1, 15).getValues();
+  const dv = daily.getRange(2, 1, daily.getLastRow() - 1, 17).getValues();
   let entry = null;
   const series = [];
   dv.forEach(r => {
     if (!(r[0] instanceof Date)) return;
     const k = key_(r[0], tz);
     if (k === dateKey) entry = { date: k, weight: num_(r[1]), sleep: num_(r[2]), energy: num_(r[3]),
-      protein: r[4], meals: num_(r[5]), water: r[6], notes: r[7], mealsDetail: String(r[11] || '') };
-    if (k <= today && (r[1] !== '' || r[2] !== '' || num_(r[12]) > 0)) series.push({ d: k, w: num_(r[1]), s: num_(r[2]), wa: num_(r[8]), k: num_(r[12]) || null });
+      protein: r[4], meals: num_(r[5]), water: r[6], notes: r[7], mealsDetail: String(r[11] || ''), hr: num_(r[16]) };
+    if (k <= today && (r[1] !== '' || r[2] !== '' || num_(r[12]) > 0 || r[16] !== '')) series.push({ d: k, w: num_(r[1]), s: num_(r[2]), wa: num_(r[8]), k: num_(r[12]) || null, hr: num_(r[16]) });
   });
 
   const weekly = ss.getSheetByName('Weekly Summary').getRange(2, 1, 52, 12).getValues()
@@ -77,6 +77,10 @@ function saveDaily(o) {
   sh.getRange(row, 2, 1, 7).setValues([[v(o.weight), v(o.sleep), v(o.energy), v(o.protein), v(o.meals), v(o.water), v(o.notes)]]);
   if (sh.getRange(1, 12).getValue() === '') sh.getRange(1, 12).setValue('Meals detail (app)');
   sh.getRange(row, 12).setValue(o.mealsDetail || '');
+  // Resting heart rate (bpm), entered by hand from the watch. Ignore anything outside a human range.
+  if (sh.getRange(1, 17).getValue() === '') sh.getRange(1, 17).setValue('Resting HR').setFontWeight('bold');
+  const hr = num_(o.hr);
+  sh.getRange(row, 17).setValue(hr !== null && hr >= 30 && hr <= 220 ? Math.round(hr) : '');
   SpreadsheetApp.flush();
   return getAppData(o.date);
 }
