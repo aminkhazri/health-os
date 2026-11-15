@@ -51,15 +51,15 @@ function getAppData(dateKey) {
   dateKey = dateKey || today;
 
   const daily = ss.getSheetByName('Daily Log');
-  const dv = daily.getRange(2, 1, daily.getLastRow() - 1, 18).getValues();
+  const dv = daily.getRange(2, 1, daily.getLastRow() - 1, Math.min(19, daily.getMaxColumns())).getValues();
   let entry = null;
   const series = [];
   dv.forEach(r => {
     if (!(r[0] instanceof Date)) return;
     const k = key_(r[0], tz);
     if (k === dateKey) entry = { date: k, weight: num_(r[1]), sleep: num_(r[2]), energy: num_(r[3]),
-      protein: r[4], meals: num_(r[5]), water: r[6], notes: r[7], mealsDetail: String(r[11] || ''), hr: num_(r[16]), mind: num_(r[17]) || 0 };
-    if (k <= today && (r[1] !== '' || r[2] !== '' || num_(r[12]) > 0 || r[16] !== '' || num_(r[17]) > 0)) series.push({ m: num_(r[17]) || null, p: num_(r[13]) || null, wo: num_(r[14]) || null, d: k, w: num_(r[1]), s: num_(r[2]), wa: num_(r[8]), k: num_(r[12]) || null, hr: num_(r[16]) });
+      protein: r[4], meals: num_(r[5]), water: r[6], notes: r[7], mealsDetail: String(r[11] || ''), hr: num_(r[16]), mind: num_(r[17]) || 0, stretch: num_(r[18]) || 0 };
+    if (k <= today && (r[1] !== '' || r[2] !== '' || num_(r[12]) > 0 || r[16] !== '' || num_(r[17]) > 0 || num_(r[18]) > 0)) series.push({ m: num_(r[17]) || null, f: num_(r[18]) || null, p: num_(r[13]) || null, wo: num_(r[14]) || null, d: k, w: num_(r[1]), s: num_(r[2]), wa: num_(r[8]), k: num_(r[12]) || null, hr: num_(r[16]) });
   });
 
   const weekly = ss.getSheetByName('Weekly Summary').getRange(2, 1, 52, 12).getValues()
@@ -69,7 +69,7 @@ function getAppData(dateKey) {
 
   const sh = ss.getSheetByName('Start Here');
   const targets = { start: num_(sh.getRange('B5').getValue()), goal: num_(sh.getRange('B6').getValue()),
-    calories: num_(sh.getRange('B7').getValue()), workouts: CONFIG.WEEKLY_WORKOUT_TARGET || 3, mindful: CONFIG.MINDFUL_GOAL_MIN || 10, low: num_(sh.getRange('B12').getValue()),
+    calories: num_(sh.getRange('B7').getValue()), workouts: CONFIG.WEEKLY_WORKOUT_TARGET || 3, mindful: CONFIG.MINDFUL_GOAL_MIN || 10, stretch: CONFIG.STRETCH_GOAL_MIN || 5, low: num_(sh.getRange('B12').getValue()),
     high: num_(sh.getRange('B13').getValue()), phase: String(sh.getRange('B14').getValue()) };
 
   const wl = ss.getSheetByName('Workout Log');
@@ -85,7 +85,7 @@ function getAppData(dateKey) {
   const food = getFoodData_(ss, dateKey, tz);
   const activity = getActivityData_(ss, dateKey, tz);
   return { today, dateKey, entry, series: series.slice(-120), weekly, targets, last,
-    next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, workouts: WORKOUTS, calCheck: cal, food, activity, name: CONFIG.NAME || '' };
+    next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, workouts: WORKOUTS, calCheck: cal, food, activity, stretches: STRETCHES, routines: STRETCH_ROUTINES, videos: VIDEOS, name: CONFIG.NAME || '' };
 }
 
 /** Write one Daily Log row (finds the row by date). */
@@ -108,15 +108,22 @@ function saveDaily(o) {
 }
 
 /** Add (or with a negative number, remove) mindful minutes for a day. Stored in Daily Log column R. */
-function addMindful(dateKey, minutes) {
+function addMindful(dateKey, minutes) { return addMinutes_(dateKey, minutes, 18, 'Mindful min'); }
+
+/** Add (or remove) stretching minutes for a day. Stored in Daily Log column S. */
+function addStretch(dateKey, minutes) { return addMinutes_(dateKey, minutes, 19, 'Stretch min'); }
+
+/** Shared by Calm and Flexibility: add minutes to one Daily Log cell. The lock stops two quick taps from overwriting each other. */
+function addMinutes_(dateKey, minutes, colNo, header) {
   const ss = ss_(), tz = ss.getSpreadsheetTimeZone(), sh = ss.getSheetByName('Daily Log');
   const col = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
   const i = col.findIndex(r => r[0] instanceof Date && key_(r[0], tz) === dateKey);
   if (i < 0) throw new Error('That date is not in the Daily Log: ' + dateKey);
-  if (sh.getRange(1, 18).getValue() === '') sh.getRange(1, 18).setValue('Mindful min').setFontWeight('bold');
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
-    const cell = sh.getRange(i + 2, 18);
+    if (sh.getMaxColumns() < colNo) sh.insertColumnsAfter(sh.getMaxColumns(), colNo - sh.getMaxColumns());
+    if (sh.getRange(1, colNo).getValue() === '') sh.getRange(1, colNo).setValue(header).setFontWeight('bold');
+    const cell = sh.getRange(i + 2, colNo);
     const total = Math.max(0, Math.min(240, (num_(cell.getValue()) || 0) + (num_(minutes) || 0)));
     cell.setValue(total || '');
     SpreadsheetApp.flush();

@@ -209,6 +209,29 @@
   .b-orb.out { transform: scale(.7); transition: transform 6s ease-in-out; }
   .b-word { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 28px; letter-spacing: .08em; text-transform: uppercase; margin-top: 40px; }
   .b-left { color: var(--text-secondary); font-size: 15px; }
+  /* Flexibility, stretch routines, guided timer, demo videos */
+  .flex .g-fill { background: linear-gradient(90deg, #6d4bd8, #c4b5fd); box-shadow: 0 0 14px rgba(167,139,250,.55); }
+  .demo { flex: 0 0 auto; font: inherit; font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--teal); white-space: nowrap; }
+  .rt-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .rt-head b { font-family: var(--display); font-size: 22px; font-weight: 800; letter-spacing: .02em; }
+  .rt-steps { list-style: none; margin: 10px 0 12px; padding: 0; }
+  .rt-steps li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 15px; }
+  .rt-steps .d { display: block; color: var(--text-muted); font-size: 13px; }
+  .vid { position: fixed; inset: 0; z-index: 40; background: rgba(4,6,9,.94); display: flex; flex-direction: column; justify-content: center; padding: 16px; gap: 12px; }
+  .vid[hidden] { display: none; }
+  .vid-title { font-family: var(--display); font-weight: 800; font-size: 24px; }
+  .vid-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; overflow: hidden; }
+  .vid-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .vid-row { display: flex; gap: 10px; }
+  .vid-row > * { flex: 1; text-align: center; text-decoration: none; }
+  .s-name { font-family: var(--display); font-weight: 800; font-size: 28px; text-align: center; padding: 0 20px; line-height: 1.15; }
+  .s-side { color: var(--teal); font-weight: 600; min-height: 1.3em; }
+  .s-count { font-family: var(--display); font-weight: 800; font-size: 92px; line-height: 1; color: var(--lime); font-variant-numeric: tabular-nums; }
+  .s-count.prep { color: var(--text-secondary); }
+  .s-prog { width: 70%; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .s-prog i { display: block; height: 100%; width: 0; background: var(--lime); transition: width 1s linear; }
+  .s-cue { color: var(--text-secondary); font-size: 16px; line-height: 1.45; text-align: center; max-width: 34ch; padding: 0 20px; }
+  .s-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   /* Instant feedback and rewards */
   button { transition: transform .08s ease-out, filter .08s; touch-action: manipulation; }
   button:active { transform: scale(.95); filter: brightness(1.15); }
@@ -295,6 +318,8 @@
         <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
       <div class="gauge calm" id="gM"><div class="g-head"><span>🧘 Calm</span><span class="g-sub" id="gMs"></span></div>
         <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
+      <div class="gauge flex" id="gF" onclick="show('str')"><div class="g-head"><span>🤸 Flex</span><span class="g-sub" id="gFs"></span></div>
+        <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
       <div class="qbtns three" style="margin-bottom:8px">
         <button onclick="breathe(1)">Breathe 1 min</button><button onclick="breathe(3)">3 min</button><button onclick="breathe(5)">5 min</button><button onclick="undoMindful()" aria-label="Remove one minute">−1</button>
       </div>
@@ -335,6 +360,16 @@
   </section>
 
   <!-- PROGRESS -->
+  <section class="tab" id="t-str">
+    <div class="card">
+      <h2>Flexibility</h2>
+      <div id="strSum"></div>
+      <div class="muted" style="margin-top:6px">Pick a routine and press Start. The timer walks you through each stretch and counts the minutes toward your Flex bar. Ease in until you feel a pull, never pain, and keep breathing.</div>
+      <button class="btn2" onclick="undoStretch()">Remove 1 min</button>
+    </div>
+    <div id="rtlist"></div>
+  </section>
+
   <section class="tab" id="t-prog">
     <div class="card" id="profCard">
       <div class="prof-head"><h2>Player profile</h2><span class="muted">Last 7 days · score / 100</span></div>
@@ -359,6 +394,7 @@
       <div class="tile"><div class="k">Avg steps (7 days)</div><div class="v" id="pSteps">—</div><div class="s" id="pStepsS"></div></div>
       <div class="tile"><div class="k">Resting HR (7 days)</div><div class="v" id="pHr">—</div><div class="s" id="pHrS">bpm, from morning check</div></div>
       <div class="tile"><div class="k">Calm (7 days)</div><div class="v" id="pMind">—</div><div class="s" id="pMindS">avg minutes a day</div></div>
+      <div class="tile"><div class="k">Flex (7 days)</div><div class="v" id="pFlex">—</div><div class="s" id="pFlexS">avg minutes a day</div></div>
       <div class="tile"><div class="k">Active calories</div><div class="v" id="pBurn">—</div><div class="s">avg burned, 7 days</div></div>
     </div>
     <div class="card" id="calCard"><h2>Calorie check (every 2 weeks)</h2><div id="calTxt" class="muted"></div></div>
@@ -379,6 +415,7 @@
 <nav>
   <button id="n-today" class="on" onclick="show('today')"><span>✓</span>Today</button>
   <button id="n-work" onclick="show('work')"><span>🏋️</span>Workout</button>
+  <button id="n-str" onclick="show('str')"><span>🤸</span>Stretch</button>
   <button id="n-prog" onclick="show('prog')"><span>📈</span>Progress</button>
 </nav>
 <div class="breath" id="breath" hidden>
@@ -386,6 +423,24 @@
   <div class="b-word" id="bWord">Breathe in</div>
   <div class="b-left" id="bLeft"></div>
   <button class="btn2" onclick="stopBreath(false)">Stop</button>
+</div>
+<div class="breath" id="str" hidden>
+  <div class="b-left" id="sStep"></div>
+  <div class="s-name" id="sName"></div>
+  <div class="s-side" id="sSide"></div>
+  <div class="s-count" id="sCount"></div>
+  <div class="s-prog"><i id="sBar"></i></div>
+  <div class="s-cue" id="sCue"></div>
+  <div class="s-btns">
+    <button class="btn2" onclick="strDemo()">▶ Demo</button><button class="btn2" id="sPause" onclick="strPause()">Pause</button>
+    <button class="btn2" onclick="strSkip()">Skip</button><button class="btn2" onclick="stopStretch(false)">Finish</button>
+  </div>
+</div>
+<div class="vid" id="vid" hidden>
+  <div class="vid-title" id="vTitle"></div>
+  <div class="vid-frame" id="vFrame"></div>
+  <div class="muted" id="vCue"></div>
+  <div class="vid-row"><a class="btn2" id="vOpen" target="_blank" rel="noopener">Open in YouTube</a><button class="btn2" onclick="closeDemo()">Close</button></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -404,7 +459,7 @@ function addDays(k, n) { const [y,m,d] = k.split('-').map(Number); const t = new
 function n1(v) { return v === null || v === undefined ? '—' : Number(v).toFixed(1); }
 
 function show(t) {
-  ['today','work','prog'].forEach(x => { $('t-' + x).classList.toggle('on', x === t); $('n-' + x).classList.toggle('on', x === t); });
+  ['today','work','str','prog'].forEach(x => { $('t-' + x).classList.toggle('on', x === t); $('n-' + x).classList.toggle('on', x === t); });
   if (t === 'prog') renderProgress();
   window.scrollTo(0, 0);
 }
@@ -422,7 +477,7 @@ function render() {
   if (!document.querySelector('.tab.on')) $('t-today').classList.add('on');
   $('hdr').innerHTML = (D.targets.phase ? `<span>${D.targets.phase}</span>` : '') + streakBadge();
   renderHeader();
-  renderToday(); renderWorkout(); renderOvr();
+  renderToday(); renderWorkout(); renderStretch(); renderOvr();
   if ($('t-prog').classList.contains('on')) renderProgress();
 }
 
@@ -450,6 +505,7 @@ function profile() {
     ['Training', pct(cur.workouts || 0, t.workouts || 3)],
     ['Movement', pct(avg(AS, x => x.st), A.stepGoal || 8000)],
     ['Calm', pct(S.reduce((a, x) => a + (x.m || 0), 0) / 7, t.mindful || 10)],
+    ['Flex', pct(S.reduce((a, x) => a + (x.f || 0), 0) / 7, t.stretch || 5)],
   ].map(([name, v]) => ({ name, v: Math.round(v * 10) / 10 }));
 }
 function scoreColor(v) { return css(v >= 85 ? '--good' : v >= 65 ? '--lime' : v >= 40 ? '--warn' : '--bad'); }
@@ -514,7 +570,7 @@ function renderWorkout() {
     const goal = WI.targets[ex] ? `<b>Goal ${WI.targets[ex]}</b> · ` : '';
     const hint = goal + (L ? `Last: ${L.sets ?? '?'}×${L.reps || '?'}${L.weight ? ' @ ' + L.weight + ' lb' : ''} (${fmtDate(L.date)})` : 'first time, pick a light weight');
     return `<div class="ex" data-ex="${ex.replace(/"/g,'&quot;')}">
-      <div class="exhead"><div class="name">${ex}</div><button class="check" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓':''" aria-label="Done"></button></div>
+      <div class="exhead"><div class="name">${ex}</div><button class="demo" data-v="${esc(ex)}" onclick="demo(this.dataset.v)">▶ Demo</button><button class="check" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓':''" aria-label="Done"></button></div>
       <div class="muted">${hint}</div>
       <div class="row">
         <div><label class="f">Weight</label><input inputmode="decimal" type="number" value="${L && L.weight != null ? L.weight : ''}" placeholder="lb"></div>
@@ -571,6 +627,84 @@ function renderProgress() {
   renderSync();
   drawCharts();
 }
+
+// ---------- Stretching: guided routines. Each stretch gets 5 s to get into position, then a countdown. ----------
+function renderStretch() {
+  if (!D.routines) return;
+  const fx = (D.entry && D.entry.stretch) || 0, fg = D.targets.stretch || 5;
+  const from = addDays(D.today, -7), f7 = D.series.filter(x => x.d > from).reduce((a, x) => a + (x.f || 0), 0);
+  $('strSum').innerHTML = `<b style="font-size:20px">${fx} / ${fg} min</b> ${D.dateKey === D.today ? 'today' : 'on ' + fmtDate(D.dateKey)}${fx >= fg ? ' ✓' : ''}`;
+  $('rtlist').innerHTML = D.routines.map(r => {
+    const secs = r.steps.reduce((a, s) => a + s[1] * (s[2] ? 2 : 1), 0);
+    return `<div class="card"><div class="rt-head"><b>${r.icon} ${esc(r.name)}</b><span class="muted">${Math.round(secs / 60)} min</span></div>
+      <div class="muted">${esc(r.when)}</div>
+      <ul class="rt-steps">${r.steps.map(s => `<li><span>${esc(s[0])}<span class="d">${s[1]} s${s[2] ? ' each side' : ''}</span></span><button class="demo" data-v="${esc(s[0])}" onclick="demo(this.dataset.v)">▶ Demo</button></li>`).join('')}</ul>
+      <button class="primary" onclick="startStretch('${r.id}')">Start ${esc(r.name)}</button></div>`; }).join('');
+  if ($('pFlex')) { $('pFlex').textContent = f7 ? (f7 / 7).toFixed(1) + ' min' : '—'; $('pFlexS').textContent = 'avg a day · goal ' + fg; }
+}
+let sQ = [], sI = 0, sLeft = 0, sPrep = 0, sDone = 0, sTotal = 0, sTick = null, sPaused = false, actx = null, wakeL = null;
+function keepAwake(on) {   // ask the phone not to dim the screen mid-routine (ignored where unsupported)
+  try { if (on && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeL = l; }, () => {}); else if (wakeL) { wakeL.release(); wakeL = null; } } catch (e) {}
+}
+function beep() {
+  try { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = 660; g.gain.value = .08; o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + .18); } catch (e) {}
+}
+function startStretch(id) {
+  const r = D.routines.find(x => x.id === id); if (!r) return;
+  sQ = []; r.steps.forEach(([n, s, both]) => both ? sQ.push([n, s, 'Left side'], [n, s, 'Right side']) : sQ.push([n, s, '']));
+  sTotal = sQ.reduce((a, x) => a + x[1], 0); sI = 0; sDone = 0; sPaused = false; $('sPause').textContent = 'Pause';
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  $('str').hidden = false; keepAwake(true); stepStretch();
+  clearInterval(sTick); sTick = setInterval(tickStretch, 1000);
+}
+function stepStretch() { sLeft = sQ[sI][1]; sPrep = 5; paintStretch(); }
+function paintStretch() {
+  const [n, s, side] = sQ[sI];
+  $('sStep').textContent = `Stretch ${sI + 1} of ${sQ.length}`;
+  $('sName').textContent = n; $('sCue').textContent = (D.stretches || {})[n] || '';
+  $('sSide').textContent = (side ? side + ' · ' : '') + (sPrep > 0 ? 'get into position' : 'hold and breathe');
+  $('sCount').textContent = sPrep > 0 ? sPrep : sLeft; $('sCount').classList.toggle('prep', sPrep > 0);
+  $('sBar').style.width = (sDone / sTotal * 100) + '%';
+}
+function tickStretch() {
+  if (sPaused) return;
+  if (sPrep > 0) { sPrep--; if (sPrep === 0) beep(); }
+  else { sLeft--; sDone++; }
+  if (sLeft <= 0) { beep(); sI++; if (sI >= sQ.length) return stopStretch(true); return stepStretch(); }
+  paintStretch();
+}
+function strPause() { sPaused = !sPaused; $('sPause').textContent = sPaused ? 'Resume' : 'Pause'; }
+function strSkip() { sI++; if (sI >= sQ.length) return stopStretch(false); stepStretch(); }
+function strDemo() { if (!sPaused) strPause(); demo(sQ[sI][0]); }
+function stopStretch(done) {
+  clearInterval(sTick); $('str').hidden = true; keepAwake(false);
+  const mins = done ? Math.round(sTotal / 60) : Math.floor(sDone / 60);   // finishing early still counts the full minutes held
+  if (mins < 1) return toast('Stopped');
+  D.entry = D.entry || {}; D.entry.stretch = (D.entry.stretch || 0) + mins;
+  lastTap = { x: innerWidth / 2, y: innerHeight / 2, el: null }; reward(`+${mins} min flex`);
+  liveRender(); toast(`+${mins} min of stretching 🤸`);
+  begin();
+  google.script.run.withSuccessHandler(settle).withFailureHandler(opFail).addStretch(curDate, mins);
+}
+function undoStretch() {
+  if (!((D.entry && D.entry.stretch) > 0)) return toast('Nothing to remove');
+  D.entry.stretch = Math.max(0, D.entry.stretch - 1); liveRender(); toast('Removed 1 min');
+  begin();
+  google.script.run.withSuccessHandler(settle).withFailureHandler(opFail).addStretch(curDate, -1);
+}
+
+// ---------- Demo videos: the player is only created when you tap Demo, so videos cost nothing until then. ----------
+function demo(name) {
+  const id = (D.videos || {})[name];
+  $('vTitle').textContent = name; $('vCue').textContent = (D.stretches || {})[name] || '';
+  $('vFrame').innerHTML = id
+    ? `<iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0&playsinline=1" title="${esc(name)} demo" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`
+    : '<div class="muted" style="padding:20px">No video saved for this one yet.</div>';
+  $('vOpen').href = id ? 'https://www.youtube.com/watch?v=' + id : 'https://www.youtube.com/results?search_query=' + encodeURIComponent('how to ' + name);
+  $('vOpen').textContent = id ? 'Open in YouTube' : 'Search YouTube';
+  $('vid').hidden = false;
+}
+function closeDemo() { $('vFrame').innerHTML = ''; $('vid').hidden = true; }
 
 // ---------- Breathing timer: in for 4 s, out for 6 s (6 breaths a minute). Logs the minutes when it finishes. ----------
 let bTimer = null, bEnd = 0, bMin = 0, bStart = 0;
@@ -758,6 +892,8 @@ function renderGauges() {
     A.lastSync ? `🔥 ${(day.ak || 0).toLocaleString()} active kcal · ${day.synced ? 'synced ' + fmtClock(day.synced) : 'no sync this day'}` : 'connect your iPhone in Progress');
   const mind = (D.entry && D.entry.mind) || 0, mg = D.targets.mindful || 10;
   setGauge('gM', mind, mg, `${mind} / ${mg} min`, mind >= mg ? 'calm banked for today' : `${mg - mind} min to go · tap Breathe below`);
+  const fx = (D.entry && D.entry.stretch) || 0, fg = D.targets.stretch || 5;
+  setGauge('gF', fx, fg, `${fx} / ${fg} min`, fx >= fg ? 'loose and ready' : `${fg - fx} min to go · tap to stretch`);
   setGauge('gC', T.caf, G.caffeine, `${T.caf} / ${G.caffeine} mg`, T.caf > G.caffeine ? 'over the daily limit' : `${G.caffeine - T.caf} mg left today`, T.caf > G.caffeine);
 }
 // ---------- Instant updates ----------
@@ -782,7 +918,7 @@ function recalcTotals() {
   const E = D.food.entries, sum = k => Math.round(E.reduce((a, e) => a + (e[k] || 0), 0));
   D.food.totals = { kcal: sum('kcal'), p: sum('p'), c: sum('c'), f: sum('f'), w: sum('w'), caf: sum('caf') };
 }
-function liveRender() { live = true; try { renderFood(); renderOvr(); renderProgressIfOpen(); } finally { live = false; } }
+function liveRender() { live = true; try { renderFood(); renderStretch(); renderOvr(); renderProgressIfOpen(); } finally { live = false; } }
 function saveCache() { try { if (D && D.dateKey === D.today) localStorage.setItem('healthos', JSON.stringify(D)); } catch (e) {} }
 function reward(text) {
   const t = lastTap; if (!t) return;
