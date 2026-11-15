@@ -15,7 +15,7 @@ const CONFIG = {
   SERIES_START: new Date(2026, 0, 5),          // first day the recurring reminders begin (month is 0-based)
   WEEKLY_WORKOUT_TARGET: 2,
   PROTEIN_TARGET: 150,       // g/day — daily bar + auto-tick at 95%
-  WATER_OZ_TARGET: 100,      // oz/day (~3 L) — daily bar + auto-tick
+  WATER_OZ_TARGET: 125,      // oz/day (~3.7 L) from drinks — active adult male; daily gauge + auto-tick
   CAFFEINE_LIMIT_MG: 400,
   STEP_GOAL: 8000,           // steps/day for the 👟 gauge (from the iPhone via Apple Health)
   INBOX_URL: '',             // public URL of the separate "Health OS Inbox" project (see inbox/)    // mg/day — commonly cited limit for healthy adults; gauge turns red past it
@@ -28,7 +28,7 @@ const CONFIG = {
     prep: [7, 1, 2, 3, 4],     // evenings to prep the next day's lunch
   },
   WORKDAY_LUNCH: 'Packed lunch.',
-  WATER_GOAL: 'Water ~3 L',
+  WATER_GOAL: 'Water ~125 oz (3.7 L)',
   WINDDOWN: 'Wind-down → lights out',
 
   // Optional one-off calendar reminder (set to null to skip)

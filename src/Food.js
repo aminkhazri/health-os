@@ -156,7 +156,7 @@ function getFoodData_(ss, dateKey, tz) {
   const sum = k => Math.round(entries.reduce((a, e) => a + e[k], 0));
   return { library, entries, frequent,
     totals: { kcal: sum('kcal'), p: sum('p'), c: sum('c'), f: sum('f'), w: sum('w'), caf: sum('caf') },
-    targets: { protein: CONFIG.PROTEIN_TARGET || 150, water: CONFIG.WATER_OZ_TARGET || 100, caffeine: CONFIG.CAFFEINE_LIMIT_MG || 400 } };
+    targets: { protein: CONFIG.PROTEIN_TARGET || 150, water: CONFIG.WATER_OZ_TARGET || 125, caffeine: CONFIG.CAFFEINE_LIMIT_MG || 400 } };
 }
 
 /**
