@@ -209,6 +209,19 @@
   .b-orb.out { transform: scale(.7); transition: transform 6s ease-in-out; }
   .b-word { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 28px; letter-spacing: .08em; text-transform: uppercase; margin-top: 40px; }
   .b-left { color: var(--text-secondary); font-size: 15px; }
+  /* Instant feedback and rewards */
+  button { transition: transform .08s ease-out, filter .08s; touch-action: manipulation; }
+  button:active { transform: scale(.95); filter: brightness(1.15); }
+  .pop { animation: pop .38s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes pop { 0% { transform: scale(.9); } 55% { transform: scale(1.08); box-shadow: 0 0 0 4px rgba(184,242,62,.35); } 100% { transform: scale(1); box-shadow: 0 0 0 10px rgba(184,242,62,0); } }
+  .fly { position: fixed; z-index: 40; pointer-events: none; transform: translate(-50%, -50%); font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px;
+    color: var(--lime); text-shadow: 0 2px 8px rgba(0,0,0,.7); animation: fly .95s ease-out forwards; white-space: nowrap; }
+  @keyframes fly { 0% { opacity: 0; transform: translate(-50%, -40%) scale(.7); } 18% { opacity: 1; transform: translate(-50%, -90%) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -330%) scale(1); } }
+  .gauge.bump .g-track { animation: bump .5s ease-out; }
+  @keyframes bump { 30% { transform: skewX(-8deg) scale(1.03); filter: brightness(1.5); } 100% { transform: skewX(-8deg) scale(1); } }
+  .confetti { position: fixed; top: -12px; width: 8px; height: 14px; z-index: 40; pointer-events: none; border-radius: 2px; animation: fall 1.5s ease-in forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(540deg); opacity: .7; } }
+  .flist .fr.pending { opacity: .65; }
   /* Player profile (radar + attribute bars) */
   .prof-head { display: flex; justify-content: space-between; align-items: baseline; }
   .prof-head .muted { font-size: 13px; }
@@ -397,7 +410,11 @@ function show(t) {
 }
 
 function load(dateKey) {
-  google.script.run.withSuccessHandler(d => { D = d; curDate = d.dateKey; render(); }).withFailureHandler(fail).getAppData(dateKey || null);
+  google.script.run.withSuccessHandler(d => { if (inflight) return;
+    const typing = D && d.dateKey === curDate && /INPUT|TEXTAREA/.test((document.activeElement || {}).tagName || '');
+    D = d; curDate = d.dateKey; saveCache();
+    if (typing) { renderHeader(); renderFood(); syncChecklist(); renderOvr(); } else render();   // don't wipe a field you're typing in
+  }).withFailureHandler(fail).getAppData(dateKey || null);
 }
 
 function render() {
@@ -481,7 +498,7 @@ function saveDay() {
   const o = { date: curDate, weight: w === '' ? null : Number(w), sleep: s === '' ? null : Number(s), energy: en < 0 ? null : en + 1, hr: hr === '' ? null : Number(hr),
     protein: $('prot').classList.contains('on') ? 'Y' : 'N', water: $('water').classList.contains('on') ? 'Y' : 'N',
     meals: chips.length, mealsDetail: chips.join(''), notes: $('notes').value };
-  $('saveDay').disabled = true;
+  $('saveDay').disabled = true; reward('Saved'); toast('Saving…');
   google.script.run.withSuccessHandler(d => { D = d; curDate = d.dateKey; render(); toast('Saved ✓'); }).withFailureHandler(fail).saveDaily(o);
 }
 
@@ -573,12 +590,18 @@ function stopBreath(done) {
   clearTimeout(bTimer); $('breath').hidden = true; $('bOrb').className = 'b-orb';
   const mins = done ? bMin : Math.floor((Date.now() - bStart) / 60000);   // stopping early still counts the full minutes done
   if (mins < 1) return toast('Stopped');
-  google.script.run.withSuccessHandler(d => { D = d; renderFood(); renderProgressIfOpen(); toast(`+${mins} min of calm 🧘`); }).withFailureHandler(fail).addMindful(curDate, mins);
+  D.entry = D.entry || {}; D.entry.mind = (D.entry.mind || 0) + mins;
+  lastTap = { x: innerWidth / 2, y: innerHeight / 2, el: null }; reward(`+${mins} min calm`);
+  liveRender(); toast(`+${mins} min of calm 🧘`);
+  begin();
+  google.script.run.withSuccessHandler(settle).withFailureHandler(opFail).addMindful(curDate, mins);
 }
 
 function undoMindful() {
   if (!((D.entry && D.entry.mind) > 0)) return toast('Nothing to remove');
-  google.script.run.withSuccessHandler(d => { D = d; renderFood(); renderProgressIfOpen(); toast('Removed 1 min'); }).withFailureHandler(fail).addMindful(curDate, -1);
+  D.entry.mind = Math.max(0, D.entry.mind - 1); liveRender(); toast('Removed 1 min');
+  begin();
+  google.script.run.withSuccessHandler(settle).withFailureHandler(opFail).addMindful(curDate, -1);
 }
 
 // ---------- iPhone sync (key shown once; only a fingerprint is stored) ----------
@@ -705,12 +728,18 @@ function renderList() {
     const rows = E.filter(e => e.meal === m), kc = Math.round(rows.reduce((a, e) => a + e.kcal, 0));
     return `<div class="fh"><span>${m === 'Drink' ? 'Drinks' : m}</span><span>${kc} kcal</span></div>` + rows.map(e => {
       const extra = [e.w ? e.w + ' oz' : '', e.caf ? e.caf + ' mg caffeine' : ''].filter(Boolean).join(' · ');
-      return `<div class="fr"><span class="nm">${e.qty !== 1 ? fmtQty(e.qty) + ' × ' : ''}${esc(e.name)}${extra ? ` <small>· ${extra}</small>` : ''}</span><span class="kc">${Math.round(e.kcal)} kcal</span><button onclick="delFood(this, ${e.row})">✕</button></div>`;
+      return `<div class="fr${e.row ? '' : ' pending'}"><span class="nm">${e.qty !== 1 ? fmtQty(e.qty) + ' × ' : ''}${esc(e.name)}${extra ? ` <small>· ${extra}</small>` : ''}</span><span class="kc">${Math.round(e.kcal)} kcal</span><button onclick="delFood(this, ${e.row})">✕</button></div>`;
     }).join('');
   }).join('');
 }
 function setGauge(id, val, max, text, sub, over) {
   const g = $(id), pct = max ? Math.min(100, val / max * 100) : 0;
+  const prev = g.dataset.pct === undefined ? null : Number(g.dataset.pct);
+  g.dataset.pct = pct;
+  if (live && prev !== null && pct > prev) {
+    g.classList.remove('bump'); void g.offsetWidth; g.classList.add('bump');
+    if (prev < 100 && pct >= 100 && !over) celebrate(g.querySelector('.g-head span').textContent.trim() + ' goal complete!');
+  }
   g.querySelector('.g-fill').style.width = pct + '%';
   g.querySelector('.g-text').textContent = text;
   $(id + 's').textContent = sub;
@@ -731,9 +760,63 @@ function renderGauges() {
   setGauge('gM', mind, mg, `${mind} / ${mg} min`, mind >= mg ? 'calm banked for today' : `${mg - mind} min to go · tap Breathe below`);
   setGauge('gC', T.caf, G.caffeine, `${T.caf} / ${G.caffeine} mg`, T.caf > G.caffeine ? 'over the daily limit' : `${G.caffeine - T.caf} mg left today`, T.caf > G.caffeine);
 }
+// ---------- Instant updates ----------
+// The screen updates the moment you tap ("optimistic update"); the save to Google happens in the background.
+// When the last background save comes back, the screen is replaced with the server's copy, so the two can't drift.
+let inflight = 0, burst = 0, live = false, lastTap = null;
+document.addEventListener('pointerdown', e => { lastTap = { x: e.clientX, y: e.clientY, el: e.target.closest('button') }; }, true);
+function begin() { inflight++; burst++; }
+function settle(d) {
+  inflight = Math.max(0, inflight - 1);
+  if (inflight > 0) return;
+  const several = burst > 1; burst = 0;
+  if (several) return google.script.run.withSuccessHandler(applyFresh).withFailureHandler(fail).getAppData(curDate);   // several taps overlapped: take one clean copy
+  applyFresh(d);
+}
+function applyFresh(d) {
+  if (inflight > 0 || !d || d.dateKey !== curDate) return;
+  D = d; saveCache(); renderFood(); syncChecklist(); renderOvr(); renderProgressIfOpen();
+}
+function opFail(e) { inflight = 0; burst = 0; toast('⚠️ Not saved: ' + (e && e.message ? e.message : e)); load(curDate); }
+function recalcTotals() {
+  const E = D.food.entries, sum = k => Math.round(E.reduce((a, e) => a + (e[k] || 0), 0));
+  D.food.totals = { kcal: sum('kcal'), p: sum('p'), c: sum('c'), f: sum('f'), w: sum('w'), caf: sum('caf') };
+}
+function liveRender() { live = true; try { renderFood(); renderOvr(); renderProgressIfOpen(); } finally { live = false; } }
+function saveCache() { try { if (D && D.dateKey === D.today) localStorage.setItem('healthos', JSON.stringify(D)); } catch (e) {} }
+function reward(text) {
+  const t = lastTap; if (!t) return;
+  if (t.el) { t.el.classList.remove('pop'); void t.el.offsetWidth; t.el.classList.add('pop'); }
+  if (text) { const f = document.createElement('div'); f.className = 'fly'; f.textContent = text; f.style.left = t.x + 'px'; f.style.top = t.y + 'px';
+    document.body.appendChild(f); setTimeout(() => f.remove(), 1000); }
+  if (navigator.vibrate) navigator.vibrate(12);
+}
+function celebrate(msg) {
+  const colors = [css('--lime'), css('--teal'), '#ffffff', css('--warn')];
+  for (let i = 0; i < 36; i++) { const c = document.createElement('i'); c.className = 'confetti';
+    c.style.left = Math.random() * 100 + 'vw'; c.style.background = colors[i % 4]; c.style.animationDelay = Math.random() * .35 + 's';
+    c.style.animationDuration = 1.1 + Math.random() * .8 + 's'; document.body.appendChild(c); setTimeout(() => c.remove(), 2400); }
+  if (navigator.vibrate) navigator.vibrate([20, 40, 20]);
+  setTimeout(() => toast('🏆 ' + msg), 150);
+}
+function rewardText(items) {
+  const tot = k => Math.round(items.reduce((a, o) => a + (o[k] || 0) * (o.qty || 1), 0));
+  const w = tot('w'), caf = tot('caf'), k = tot('kcal');
+  return k >= 50 ? '+' + k + ' kcal' : w ? '+' + w + ' oz' : caf ? '+' + caf + ' mg' : '+' + k + ' kcal';
+}
 function sendItems(items, msg) {
-  google.script.run.withSuccessHandler(d => { D = d; renderFood(); syncChecklist(); renderProgressIfOpen(); toast(msg); })
-    .withFailureHandler(fail).addFoods(curDate, items);
+  items.forEach(o => { const q = Number(o.qty) || 1, n = k => Math.round((Number(o[k]) || 0) * q * 10) / 10;
+    D.food.entries.push({ row: null, meal: o.meal, name: o.name, qty: q, kcal: n('kcal'), p: n('p'), c: n('c'), f: n('f'), w: n('w'), caf: n('caf') }); });
+  recalcTotals();
+  reward(rewardText(items));
+  liveRender();
+  const T = D.food.totals, G = D.food.targets;                                    // tick the matching objectives right away
+  [...$('meals').children].forEach(b => { if (items.some(o => o.meal && o.meal[0] === b.dataset.c && o.meal !== 'Drink')) b.classList.add('on'); });
+  if (T.w >= G.water * .95) $('water').classList.add('on');
+  if (T.p >= G.protein * .95) $('prot').classList.add('on');
+  toast(msg);
+  begin();
+  google.script.run.withSuccessHandler(settle).withFailureHandler(opFail).addFoods(curDate, items);
 }
 function quickItem(name) {
   const f = D.food.library.find(x => x.name === name); if (!f) return;
@@ -775,7 +858,12 @@ function confirmAsk() {
 }
 function delFood(btn, row) {
   if (!btn.classList.contains('confirm')) { btn.classList.add('confirm'); btn.textContent = 'Delete?'; setTimeout(() => { btn.classList.remove('confirm'); btn.textContent = '✕'; }, 4000); return; }
-  google.script.run.withSuccessHandler(d => { D = d; renderFood(); syncChecklist(); renderProgressIfOpen(); toast('Removed'); }).withFailureHandler(fail).deleteFood(row, curDate);
+  if (!row || inflight) return toast('Still saving, try again in a second');
+  D.food.entries = D.food.entries.filter(e => e.row !== row);
+  D.food.entries.forEach(e => { if (e.row > row) e.row--; });                       // rows below move up one in the Sheet
+  recalcTotals(); liveRender(); toast('Removed');
+  begin();
+  google.script.run.withSuccessHandler(settle).withFailureHandler(opFail).deleteFood(row, curDate);
 }
 function syncChecklist() { const e = D.entry || {}, md = e.mealsDetail || '';
   [...$('meals').children].forEach(b => b.classList.toggle('on', md.includes(b.dataset.c)));
@@ -843,6 +931,11 @@ document.addEventListener('visibilitychange', () => {
   if (shownDay !== new Date().toDateString()) { renderHeader(); load(); } else renderHeader();
 });
 
+// Instant start: show the last copy saved on this phone (if it's from today), then refresh from Google in the background.
+try {
+  const c = JSON.parse(localStorage.getItem('healthos') || 'null');
+  if (c && c.today === localKey(new Date().toISOString()) && c.dateKey === c.today && c.food && c.workouts) { D = c; curDate = c.dateKey; render(); }
+} catch (e) {}
 load();
 </script>
 </body>

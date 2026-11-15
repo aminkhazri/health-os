@@ -174,6 +174,9 @@ function addFoods(dateKey, items) {
     const n = k => Math.round((Number(o[k]) || 0) * qty * 10) / 10;
     return [date, time, o.meal || 'Snack', o.name, qty, n('kcal'), n('p'), n('c'), n('f'), n('w'), n('caf')];
   });
+  // Lock: two quick taps must not both read the same "last row" and overwrite each other.
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
   const log = ss.getSheetByName('Food Log');
   log.getRange(log.getLastRow() + 1, 1, rows.length, LOG_HEADERS.length).setValues(rows);
   const newLib = items.filter(o => o.saveToLibrary).map(o => [o.name, o.portion || '1 serving', o.cat || 'Meals',
@@ -185,6 +188,7 @@ function addFoods(dateKey, items) {
   }
   SpreadsheetApp.flush();
   autoMarkDay_(ss, dateKey, tz);
+  } finally { lock.releaseLock(); }
   return getAppData(dateKey);
 }
 
@@ -194,11 +198,14 @@ function addFood(o) { return addFoods(o.date, [o]); }
 /** Remove one Food Log row (checks the date so a stale screen can't delete the wrong row). */
 function deleteFood(row, dateKey) {
   const ss = ss_(), tz = ss.getSpreadsheetTimeZone(), log = ss.getSheetByName('Food Log');
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
   const [d, , meal] = log.getRange(row, 1, 1, 3).getValues()[0];
   if (!(d instanceof Date) || key_(d, tz) !== dateKey) throw new Error('That entry changed — refresh and try again.');
   log.deleteRow(row);
   SpreadsheetApp.flush();
   untickMealIfEmpty_(ss, dateKey, tz, String(meal));
+  } finally { lock.releaseLock(); }
   return getAppData(dateKey);
 }
 

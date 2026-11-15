@@ -114,10 +114,13 @@ function addMindful(dateKey, minutes) {
   const i = col.findIndex(r => r[0] instanceof Date && key_(r[0], tz) === dateKey);
   if (i < 0) throw new Error('That date is not in the Daily Log: ' + dateKey);
   if (sh.getRange(1, 18).getValue() === '') sh.getRange(1, 18).setValue('Mindful min').setFontWeight('bold');
-  const cell = sh.getRange(i + 2, 18);
-  const total = Math.max(0, Math.min(240, (num_(cell.getValue()) || 0) + (num_(minutes) || 0)));
-  cell.setValue(total || '');
-  SpreadsheetApp.flush();
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const cell = sh.getRange(i + 2, 18);
+    const total = Math.max(0, Math.min(240, (num_(cell.getValue()) || 0) + (num_(minutes) || 0)));
+    cell.setValue(total || '');
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
   return getAppData(dateKey);
 }
 
