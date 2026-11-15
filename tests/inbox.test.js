@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { cleanDay_, sameText_ } = require('../inbox/Inbox.js');
+const { cleanDay_, sameText_, normalizeFields_ } = require('../inbox/Inbox.js');
 
 const T = '2026-11-15';
 test('accepts plain numbers and rounds', () => {
@@ -23,4 +23,8 @@ test('sameText_ compares exactly', () => {
   assert.ok(sameText_('abc', 'abc'));
   assert.ok(!sameText_('abc', 'abd'));
   assert.ok(!sameText_('abc', 'abcd'));
+});
+test('normalizeFields_ accepts spaced / capitalized names', () => {
+  assert.deepStrictEqual({ ...normalizeFields_({ 'Steps ': 5, 'active kcal': 7, key: 'x' }) }, { steps: 5, active_kcal: 7 });
+  assert.deepStrictEqual({ ...normalizeFields_({ 'Active Energy': 9 }) }, { active_kcal: 9 });
 });

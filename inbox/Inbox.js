@@ -19,8 +19,9 @@ function doPost(e) {
     if (!stored || typeof body.key !== 'string' || !sameText_(sha256Hex_(body.key.trim()), stored)) return reply_({ ok: false, error: 'Key not accepted' });
 
     const tz = ss.getSpreadsheetTimeZone();
-    const day = cleanDay_(body, Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'));
-    if (!day) return reply_({ ok: false, error: 'Expected steps and/or active_kcal as numbers' });
+    const day = cleanDay_(normalizeFields_(body), Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'));
+    if (!day) return reply_({ ok: false, error: 'Expected steps and/or active_kcal as numbers',
+      received: Object.keys(body).filter(k => k !== 'key').map(k => k + '=' + JSON.stringify(body[k]).slice(0, 40)) });
 
     const lock = LockService.getScriptLock();
     lock.waitLock(10000);
@@ -34,6 +35,18 @@ function doPost(e) {
 
 /** Opening the URL in a browser just confirms it's alive; no data is ever returned. */
 function doGet() { return reply_({ ok: true, service: 'Health OS inbox' }); }
+
+/** Pure: forgiving field names from the Shortcut ("Steps", "active kcal", "Active Energy" ...). */
+function normalizeFields_(b) {
+  const out = {};
+  Object.keys(b || {}).forEach(k => {
+    const n = String(k).toLowerCase().replace(/[^a-z]/g, '');
+    if (n === 'steps' || n === 'step' || n === 'stepcount') out.steps = b[k];
+    else if (n === 'activekcal' || n === 'activecalories' || n === 'activeenergy' || n === 'kcal') out.active_kcal = b[k];
+    else if (n === 'date') out.date = b[k];
+  });
+  return out;
+}
 
 /** Pure: validates and normalizes one day. Accepts "8,432", "8432 steps", 512.7, etc. Returns null if nothing usable. */
 function cleanDay_(b, todayKey) {
@@ -79,4 +92,4 @@ function sha256Hex_(text) {
 
 function reply_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
-if (typeof module !== 'undefined') module.exports = { cleanDay_, sameText_ }; // Node tests only
+if (typeof module !== 'undefined') module.exports = { cleanDay_, sameText_, normalizeFields_ }; // Node tests only
