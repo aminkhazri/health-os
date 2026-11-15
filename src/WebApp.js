@@ -10,10 +10,13 @@ const WORKOUTS = {
 };
 
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Index')
+  return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('Health OS')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
 }
+
+/** Lets Index.html pull in other HTML files: <?!= include('Parser'); ?> */
+function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
 
 function ss_() { return SpreadsheetApp.openById(CONFIG.SHEET_ID); }
 function key_(d, tz) { return Utilities.formatDate(d, tz, 'yyyy-MM-dd'); }

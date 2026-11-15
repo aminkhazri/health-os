@@ -1,0 +1,98 @@
+<script>
+/**
+ * Quick-add parser: turns free text like "2 eggs and toast, 16 oz water" into library matches.
+ * Pure function (no DOM, no Google services) so it is unit-tested in Node (tests/parser.test.js).
+ *
+ * parseQuick(text, library) -> { items: [{ i, qty }], unknown: [string] }
+ *   i   = index into library (each item has name, portion, w (water oz), kw (comma-separated keywords))
+ *   qty = number of portions
+ */
+(function (root) {
+  const NUMW = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, half: 0.5 };
+  const UNITS = new Set(['cup', 'cups', 'glass', 'glasses', 'bottle', 'bottles', 'can', 'cans', 'oz', 'ounce', 'ounces',
+    'slice', 'slices', 'piece', 'pieces', 'bowl', 'bowls', 'plate', 'plates', 'shot', 'shots', 'scoop', 'scoops',
+    'handful', 'handfuls', 'tbsp', 'tsp', 'serving', 'servings', 'of', 'x']);
+  const STOP = new Set(['and', 'with', 'the', 'some', 'plus', 'had', 'ate', 'drank', 'i', 'my', 'for', 'then', 'also', 'just',
+    'little', 'big', 'large', 'small', 'medium', 'a', 'an', 'cup', 'of']);
+
+  function norm(s) {
+    return String(s).toLowerCase()
+      .replace(/½/g, ' 0.5 ').replace(/\b1\/2\b/g, ' 0.5 ')
+      .replace(/(\d)(oz|x)\b/g, '$1 $2')                // "16oz" -> "16 oz", "2x" -> "2 x"
+      .replace(/[^a-z0-9. ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  const isNum = t => /^\d+(\.\d+)?$/.test(t);
+  const numVal = t => (isNum(t) ? parseFloat(t) : NUMW[t]);
+
+  function keywordIndex(library) {
+    const out = [];
+    library.forEach((f, i) => {
+      const phrases = new Set([f.name].concat(String(f.kw || '').split(',')).map(norm).filter(Boolean));
+      [...phrases].forEach(p => {
+        const variants = new Set([p]);
+        if (!p.endsWith('s')) variants.add(p + 's'); else variants.add(p.replace(/s$/, ''));
+        variants.forEach(v => out.push({ i, toks: v.split(' '), len: v.length }));
+      });
+    });
+    return out;
+  }
+
+  function parseQuick(text, library) {
+    const toks = norm(text).split(' ').filter(Boolean);
+    const kws = keywordIndex(library);
+    // 1) every keyword occurrence
+    const cands = [];
+    for (let s = 0; s < toks.length; s++) {
+      kws.forEach(k => {
+        if (s + k.toks.length <= toks.length && k.toks.every((t, j) => toks[s + j] === t)) cands.push({ s, e: s + k.toks.length, i: k.i, len: k.len });
+      });
+    }
+    // 2) longest non-overlapping matches win ("chicken and rice" beats "chicken" + "rice")
+    cands.sort((a, b) => b.len - a.len || a.s - b.s);
+    const used = new Array(toks.length).fill(false), picked = [];
+    cands.forEach(c => {
+      for (let j = c.s; j < c.e; j++) if (used[j]) return;
+      for (let j = c.s; j < c.e; j++) used[j] = true;
+      picked.push(c);
+    });
+    picked.sort((a, b) => a.s - b.s);
+    // 3) quantity: nearest number word within 3 tokens before the match; "16 oz" converts to portions
+    const items = picked.map(c => {
+      let qty = 1;
+      for (let j = c.s - 1; j >= Math.max(0, c.s - 4); j--) {
+        if (used[j]) break;
+        if (toks[j] === 'a' || toks[j] === 'an') { used[j] = true; continue; } // soft "1": keep looking for "half" / a number
+        const v = numVal(toks[j]);
+        if (v !== undefined) {
+          used[j] = true;
+          const between = toks.slice(j + 1, c.s);
+          between.forEach((t, k) => { if (UNITS.has(t)) used[j + 1 + k] = true; });
+          const f = library[c.i];
+          if (between.some(t => /^(oz|ounce|ounces)$/.test(t))) {
+            const base = f.w > 0 ? f.w : parseFloat((String(f.portion).match(/(\d+(\.\d+)?)\s*oz/) || [])[1]);
+            qty = base ? v / base : v;
+          } else qty = v;
+          break;
+        }
+        if (!UNITS.has(toks[j]) && !STOP.has(toks[j])) break;
+      }
+      return { i: c.i, qty: Math.round(qty * 100) / 100 };
+    });
+    // 4) leftover real words become "unknown" phrases (the app asks for calories once, then remembers them)
+    const unknown = [];
+    let cur = [];
+    const flush = () => {
+      while (cur.length && (STOP.has(cur[0]) || UNITS.has(cur[0]))) cur.shift();
+      while (cur.length && (STOP.has(cur[cur.length - 1]) || UNITS.has(cur[cur.length - 1]) || isNum(cur[cur.length - 1]))) cur.pop();
+      if (cur.some(t => !STOP.has(t) && !UNITS.has(t) && !isNum(t) && NUMW[t] === undefined)) unknown.push(cur.join(' '));
+      cur = [];
+    };
+    toks.forEach((t, j) => { if (used[j]) flush(); else if (t === 'and' || t === 'with' || t === 'plus') flush(); else cur.push(t); });
+    flush();
+    return { items, unknown };
+  }
+
+  root.parseQuick = parseQuick;
+  if (typeof module !== 'undefined') module.exports = { parseQuick };
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>

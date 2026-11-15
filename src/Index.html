@@ -5,6 +5,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Health OS">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<?!= include('Parser'); ?>
 <style>
   :root {
     color-scheme: light;
@@ -107,6 +108,43 @@
   .logged .le button { border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); border-radius: 8px; font: inherit; font-size: 13px; padding: 4px 8px; }
   .logged .le button.confirm { background: var(--warn); color: #000; border-color: var(--warn); }
   .chk { display: flex; align-items: center; gap: 8px; font-size: 15px; margin-top: 8px; } .chk input { width: auto; }
+  .qa { display: flex; gap: 8px; }
+  .qa input { flex: 1; font-size: 17px; }
+  .qa button { font: inherit; font-weight: 700; font-size: 16px; padding: 0 18px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); }
+  .qa-meta { font-size: 13px; color: var(--text-secondary); margin: 8px 0 2px; }
+  .mealtag { font: inherit; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 12px; border: 1px solid var(--accent); background: none; color: var(--accent); }
+  .sugg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .sugg button { font: inherit; font-size: 14px; padding: 6px 11px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-primary); }
+  .ask { margin-top: 10px; padding: 12px; border-radius: 12px; background: var(--surface-2); }
+  .ask .q { font-weight: 600; margin-bottom: 8px; }
+  .ask .chips2 { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .ask .chips2 button { font: inherit; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); }
+  .ask .chips2 button.on { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .flist { margin-top: 12px; }
+  .flist .fh { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); margin: 12px 0 2px; display: flex; justify-content: space-between; }
+  .flist .fr { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .flist .fr .nm { flex: 1; min-width: 0; font-size: 15px; } .flist .fr .nm small { color: var(--text-muted); }
+  .flist .fr .kc { font-weight: 700; font-size: 15px; white-space: nowrap; }
+  .flist .fr button { border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); border-radius: 8px; font: inherit; font-size: 13px; padding: 3px 8px; }
+  .flist .fr button.confirm { background: var(--warn); color: #000; border-color: var(--warn); }
+  .gauges { background: linear-gradient(180deg, #17171c, #0f0f13); border-color: #2b2b33; color: #f2f2f5; }
+  .gauge { margin: 4px 0 16px; }
+  .g-head { display: flex; justify-content: space-between; align-items: baseline; font-weight: 800; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+  .g-sub { font-weight: 600; letter-spacing: 0; text-transform: none; font-size: 12px; color: #a9a9b6; }
+  .g-track { position: relative; height: 26px; border-radius: 13px; background: #08080b; border: 2px solid #34343f; box-shadow: inset 0 3px 8px rgba(0,0,0,.7); overflow: hidden; }
+  .g-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 11px; transition: width .8s cubic-bezier(.2,.9,.2,1); }
+  .g-fill::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,.05) 50%, rgba(0,0,0,.15)); }
+  .g-ticks { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), rgba(0,0,0,.45) calc(10% - 2px) 10%); }
+  .g-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; color: #fff; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,.6); letter-spacing: .02em; }
+  .kcal .g-fill { background: linear-gradient(90deg, #ff6a00, #ffb238); box-shadow: 0 0 14px rgba(255,140,40,.75); }
+  .water .g-fill { background: linear-gradient(90deg, #1746ff, #2fc4ff); box-shadow: 0 0 14px rgba(47,170,255,.85); }
+  .caf .g-fill { background: linear-gradient(90deg, #6a1bff, #c45cff); box-shadow: 0 0 14px rgba(170,80,255,.75); }
+  .caf.over .g-fill { background: linear-gradient(90deg, #b3121f, #ff4d4d); box-shadow: 0 0 16px rgba(255,60,60,.9); animation: pulse 1.1s ease-in-out infinite; }
+  .gauge.full .g-fill { animation: glow 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { filter: brightness(1.35); } }
+  @keyframes glow { 50% { filter: brightness(1.2) saturate(1.2); } }
+  .qbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .qbtns button { font: inherit; font-size: 15px; font-weight: 600; padding: 10px 0; border-radius: 10px; border: 1px solid #34343f; background: #1d1d24; color: #f2f2f5; }
   #loading { text-align: center; padding: 60px 0; color: var(--text-muted); }
 </style>
 </head>
@@ -137,36 +175,28 @@
       <div class="seg" id="energy"></div>
     </div>
     <div class="card">
-      <h2>Today's intake</h2>
-      <div class="meter"><div class="mh"><span>Calories</span><b id="kTxt">0</b></div><div class="bar"><i id="kBar" style="width:0"></i></div></div>
-      <div class="meter"><div class="mh"><span>Protein</span><b id="pTxt">0</b></div><div class="bar"><i id="pBar2" style="width:0"></i></div></div>
-      <div class="meter"><div class="mh"><span>Water</span><b id="wTxt">0</b></div><div class="bar"><i id="wBar" style="width:0"></i></div></div>
-      <div class="chips"><button class="chip" onclick="quickWater('Water')">+ 8 oz water</button><button class="chip" onclick="quickWater('Water bottle')">+ 24 oz bottle</button></div>
+      <h2>Food & drinks</h2>
+      <form class="qa" onsubmit="event.preventDefault();quickAdd()">
+        <input id="qa" autocomplete="off" placeholder="What did you have? e.g. 2 eggs and coffee" oninput="renderSuggest()">
+        <button type="submit">Add</button>
+      </form>
+      <div class="qa-meta">Logging as <button class="mealtag" id="mealTag" onclick="cycleMeal()">Breakfast</button><span class="muted"> · drinks are filed under Drinks</span></div>
+      <div class="sugg" id="sugg"></div>
+      <div id="ask"></div>
+      <div class="flist" id="flist"></div>
     </div>
-    <div class="card">
-      <h2>Add food or drink</h2>
-      <div class="seg" id="mealSeg"></div>
-      <input id="fq" placeholder="Search your foods…" oninput="sel=-1;renderLib()" style="margin-top:10px;font-size:16px">
-      <div class="cats" id="cats"></div>
-      <div id="lib"></div>
-      <button class="linkbtn" onclick="toggleCustom()">+ Something not on the list</button>
-      <div id="custom" style="display:none;margin-top:8px">
-        <input id="cName" placeholder="What was it? e.g. Turkey sandwich" style="font-size:16px">
-        <div class="row" style="margin-top:8px">
-          <div><label class="f">Calories</label><input id="cK" type="number" inputmode="numeric" placeholder="kcal"></div>
-          <div><label class="f">Protein g</label><input id="cP" type="number" inputmode="numeric" placeholder="g"></div>
-        </div>
-        <div class="row" style="margin-top:8px">
-          <div><label class="f">Carbs g (opt.)</label><input id="cC" type="number" inputmode="numeric"></div>
-          <div><label class="f">Fat g (opt.)</label><input id="cF" type="number" inputmode="numeric"></div>
-        </div>
-        <input id="cPor" placeholder="Portion (opt.) e.g. 1 sandwich" style="margin-top:8px;font-size:16px">
-        <label class="chk"><input type="checkbox" id="cSave" checked> Save to My Foods for next time</label>
-        <p class="muted" style="margin:6px 0 0">Not sure? Use the Small / Medium / Large meal estimates in the list.</p>
-        <button class="primary" onclick="addCustom()">Add</button>
+    <div class="card gauges">
+      <div class="gauge kcal" id="gK"><div class="g-head"><span>🔥 Calories</span><span class="g-sub" id="gKs"></span></div>
+        <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
+      <div class="gauge water" id="gW"><div class="g-head"><span>💧 Water</span><span class="g-sub" id="gWs"></span></div>
+        <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
+      <div class="gauge caf" id="gC"><div class="g-head"><span>⚡ Caffeine</span><span class="g-sub" id="gCs"></span></div>
+        <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
+      <div class="qbtns">
+        <button onclick="quickItem('Water')">+8 oz 💧</button><button onclick="quickItem('Water bottle')">+24 oz 💧</button>
+        <button onclick="quickItem('Coffee, black')">+ Coffee ☕</button><button onclick="quickItem('Celsius energy drink')">+ Celsius ⚡</button>
       </div>
     </div>
-    <div class="card logged"><h2>Logged</h2><div id="logged" class="muted">Nothing yet.</div></div>
     <div class="card">
       <h2>Checklist</h2>
       <p class="muted" style="margin:-4px 0 10px">Fills in automatically as you log food — or tap to mark manually.</p>
@@ -392,74 +422,103 @@ function drawCharts() {
     options: baseOpts('', { scales: Object.assign(baseOpts().scales, { y: Object.assign(baseOpts().scales.y, { suggestedMin: 4, suggestedMax: 8 }) }) }) });
 }
 
-// ---------- FOOD ----------
-let sel = -1, selQty = 1, cat = 'All', meal = null, showAll = false;
-const MEALS_LIST = ['Breakfast','Lunch','Snack','Dinner'];
-const CATS = ['All','Meals','Protein','Carbs','Snacks','Drinks','Recent'];
-function defaultMeal() { const h = new Date().getHours() + new Date().getMinutes() / 60;
+// ---------- FOOD: quick add, list, gauges ----------
+const MEAL_ORDER = ['Breakfast', 'Lunch', 'Snack', 'Dinner', 'Drink'];
+const FOOD_MEALS = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
+const DRINK_WORDS = /\b(drink|juice|latte|tea|soda|shake|smoothie|beer|wine|lemonade|cappuccino|frappuccino|matcha|kombucha)\b/;
+let mealOverride = null, pending = null;
+function timeMeal() { const h = new Date().getHours() + new Date().getMinutes() / 60;
   return h < 10.5 ? 'Breakfast' : h < 14.5 ? 'Lunch' : (h >= 16.5 && h < 20) ? 'Dinner' : 'Snack'; }
+function curMeal() { return mealOverride || timeMeal(); }
+function cycleMeal() { const i = FOOD_MEALS.indexOf(curMeal()); mealOverride = FOOD_MEALS[(i + 1) % 4]; $('mealTag').textContent = curMeal(); }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function setBar(barId, txtId, val, target, unit) {
-  const pct = target ? Math.min(100, val / target * 100) : 0;
-  const b = $(barId); b.style.width = pct + '%'; b.classList.toggle('over', target && val > target * 1.15);
-  $(txtId).textContent = `${Math.round(val).toLocaleString()} / ${Number(target).toLocaleString()} ${unit}`;
-}
+const fmtQty = q => q === 0.5 ? '½' : q === 1.5 ? '1½' : String(+q.toFixed(2));
+function itemFor(f, qty) { return { meal: f.cat === 'Drinks' ? 'Drink' : curMeal(), name: f.name, qty, kcal: f.kcal, p: f.p, c: f.c, f: f.f, w: f.w, caf: f.caf }; }
+
 function renderFood() {
-  const F = D.food;
-  if (!F) { $('lib').innerHTML = '<p class="muted">Food tabs not set up yet.</p>'; return; }
-  if (!meal) meal = defaultMeal();
-  setBar('kBar', 'kTxt', F.totals.kcal, D.targets.calories, 'kcal');
-  setBar('pBar2', 'pTxt', F.totals.p, F.targets.protein, 'g');
-  setBar('wBar', 'wTxt', F.totals.w, F.targets.water, 'oz');
-  $('mealSeg').innerHTML = MEALS_LIST.map(m => `<button class="${m===meal?'on':''}" onclick="meal='${m}';renderFood()">${m}</button>`).join('');
-  $('cats').innerHTML = CATS.map(c => `<button class="${c===cat?'on':''}" onclick="cat='${c}';sel=-1;renderLib()">${c}</button>`).join('');
-  renderLib(); renderLogged();
+  if (!D.food) { $('flist').innerHTML = '<p class="muted">Food tabs not set up yet.</p>'; return; }
+  $('mealTag').textContent = curMeal();
+  renderSuggest(); renderList(); renderGauges();
 }
-function libItems() {
-  const q = $('fq').value.trim().toLowerCase(), L = D.food.library;
-  let items = L.map((f, i) => Object.assign({ i }, f));
-  if (cat === 'Recent') { const names = [...new Set(D.food.entries.map(e => e.name).reverse())]; items = items.filter(f => names.includes(f.name)); }
-  else if (cat !== 'All') items = items.filter(f => f.cat === cat);
-  if (q) items = items.filter(f => f.name.toLowerCase().includes(q));
-  if (!q && cat === 'All' && !showAll) return items.slice(0, 8);
-  return items;
+function renderSuggest() {
+  const q = $('qa').value.trim().toLowerCase(), L = D.food.library;
+  let names;
+  if (!q) names = D.food.frequent.length ? D.food.frequent : ['Salmon, egg, spinach & cheese wrap', 'Greek yogurt, plain whole-milk', 'Banana', 'Mixed nuts'];
+  else names = L.filter(f => (f.name + ',' + f.kw).toLowerCase().includes(q)).slice(0, 5).map(f => f.name);
+  $('sugg').innerHTML = names.map(n => `<button onclick="quickItem(${JSON.stringify(n).replace(/"/g, '&quot;')})">${esc(n.replace(/\s*\(.*\)$/, ''))}</button>`).join('');
 }
-function renderLib() {
-  $('cats').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.textContent === cat));
-  const items = libItems();
-  $('lib').innerHTML = items.length ? items.map(f => {
-    const meta = `${esc(f.portion)} · ${f.kcal} kcal${f.p ? ' · ' + f.p + ' g protein' : ''}${f.w ? ' · ' + f.w + ' oz' : ''}`;
-    const qty = f.i === sel ? `<div class="qty">${[0.5,1,1.5,2].map(q => `<button class="${q===selQty?'on':''}" onclick="event.stopPropagation();selQty=${q};renderLib()">${q===0.5?'½':q===1.5?'1½':q}×</button>`).join('')}<button class="add" onclick="event.stopPropagation();addSel()">Add · ${Math.round(f.kcal*selQty)} kcal</button></div>` : '';
-    return `<div class="food ${f.i===sel?'sel':''}" onclick="sel=${f.i===sel?-1:f.i};selQty=1;renderLib()"><div class="fn">${esc(f.name)}</div><div class="fm">${meta}</div>${qty}</div>`;
-  }).join('') + (!$('fq').value.trim() && cat === 'All' && !showAll ? `<button class="linkbtn" onclick="showAll=true;renderLib()">Show all ${D.food.library.length} foods</button><br>` : '')
-    : '<p class="muted">No match — add it with "Something not on the list".</p>';
-}
-function renderLogged() {
+function renderList() {
   const E = D.food.entries;
-  if (!E.length) { $('logged').innerHTML = '<span class="muted">Nothing yet.</span>'; return; }
-  $('logged').innerHTML = MEALS_LIST.filter(m => E.some(e => e.meal === m)).map(m =>
-    `<div class="lm">${m}</div>` + E.filter(e => e.meal === m).map(e =>
-      `<div class="le"><span class="n">${esc(e.name)}${e.qty !== 1 ? ' ×' + e.qty : ''}</span><span class="v">${Math.round(e.kcal)} kcal${e.p ? ' · ' + Math.round(e.p) + 'g' : ''}${e.w ? ' · ' + e.w + 'oz' : ''}</span><button onclick="delFood(this, ${e.row})">✕</button></div>`).join('')).join('');
+  if (!E.length) { $('flist').innerHTML = '<p class="muted" style="margin:6px 0 0">Nothing logged yet today.</p>'; return; }
+  $('flist').innerHTML = MEAL_ORDER.filter(m => E.some(e => e.meal === m)).map(m => {
+    const rows = E.filter(e => e.meal === m), kc = Math.round(rows.reduce((a, e) => a + e.kcal, 0));
+    return `<div class="fh"><span>${m === 'Drink' ? 'Drinks' : m}</span><span>${kc} kcal</span></div>` + rows.map(e => {
+      const extra = [e.w ? e.w + ' oz' : '', e.caf ? e.caf + ' mg caffeine' : ''].filter(Boolean).join(' · ');
+      return `<div class="fr"><span class="nm">${e.qty !== 1 ? fmtQty(e.qty) + ' × ' : ''}${esc(e.name)}${extra ? ` <small>· ${extra}</small>` : ''}</span><span class="kc">${Math.round(e.kcal)} kcal</span><button onclick="delFood(this, ${e.row})">✕</button></div>`;
+    }).join('');
+  }).join('');
 }
-function foodCall(fn, arg, msg) {
-  google.script.run.withSuccessHandler(d => { D = d; renderFood(); syncChecklist(); renderProgressIfOpen(); toast(msg); }).withFailureHandler(fail)[fn](...arg);
+function setGauge(id, val, max, text, sub, over) {
+  const g = $(id), pct = max ? Math.min(100, val / max * 100) : 0;
+  g.querySelector('.g-fill').style.width = pct + '%';
+  g.querySelector('.g-text').textContent = text;
+  $(id + 's').textContent = sub;
+  g.classList.toggle('full', pct >= 100 && !over);
+  g.classList.toggle('over', !!over);
 }
-function addSel() { const f = D.food.library[sel]; if (!f) return;
-  foodCall('addFood', [{ date: curDate, meal, name: f.name, qty: selQty, kcal: f.kcal, p: f.p, c: f.c, f: f.f, w: f.w }], `Added ${f.name.split(' (')[0]} ✓`);
-  sel = -1; $('fq').value = ''; }
-function quickWater(name) { const f = D.food.library.find(x => x.name === name) || { kcal: 0, p: 0, c: 0, f: 0, w: name === 'Water' ? 8 : 24 };
-  foodCall('addFood', [{ date: curDate, meal: 'Snack', name, qty: 1, kcal: f.kcal, p: f.p, c: f.c, f: f.f, w: f.w }], `+${f.w} oz 💧`); }
-function toggleCustom() { const c = $('custom'); c.style.display = c.style.display === 'none' ? 'block' : 'none'; if (c.style.display === 'block') $('cName').value = $('fq').value; }
-function addCustom() {
-  const name = $('cName').value.trim(), k = Number($('cK').value);
-  if (!name || !k) return toast('Add a name and calories');
-  foodCall('addFood', [{ date: curDate, meal, name, qty: 1, kcal: k, p: Number($('cP').value) || 0, c: Number($('cC').value) || 0, f: Number($('cF').value) || 0, w: 0,
-    portion: $('cPor').value.trim(), cat: meal === 'Snack' ? 'Snacks' : 'Meals', saveToLibrary: $('cSave').checked }], `Added ${name} ✓`);
-  ['cName','cK','cP','cC','cF','cPor'].forEach(i => $(i).value = ''); $('custom').style.display = 'none'; $('fq').value = '';
+function renderGauges() {
+  const T = D.food.totals, G = D.food.targets, kt = D.targets.calories;
+  const left = kt - T.kcal;
+  setGauge('gK', T.kcal, kt, `${T.kcal.toLocaleString()} / ${Number(kt).toLocaleString()}`,
+    `${T.p} / ${G.protein} g protein · ${left >= 0 ? left.toLocaleString() + ' to go' : (-left).toLocaleString() + ' over'}`);
+  setGauge('gW', T.w, G.water, `${T.w} / ${G.water} oz`, `${(T.w * 0.0296).toFixed(1)} L`);
+  setGauge('gC', T.caf, G.caffeine, `${T.caf} / ${G.caffeine} mg`, T.caf > G.caffeine ? 'over the daily limit' : `${G.caffeine - T.caf} mg left today`, T.caf > G.caffeine);
+}
+function sendItems(items, msg) {
+  google.script.run.withSuccessHandler(d => { D = d; renderFood(); syncChecklist(); renderProgressIfOpen(); toast(msg); })
+    .withFailureHandler(fail).addFoods(curDate, items);
+}
+function quickItem(name) {
+  const f = D.food.library.find(x => x.name === name); if (!f) return;
+  sendItems([itemFor(f, 1)], `Added ${name.replace(/\s*\(.*\)$/, '')} ✓`); $('qa').value = ''; renderSuggest();
+}
+function quickAdd() {
+  const text = $('qa').value.trim(); if (!text) return;
+  const r = parseQuick(text, D.food.library);
+  const items = r.items.map(x => itemFor(D.food.library[x.i], x.qty));
+  if (!r.unknown.length) {
+    if (!items.length) return;
+    $('qa').value = ''; renderSuggest();
+    return sendItems(items, 'Added ' + items.map(i => (i.qty !== 1 ? fmtQty(i.qty) + '× ' : '') + i.name.replace(/\s*\(.*\)$/, '')).join(', ') + ' ✓');
+  }
+  pending = { items, unknown: r.unknown.map(u => ({ text: u, kcal: null })) };
+  renderAsk();
+}
+function renderAsk() {
+  if (!pending) { $('ask').innerHTML = ''; return; }
+  const known = pending.items.length ? `<div class="muted" style="margin-bottom:8px">Recognized: ${pending.items.map(i => esc((i.qty !== 1 ? fmtQty(i.qty) + '× ' : '') + i.name.replace(/\s*\(.*\)$/, '')) + ' (' + Math.round(i.kcal * i.qty) + ')').join(', ')}</div>` : '';
+  $('ask').innerHTML = `<div class="ask">${known}` + pending.unknown.map((u, k) => `
+    <div class="q">How many calories was “${esc(u.text)}”?</div>
+    <div class="chips2">${[100, 200, 350, 500, 700, 900].map(v => `<button class="${u.kcal === v ? 'on' : ''}" onclick="pending.unknown[${k}].kcal=${v};renderAsk()">${v}</button>`).join('')}</div>
+    <div class="row"><div><input type="number" inputmode="numeric" placeholder="or type kcal" value="${u.kcal && ![100,200,350,500,700,900].includes(u.kcal) ? u.kcal : ''}" oninput="pending.unknown[${k}].kcal=Number(this.value)||null"></div>
+    <div><input type="number" inputmode="numeric" placeholder="protein g (optional)" oninput="pending.unknown[${k}].p=Number(this.value)||0"></div></div>`).join('') +
+    `<p class="muted" style="margin:8px 0">It'll be remembered — next time just type it.</p>
+     <div class="row"><button class="primary" style="margin:0" onclick="confirmAsk()">Add</button><button class="primary" style="margin:0;background:var(--surface-1);color:var(--text-primary);border:1px solid var(--border)" onclick="pending=null;renderAsk()">Cancel</button></div></div>`;
+}
+function confirmAsk() {
+  const missing = pending.unknown.filter(u => !u.kcal);
+  if (missing.length) return toast('Pick calories for “' + missing[0].text + '”');
+  const extra = pending.unknown.map(u => { const drink = DRINK_WORDS.test(u.text);
+    const name = u.text.charAt(0).toUpperCase() + u.text.slice(1);
+    return { meal: drink ? 'Drink' : curMeal(), name, qty: 1, kcal: u.kcal, p: u.p || 0, c: 0, f: 0, w: 0, caf: 0,
+      saveToLibrary: true, keyword: u.text, cat: drink ? 'Drinks' : 'Meals', portion: '1 serving' }; });
+  const all = pending.items.concat(extra);
+  pending = null; renderAsk(); $('qa').value = ''; renderSuggest();
+  sendItems(all, 'Added ' + all.length + (all.length === 1 ? ' item' : ' items') + ' ✓');
 }
 function delFood(btn, row) {
-  if (!btn.classList.contains('confirm')) { btn.classList.add('confirm'); btn.textContent = 'Delete?'; setTimeout(() => { btn.classList.remove('confirm'); btn.textContent = '✕'; }, 3000); return; }
-  foodCall('deleteFood', [row, curDate], 'Removed');
+  if (!btn.classList.contains('confirm')) { btn.classList.add('confirm'); btn.textContent = 'Delete?'; setTimeout(() => { btn.classList.remove('confirm'); btn.textContent = '✕'; }, 4000); return; }
+  google.script.run.withSuccessHandler(d => { D = d; renderFood(); syncChecklist(); renderProgressIfOpen(); toast('Removed'); }).withFailureHandler(fail).deleteFood(row, curDate);
 }
 function syncChecklist() { const e = D.entry || {}, md = e.mealsDetail || '';
   [...$('meals').children].forEach(b => b.classList.toggle('on', md.includes(b.dataset.c)));
