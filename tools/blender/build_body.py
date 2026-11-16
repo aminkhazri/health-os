@@ -1,7 +1,7 @@
 # Build the Health OS athlete.
 # Source body: Blender Studio "Human Base Meshes" v1.4.1, realistic male body (CC0, https://www.blender.org/download/demo-files/).
 # Steps: import -> bake sculpt detail -> thin the mesh for phones -> find joints from the body's shape -> build a skeleton
-#        -> automatic skin weights -> athletic shaping -> materials (skin, shorts, hair, eyes) -> previews -> export GLB.
+#        -> automatic skin weights -> muscle shaping -> robot look (metal shell, dark joint bands, glowing eyes) -> previews -> export GLB.
 # Run it with start-builder.bat (Blender without a window) or through run.py in Blender's Text Editor. Everything printed ends up in log.txt.
 import bpy, bmesh, os, glob, math
 import numpy as np
@@ -9,8 +9,7 @@ from mathutils import Vector, Matrix
 
 BLEND = glob.glob(os.path.join(HERE, "assets", "**", "human_base_meshes_bundle.blend"), recursive=True)[0]
 OUT = HERE
-SKIN, SHORTS, HAIR = (0.56, 0.34, 0.23, 1), (0.05, 0.13, 0.42, 1), (0.03, 0.022, 0.018, 1)   # linear colour values
-HEM, WAIST = 0.365, 0.585   # shorts: bottom edge and waistband, as a share of body height
+SHELL, JOINT, GLOW = (0.46, 0.49, 0.54, 1), (0.012, 0.014, 0.018, 1), (0.0, 0.85, 1.0, 1)   # linear colour values: brushed steel, dark joints, cyan light
 
 
 def reset():   # clear the scene without reloading the file (reloading would close the script that is running)
@@ -22,10 +21,14 @@ def reset():   # clear the scene without reloading the file (reloading would clo
             if d.users == 0: blk.remove(d)
 
 
-def material(name, rgba, rough=0.6):
-    m = bpy.data.materials.new(name); m.use_nodes = True; m.diffuse_color = rgba
+def material(name, rgba, rough=0.6, metal=0.0, glow=0.0):
+    m = bpy.data.materials.new(name); m.use_nodes = True; m.diffuse_color = rgba; m.metallic = metal; m.roughness = rough
     b = m.node_tree.nodes.get("Principled BSDF")
-    if b: b.inputs["Base Color"].default_value = rgba; b.inputs["Roughness"].default_value = rough
+    if b:
+        b.inputs["Base Color"].default_value = rgba; b.inputs["Roughness"].default_value = rough; b.inputs["Metallic"].default_value = metal
+        if glow:
+            for key, val in (("Emission Color", rgba), ("Emission Strength", glow)):
+                if key in b.inputs: b.inputs[key].default_value = val
     return m
 
 
@@ -76,11 +79,11 @@ dec = body.modifiers.new("Decimate", 'DECIMATE'); dec.ratio = 0.16 if mr.levels 
 dg = bpy.context.evaluated_depsgraph_get()
 baked = bpy.data.meshes.new_from_object(body.evaluated_get(dg), depsgraph=dg)
 body.modifiers.clear(); body.data = baked; body.name = "Athlete"; baked.name = "Athlete"
-Hraw = max(v.co.z for v in baked.vertices)
-bm = bmesh.new(); bm.from_mesh(baked)
-for frac in (HEM, WAIST):   # cut the surface along the shorts' edges so the colour boundary is a clean line
-    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, frac * Hraw), plane_no=(0, 0, 1), dist=0.0005)
-bm.to_mesh(baked); bm.free(); baked.validate(); baked.update()
+# a robot has no anatomy between the legs: relax that patch of surface until it is a plain, smooth pelvis
+bm = bmesh.new(); bm.from_mesh(baked); zc = min(v.co.z for v in bm.verts if abs(v.co.x) < 0.008); ymid = sum(v.co.y for v in bm.verts if abs(v.co.z - zc - 0.1) < 0.02) / max(1, sum(1 for v in bm.verts if abs(v.co.z - zc - 0.1) < 0.02))
+patch = [v for v in bm.verts if abs(v.co.x) < 0.085 and zc - 0.005 < v.co.z < zc + 0.16 and v.co.y < ymid]
+for _ in range(40): bmesh.ops.smooth_vert(bm, verts=patch, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+bm.to_mesh(baked); bm.free(); baked.validate(); baked.update(); print("pelvis patch verts", len(patch))
 for p in baked.polygons: p.use_smooth = True
 print("mesh after bake: verts", len(baked.vertices), "polys", len(baked.polygons), "tris", sum(len(p.vertices) - 2 for p in baked.polygons))
 
@@ -93,7 +96,7 @@ def torso_y(z): return cen((abs(X) < 0.10) & (abs(Z - z) < 0.02), (0, 0, z))[1]
 crotch = Z[abs(X) < 0.008].min(); print("crotch z", round(crotch, 3))
 J = {}
 hipc = cen((X > 0.02) & (X < 0.22) & (Z > crotch - 0.06) & (Z < crotch - 0.02))
-J["UpLeg"] = np.array([hipc[0] * 0.92, hipc[1] + 0.005, crotch + 0.085])
+J["UpLeg"] = np.array([hipc[0] * 0.92, hipc[1] + 0.005, 0.52 * H])   # hip joint height: a little over half of body height
 kz = 0.285 * H; kc = cen((X > 0.01) & (X < 0.3) & (abs(Z - kz) < 0.015)); J["Leg"] = np.array([kc[0], kc[1] + 0.008, kz])
 ac = cen((X > 0.01) & (X < 0.3) & (abs(Z - 0.085) < 0.012)); J["Foot"] = np.array([ac[0], ac[1], 0.078])
 foot = (X > 0.01) & (X < 0.3) & (Z < 0.05); toe_y = Y[foot].min(); fx = cen(foot & (Y < toe_y + 0.09))[0]
@@ -114,6 +117,31 @@ head_y = C["Head"][1]                      # middle of the head, front to back (
 C["Head"][1] = C["Neck"][1] - 0.012        # the neck bone stands nearly upright, so "neck straight up" in the app means looking ahead, not up
 C["HeadEnd"] = np.array([0, C["Head"][1], H])
 for k, v in list(J.items()) + list(C.items()): print("  joint", k, np.round(v, 3))
+
+# ---------------------------------------------------------------- 3b. joint rings: cut clean bands into the surface at each articulation
+def unit(v): return v / np.linalg.norm(v)
+UPZ = np.array([0.0, 0.0, 1.0])
+RINGS = [(np.array([0, C["Neck"][1], 0.868 * H]), UPZ, 0.011, 0.10), (np.array([0, C["Spine"][1], 0.60 * H]), UPZ, 0.012, 0.23)]
+for sx in (1, -1):
+    mir = lambda v: np.array([v[0] * sx, v[1], v[2]])
+    fore = unit(J["Hand"] - J["ForeArm"]); shin = unit(J["Foot"] - J["Leg"])
+    RINGS += [(mir(J["ForeArm"]), mir(fore), 0.011, 0.085), (mir(J["Hand"] - fore * 0.01), mir(fore), 0.008, 0.06),
+              (mir(J["Leg"]), mir(shin), 0.013, 0.11), (mir(J["Foot"] + np.array([0, 0, 0.025])), UPZ, 0.010, 0.085)]
+def in_ring(p, ring, pad=0.0):
+    c, ax, hw, R = ring; d = np.array(p) - c; along = d @ ax
+    return abs(along) < hw + pad and np.linalg.norm(d - ax * along) < R
+bm = bmesh.new(); bm.from_mesh(baked)
+for ring in RINGS:
+    c, ax, hw, R = ring
+    for sgn in (-1, 1):
+        bm.faces.ensure_lookup_table()
+        faces = [f for f in bm.faces if in_ring(f.calc_center_median(), ring, 0.03)]
+        geom = list({v for f in faces for v in f.verts}) + list({e for f in faces for e in f.edges}) + faces
+        bmesh.ops.bisect_plane(bm, geom=geom, plane_co=tuple(c + ax * hw * sgn), plane_no=tuple(ax), dist=0.0003)
+bm.to_mesh(baked); bm.free(); baked.validate(); baked.update()
+for p in baked.polygons: p.use_smooth = True
+n = len(baked.vertices); co = np.empty(n * 3); baked.vertices.foreach_get("co", co); co = co.reshape(n, 3); X, Y, Z = co[:, 0], co[:, 1], co[:, 2]
+print("after ring cuts: verts", n)
 
 # ---------------------------------------------------------------- 4. skeleton (same bone names the app already steers)
 arm_d = bpy.data.armatures.new("Rig"); rig = bpy.data.objects.new("Rig", arm_d); bpy.context.scene.collection.objects.link(rig)
@@ -151,33 +179,24 @@ def w(*names): return sum(W.get(s + k, 0) for k in names for s in ("", "Left", "
 # ---------------------------------------------------------------- 6. athletic shaping: push muscle groups out along the surface normal, draw the waist in
 nrm = np.empty(n * 3); baked.vertices.foreach_get("normal", nrm); nrm = nrm.reshape(n, 3)
 front = np.clip(-nrm[:, 1], 0, 1); back = np.clip(nrm[:, 1], 0, 1); side_n = np.abs(nrm[:, 0])
-amt = (w("Arm") * 0.007 + w("ForeArm") * 0.004 + w("Shoulder") * 0.008 + w("Spine2") * (0.007 * front + 0.006 * back + 0.004 * side_n)
-       + w("Spine1") * 0.004 * side_n * (Z > 1.10) - w("Spine") * 0.005 * side_n + w("UpLeg") * 0.005 + w("Leg") * 0.006 * back + w("Neck") * 0.005 * (side_n + back))
+amt = (w("Arm") * 0.010 + w("ForeArm") * 0.006 + w("Shoulder") * 0.010 + w("Spine2") * (0.010 * front + 0.008 * back + 0.006 * side_n)
+       + w("Spine1") * 0.006 * side_n * (Z > 1.10) - w("Spine") * 0.007 * side_n + w("UpLeg") * 0.007 + w("Leg") * 0.008 * back + w("Neck") * 0.006 * (side_n + back))
 co2 = co + nrm * amt[:, None]
 wide = np.clip((Z - 1.24) / 0.10, 0, 1) * np.clip((1.47 - Z) / 0.05, 0, 1)   # a touch more shoulder width
-co2[:, 0] *= 1 + 0.035 * wide
-cloth = ((Z > HEM * H + 0.001) & (Z < WAIST * H - 0.001) & (w("Arm", "ForeArm", "Hand") < 0.3)) * 0.004   # shorts stand a few millimetres off the skin
-co2 += nrm * cloth[:, None]
+co2[:, 0] *= 1 + 0.05 * wide
 baked.vertices.foreach_set("co", co2.ravel()); baked.update()
 
-# ---------------------------------------------------------------- 7. materials
-skin, shorts, hair = material("Skin", SKIN), material("Shorts", SHORTS, 0.85), material("Hair", HAIR, 0.9)
-for m in (skin, shorts, hair): baked.materials.append(m)
-hem, waist = HEM * H, WAIST * H
-armw = w("Arm", "ForeArm", "Hand")
+# ---------------------------------------------------------------- 7. robot look
+# Shell: brushed steel over the muscles. Joint: the dark rings cut in step 3b at the neck, waist, elbows, wrists, knees and ankles.
+shell, joint, glow = material("Shell", SHELL, 0.34, 0.9), material("Joint", JOINT, 0.55, 0.6), material("Glow", GLOW, 0.3, 0.0, 6.0)
+for m in (shell, joint): baked.materials.append(m)
 for p in baked.polygons:
-    c = p.center; vi = list(p.vertices)
-    if hem < c.z < waist and armw[vi].mean() < 0.3: p.material_index = 1
-    elif c.z > 0.93 * H:
-        line = 0.984 * H - 0.066 * H * min(1, max(0, (c.y - head_y + 0.085) / 0.12))   # hairline: high at the forehead, low at the back of the head
-        if c.z > line: p.material_index = 2
-print("faces: skin", sum(p.material_index == 0 for p in baked.polygons), "shorts", sum(p.material_index == 1 for p in baked.polygons), "hair", sum(p.material_index == 2 for p in baked.polygons))
-white, iris = material("EyeWhite", (0.92, 0.92, 0.9, 1), 0.3), material("Iris", (0.12, 0.07, 0.04, 1), 0.3)
-for e in eyes:
-    e.data = e.data.copy(); e.data.materials.clear(); e.data.materials.append(white); e.data.materials.append(iris)
-    mw = e.matrix_world.copy(); cy = mw.translation.y
-    for p in e.data.polygons: p.material_index = 1 if (mw @ p.center).y < cy - 0.0105 else 0
-    e.parent = rig; e.matrix_world = mw; g = e.vertex_groups.new(name="Head"); g.add(range(len(e.data.vertices)), 1.0, 'REPLACE')
+    c = p.center
+    p.material_index = 1 if any(in_ring(c, r, -0.0005) for r in RINGS) else 0
+print("faces: shell", sum(p.material_index == 0 for p in baked.polygons), "joint", sum(p.material_index == 1 for p in baked.polygons))
+for e in eyes:   # the eyes become lights
+    e.data = e.data.copy(); e.data.materials.clear(); e.data.materials.append(glow)
+    mw = e.matrix_world.copy(); e.parent = rig; e.matrix_world = mw; g = e.vertex_groups.new(name="Head"); g.add(range(len(e.data.vertices)), 1.0, 'REPLACE')
     md = e.modifiers.new("Armature", 'ARMATURE'); md.object = rig
 
 # ---------------------------------------------------------------- 8. previews
