@@ -232,6 +232,7 @@
     return { mount, draw, unmount, bones: B, T, scene, camera, renderer };
   }
 
+  root.fig3dModes = MODE;
   root.fig3d = { load, ready: () => !!S, mount: (el, fig, name) => S.mount(el, fig, name), draw: (fig, p, still) => S.draw(fig, p, still), unmount: () => S && S.unmount(), state: () => S };
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>

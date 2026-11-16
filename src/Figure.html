@@ -347,11 +347,22 @@
     stopFigure();
     const fig = FIGS[name]; if (!fig) return false;
     el.innerHTML = '<svg viewBox="' + (fig.view || '0 0 240 212') + '" role="img" aria-label="Animated figure showing ' + name.replace(/"/g, '') + '"></svg><div class="fg-say" aria-live="off"></div>';
-    const svg = el.firstChild, say = el.lastChild, dur = duration(fig);
-    const draw = t => { const f = frame(fig, poseAt(fig, t)); svg.innerHTML = f.svg; if (say.textContent !== f.say) say.textContent = f.say; };
-    const still = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (still || !root.requestAnimationFrame) { draw(fig.still || 0); return true; }
-    let raf = 0, t0 = performance.now(), loops = 0;
+    const svg = el.firstChild, say = el.lastChild, dur = duration(fig), d3 = root.fig3d;
+    const still = !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches) || !root.requestAnimationFrame;
+    let raf = 0, t0 = 0, loops = 0, alive = true, in3d = false, last = fig.still || 0;
+    const to2d = () => { in3d = false; svg.style.display = ''; };
+    const draw = t => {
+      const p = poseAt(fig, t); last = t;
+      if (in3d) { try { d3.draw(fig, p, still); } catch (e) { to2d(); } }
+      if (!in3d) svg.innerHTML = frame(fig, p).svg;
+      if (say.textContent !== p.say) say.textContent = p.say;
+    };
+    // The 3D model (Figure3D.html) takes over as soon as it has loaded; until then, or if it cannot load, the drawn 2D figure shows.
+    const to3d = () => { if (!alive) return; try { d3.mount(el, fig, name); svg.style.display = 'none'; in3d = true; draw(last); } catch (e) { to2d(); } };
+    if (d3) { if (d3.ready()) to3d(); else d3.load().then(to3d, () => {}); }
+    stopCurrent = () => { alive = false; cancelAnimationFrame(raf); if (d3) d3.unmount(); };
+    if (still) { draw(fig.still || 0); return true; }
+    t0 = performance.now();
     const loop = now => {
       const t = (now - t0) / 1000, n = Math.floor(t / dur);
       if (n !== loops) { loops = n; if (opts && opts.onLoop) opts.onLoop(n); }
@@ -359,7 +370,6 @@
     };
     raf = requestAnimationFrame(loop);
     restart = () => { t0 = performance.now(); loops = 0; };
-    stopCurrent = () => cancelAnimationFrame(raf);
     return true;
   }
   /** While a hold timer runs, keep the figure in its hold position instead of looping. */
