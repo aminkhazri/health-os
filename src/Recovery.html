@@ -1,0 +1,44 @@
+<script>
+/**
+ * Recovery score for rest days (0–100). Pure function (no DOM, no Google services), unit-tested in tests/recovery.test.js.
+ *
+ * Built only from what you log. Each factor is scored 0–100, then weighted:
+ *   Sleep 35 · Calories 20 · Protein 15 · Water 10 · Resting heart rate 10 · Calm + stretching 10
+ * Resting heart rate is compared with your own recent average: at or below it = 100, each bpm above costs 20 (+5 bpm = 0).
+ * If there's no heart rate today, or fewer than 3 recent readings to compare with, that factor is left out and the
+ * others are scaled up. Anything else you haven't logged yet counts as 0, so the score fills in as the day goes on.
+ */
+(function (root) {
+  const WEIGHTS = { Sleep: 35, Calories: 20, Protein: 15, Water: 10, 'Resting HR': 10, 'Calm + stretch': 10 };
+  const pct = (v, goal) => goal ? Math.max(0, Math.min(100, (Number(v) || 0) / goal * 100)) : 0;
+
+  /** Average of the readings, or null when there are fewer than `min`. */
+  function baseline(readings, min) {
+    const v = (readings || []).filter(x => typeof x === 'number' && x > 0);
+    return v.length >= (min || 3) ? v.reduce((a, b) => a + b, 0) / v.length : null;
+  }
+
+  function recoveryScore(i) {
+    const parts = [
+      { name: 'Sleep', v: pct(i.sleep, i.sleepGoal || 7), d: i.sleep != null ? `${i.sleep} / ${i.sleepGoal || 7} h` : 'not logged' },
+      { name: 'Calories', v: pct(i.kcal, i.kcalGoal), d: `${Math.round(i.kcal || 0)} / ${i.kcalGoal} kcal` },
+      { name: 'Protein', v: pct(i.protein, i.proteinGoal), d: `${Math.round(i.protein || 0)} / ${i.proteinGoal} g` },
+      { name: 'Water', v: pct(i.water, i.waterGoal), d: `${Math.round(i.water || 0)} / ${i.waterGoal} oz` },
+      { name: 'Calm + stretch', v: (pct(i.calm, i.calmGoal) + pct(i.flex, i.flexGoal)) / 2, d: `${i.calm || 0} + ${i.flex || 0} min` },
+    ];
+    if (i.hr > 0 && i.hrBaseline > 0) {
+      const diff = i.hr - i.hrBaseline;
+      parts.push({ name: 'Resting HR', v: diff <= 0 ? 100 : Math.max(0, 100 - diff * 20),
+        d: `${Math.round(i.hr)} bpm, ${diff <= 0 ? 'at or below' : '+' + Math.round(diff) + ' vs'} your ${Math.round(i.hrBaseline)} avg` });
+    }
+    const total = parts.reduce((a, p) => a + WEIGHTS[p.name], 0);
+    const score = Math.round(parts.reduce((a, p) => a + p.v * WEIGHTS[p.name], 0) / total);
+    const weakest = parts.slice().sort((a, b) => a.v - b.v || WEIGHTS[b.name] - WEIGHTS[a.name])[0];
+    return { score, parts, weakest: weakest.v >= 100 ? null : weakest, usedHr: parts.length === 6 };
+  }
+
+  root.recoveryScore = recoveryScore;
+  root.hrBaseline = baseline;
+  if (typeof module !== 'undefined') module.exports = { recoveryScore, hrBaseline: baseline, WEIGHTS };
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>

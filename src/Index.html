@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700;1,800&display=swap" rel="stylesheet">
 <?!= include('Parser'); ?>
+<?!= include('Recovery'); ?>
 <style>
   /* Theme: "Matchday" — floodlit-night slate, pitch-lime accent, condensed scoreboard type. One look in light and dark. */
   :root {
@@ -395,6 +396,8 @@
       <div class="attrs" id="attrs"></div>
       <div class="scale"></div><div class="scale-l"><span>25 or below</span><span>50</span><span>75</span><span>100</span></div>
       <div class="prof-foot"><span id="profBest"></span><span id="profWorst"></span></div>
+      <details class="ritual" id="recWhy" hidden><summary>How Recovery is scored</summary>
+        <div class="muted" id="recTxt" style="margin-top:8px;line-height:1.55"></div></details>
     </div>
     <div class="card hero">
       <h2>This week's average</h2>
@@ -542,11 +545,21 @@ function dailyProgress() {
     { name: 'Protein', v: pct(T.p, pg), d: `${n(T.p)} / ${pg} g` },
     { name: 'Water', v: pct(T.w, wg), d: `${n(T.w)} / ${wg} oz` },
     { name: 'Sleep', v: pct(e.sleep, 7), d: e.sleep != null ? `${e.sleep} / 7 h` : 'not logged yet' },
-    { name: 'Workout', v: trained || !planned ? 100 : 0, d: trained ? 'done ✓' : planned ? `Workout ${planned} not logged yet` : 'rest day ✓' },
+    // Workout days (or any day you log one): did you train? Rest days: how well are you recovering?
+    planned || trained
+      ? { name: 'Workout', v: trained ? 100 : 0, d: trained ? 'done ✓' : `Workout ${planned} not logged yet` }
+      : recoveryItem(),
     { name: 'Steps', v: pct(day.st, sg), d: `${n(day.st)} / ${n(sg)}` },
     { name: 'Calm', v: pct(e.mind, mg), d: `${e.mind || 0} / ${mg} min` },
     { name: 'Flex', v: pct(e.stretch, fg), d: `${e.stretch || 0} / ${fg} min` },
   ].map(x => ({ ...x, v: Math.round(x.v) }));
+
+  function recoveryItem() {
+    const prior = D.series.filter(x => x.d < D.dateKey && x.d >= addDays(D.dateKey, -7)).map(x => x.hr);
+    const r = recoveryScore({ sleep: e.sleep, sleepGoal: 7, kcal: T.kcal, kcalGoal: kg, protein: T.p, proteinGoal: pg,
+      water: T.w, waterGoal: wg, calm: e.mind, calmGoal: mg, flex: e.stretch, flexGoal: fg, hr: e.hr, hrBaseline: hrBaseline(prior, 3) });
+    return { name: 'Recovery', v: r.score, d: r.weakest ? `rest day · lowest: ${r.weakest.name} (${r.weakest.d})` : 'rest day · all factors on track', recovery: r };
+  }
 }
 function renderOvr() {
   const P = profile(), ovr = Math.round(P.reduce((a, x) => a + x.v, 0) / P.length);
@@ -559,6 +572,13 @@ function renderProfile() {
   $('profWhen').textContent = (D.dateKey === D.today ? 'Today' : fmtDate(D.dateKey)) + ' · % of each goal';
   $('attrs').innerHTML = P.map(x => `<div class="attr"><div class="ah"><span>${x.name} <small class="muted">${esc(x.d)}</small></span><b style="color:${scoreColor(x.v)}">${x.v}%</b></div>
     <div class="bar"><i style="width:${x.v}%;background:${scoreColor(x.v)}"></i></div></div>`).join('');
+  const R = P.find(x => x.recovery);
+  $('recWhy').hidden = !R;
+  if (R) $('recTxt').innerHTML = 'Rest days show Recovery instead of Workout. It is a weighted score of what you log: '
+    + 'sleep 35%, calories 20%, protein 15%, water 10%, resting heart rate 10%, calm + stretching 10%.<br>'
+    + R.recovery.parts.map(x => `${esc(x.name)}: <b style="color:${scoreColor(x.v)}">${Math.round(x.v)}</b> <span>(${esc(x.d)})</span>`).join('<br>')
+    + (R.recovery.usedHr ? '' : '<br>Resting heart rate is left out until you log it today and have 3 readings from the past week.')
+    + '<br>A rule-of-thumb score from your own logs, not a medical measure.';
   const sorted = [...P].sort((a, b) => b.v - a.v), best = sorted[0], worst = sorted[sorted.length - 1];
   $('profBest').innerHTML = `Furthest along: <b style="color:${scoreColor(best.v)}">${best.name}</b>`;
   $('profWorst').innerHTML = `Needs attention: <b style="color:${scoreColor(worst.v)}">${worst.name}</b>`;
