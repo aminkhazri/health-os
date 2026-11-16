@@ -10,6 +10,7 @@
  * Angle conventions: limbs: 0 = pointing straight down, 90 = forward, -90 = back. Torso: 0 = upright, 90 = flat, facing right.
  * head is relative to the torso. arch bends the spine (+ rounds up, - sags). A "2" suffix is the far-side limb;
  * leave it out and it copies the near side.
+ * view: an SVG viewBox that crops the drawing for floor moves, so the figure fills the space.
  * anchor: [x, y] pins the near ankle to that spot, so feet stay planted and the hips move (squats, push-ups).
  * Without anchor the pose gives the hip position as x, y (floor moves).
  * hands: [x, y] pins both hands to that spot (push-ups); the elbows are then worked out automatically.
@@ -61,27 +62,29 @@
   const cow = { x: 80, y: 151, torso: 74.4, arch: -9, head: -32, armU: 0, armL: 0, legU: 0, legL: -90, foot: -90 };
   const cat = { x: 80, y: 151, torso: 74.4, arch: 13, head: 38, armU: 0, armL: 0, legU: 0, legL: -90, foot: -90 };
   const plankTop = { torso: 71.4, head: -12, armU: 0, armL: 0, legU: -71.4, legL: -71.4, foot: 20 };
-  const plankLow = { torso: 88.8, head: -16, armU: -80, armL: 65, legU: -88.8, legL: -88.8, foot: 20 };
+  const plankLow = { torso: 84.5, head: -14, armU: -80, armL: 65, legU: -84.5, legL: -84.5, foot: 20 };
   const FIGS = {
     'Goblet squat': { anchor: [120, 195], prop: 'dumbbell', still: 2.5, keys: [
       { at: 0, p: stand, say: 'Sit back and down: 2 seconds' }, { at: 2.2, p: squat, say: 'Pause. Chest up, knees over toes' },
       { at: 2.9, p: squat, say: 'Drive up through your whole foot' }, { at: 4.3, p: stand, say: 'Stand tall' }, { at: 5, p: stand }] },
-    'Cat-cow': { still: 3, keys: [
+    'Cat-cow': { view: '0 84 240 128', still: 3, keys: [
       { at: 0, p: cow, say: 'Breathe out: round your back up, chin to chest' }, { at: 2.6, p: cat, say: 'Pause at the top' },
       { at: 3.4, p: cat, say: 'Breathe in: let your belly sink, look ahead' }, { at: 6, p: cow, say: 'Pause' }, { at: 6.8, p: cow }] },
-    'Push-up bottom hold': { anchor: [38, 181], hands: [170, 195], still: 4, keys: [
+    'Push-up bottom hold': { view: '0 84 240 128', anchor: [38, 181], hands: [170, 195], still: 4, keys: [
       { at: 0, p: plankTop, say: 'Lower slowly' }, { at: 2.2, p: plankLow, say: 'Hold. Body in one line, elbows in, keep breathing' },
       { at: 8, p: plankLow, say: 'Press back up' }, { at: 9.4, p: plankTop, say: 'Reset' }, { at: 10.2, p: plankTop }] },
   };
 
   // ---------- Drawing ----------
   const pts = a => a.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-  let stopCurrent = null;
+  let stopCurrent = null, holdPose = false;
+  /** While a hold timer runs, keep the figure in its hold position instead of looping. */
+  function holdFigure(on) { holdPose = !!on; }
   /** Draw `name` into element `el` and animate it. Returns false if there is no figure for that move. */
   function mountFigure(el, name) {
     stopFigure();
     const fig = FIGS[name]; if (!fig) return false;
-    el.innerHTML = '<svg viewBox="0 0 240 212" role="img" aria-label="Animated figure showing ' + name.replace(/"/g, '') + '">'
+    el.innerHTML = '<svg viewBox="' + (fig.view || '0 0 240 212') + '" role="img" aria-label="Animated figure showing ' + name.replace(/"/g, '') + '">'
       + '<line class="fg-ground" x1="8" y1="201" x2="232" y2="201"/>'
       + '<polyline class="fg-far" data-k="farArm"/><polyline class="fg-far" data-k="farLeg"/>'
       + '<path class="fg-body" data-k="torso"/><circle class="fg-head" data-k="head" r="' + LEN.head + '"/>'
@@ -103,13 +106,13 @@
     const still = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (still || !root.requestAnimationFrame) { draw(fig.still || 0); return true; }
     let raf = 0; const t0 = performance.now();
-    const loop = now => { draw((now - t0) / 1000); raf = requestAnimationFrame(loop); };
+    const loop = now => { draw(holdPose ? (fig.still || 0) : (now - t0) / 1000); raf = requestAnimationFrame(loop); };
     raf = requestAnimationFrame(loop);
     stopCurrent = () => cancelAnimationFrame(raf);
     return true;
   }
-  function stopFigure() { if (stopCurrent) { stopCurrent(); stopCurrent = null; } }
+  function stopFigure() { holdPose = false; if (stopCurrent) { stopCurrent(); stopCurrent = null; } }
 
-  root.FIGS = FIGS; root.mountFigure = mountFigure; root.stopFigure = stopFigure; root.figPoseAt = poseAt; root.figJoints = joints;
+  root.FIGS = FIGS; root.mountFigure = mountFigure; root.stopFigure = stopFigure; root.holdFigure = holdFigure; root.figPoseAt = poseAt; root.figJoints = joints;
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>

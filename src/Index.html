@@ -272,7 +272,7 @@
   .v-timer .n { font-family: var(--display); font-weight: 800; font-size: 52px; line-height: 1; color: var(--lime); font-variant-numeric: tabular-nums; min-width: 1.6em; text-align: center; }
   .v-timer .n.prep { color: var(--text-secondary); }
   .v-timer .n.last { color: var(--warn); }
-  .v-timer .l { color: var(--text-secondary); font-size: 15px; }
+  .v-timer .l { flex: 1; color: var(--text-secondary); font-size: 15px; }
   .v-timer .btn2 { margin-top: 0; flex: 1; }
   /* Projects: add-on sessions for specific goals */
   .proj-l { margin: 14px 0 6px; font-size: 13px; color: var(--text-muted); }
@@ -881,7 +881,7 @@ function demo(name) {
 }
 let hTick = null, hSecs = 0;
 function holdReset(secs) {
-  clearInterval(hTick); hSecs = secs; $('vTimer').hidden = !secs;
+  clearInterval(hTick); holdFigure(false); hSecs = secs; $('vTimer').hidden = !secs;
   if (secs) $('vTimer').innerHTML = `<button class="btn2" onclick="holdStart()">⏱️ Start ${secs} s hold timer</button>`;
 }
 function holdStart() {
@@ -890,10 +890,10 @@ function holdStart() {
   const paint = () => { $('vTimer').innerHTML = `<div class="n ${prep > 0 ? 'prep' : left <= 3 ? 'last' : ''}">${prep > 0 ? prep : left}</div><div class="l">${prep > 0 ? 'Get into position' : 'Hold still and keep breathing'}</div><button class="btn2" style="flex:0 0 auto" onclick="holdReset(hSecs)">Stop</button>`; };
   paint(); clearInterval(hTick);
   hTick = setInterval(() => {
-    if (prep > 0) { prep--; if (prep === 0) tone(520, 0.25); }
+    if (prep > 0) { prep--; if (prep === 0) { tone(520, 0.25); holdFigure(true); } }
     else { left--; if (left >= 1 && left <= 3) tone(700, 0.12); }
     if (left <= 0) {
-      clearInterval(hTick); tone(784, 0.2); tone(988, 0.2, 0.2); tone(1175, 0.5, 0.4);
+      clearInterval(hTick); holdFigure(false); tone(784, 0.2); tone(988, 0.2, 0.2); tone(1175, 0.5, 0.4);
       $('vTimer').innerHTML = `<div class="l" style="flex:1"><b style="color:var(--good)">Done ✓</b> Rest, then go again or switch sides.</div><button class="btn2" style="flex:0 0 auto" onclick="holdStart()">Again</button>`;
       return;
     }
