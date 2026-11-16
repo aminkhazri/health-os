@@ -671,7 +671,7 @@ function renderWorkout() {
   if (!D.workouts[letter] && !PR[letter]) letter = D.next;
   const P = PR[letter], list = P ? P.ex : D.workouts[letter];
   $('letter').innerHTML = Object.keys(D.workouts).map(l => `<button class="${l===letter?'on':''}" onclick="letter='${l}';renderWorkout()">${l} · ${WI.names[l] || 'Workout'}${l===D.next?' ★':''}</button>`).join('');
-  $('projSeg').innerHTML = Object.keys(PR).map(k => `<button class="${k===letter?'on':''}" onclick="letter='${k}';renderWorkout()">${PR[k].icon} ${esc(PR[k].name)}</button>`).join('');
+  $('projSeg').innerHTML = Object.keys(PR).sort((a, b) => (PR[a].order || 9) - (PR[b].order || 9)).map(k => `<button class="${k===letter?'on':''}" onclick="letter='${k}';renderWorkout()">${PR[k].icon} ${esc(PR[k].name)}</button>`).join('');
   $('projInfo').hidden = !P;
   if (P) $('projInfo').innerHTML = `<b>Why:</b> ${esc(P.why)}<br><b>How:</b> ${esc(P.how)}`;
   const lastP = P && (D.lastSession || {})[letter];
@@ -679,14 +679,14 @@ function renderWorkout() {
     : D.lastWorkoutDate ? `Last session: ${fmtDate(D.lastWorkoutDate)} (Workout ${D.lastLetter})` : 'No sessions logged yet. Start light: every set should end with 1–2 good reps left.';
   $('exlist').innerHTML = list.map((ex, i) => {
     const L = D.last[ex], tg = WI.targets[ex] || (P && P.targets[ex]);
-    const goal = tg ? `<b>Goal ${tg}</b> · ` : '';
+    const goal = tg ? `<b>Goal ${tg}</b> · ` : '', tgSets = (String(tg || '').match(/^(\d+)\s*(?:×|rounds)/) || [])[1];
     const hint = goal + (L ? `Last: ${L.sets ?? '?'}×${L.reps || '?'}${L.weight ? ' @ ' + L.weight + ' lb' : ''} (${fmtDate(L.date)})` : P ? 'first time, start easy' : 'first time, pick a light weight');
     return `<div class="ex" data-ex="${ex.replace(/"/g,'&quot;')}">
       <div class="exhead"><div class="name">${ex}</div><button class="demo" data-v="${esc(ex)}" onclick="demo(this.dataset.v)">▶ Demo</button><button class="check" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓':''" aria-label="Done"></button></div>
       <div class="muted">${hint}</div>
       <div class="row">
         <div><label class="f">Weight</label><input inputmode="decimal" type="number" value="${L && L.weight != null ? L.weight : ''}" placeholder="lb"></div>
-        <div><label class="f">Sets</label><input inputmode="numeric" type="number" value="${L && L.sets != null ? L.sets : 3}"></div>
+        <div><label class="f">Sets</label><input inputmode="numeric" type="number" value="${L && L.sets != null ? L.sets : (tgSets || 3)}"></div>
         <div><label class="f">Reps</label><input inputmode="text" value="${L && L.reps ? L.reps : ''}" placeholder="e.g. 10,10,9"></div>
       </div>
       <input style="margin-top:8px;font-size:15px" placeholder="Note (optional)">

@@ -27,7 +27,7 @@ const WORKOUT_INFO = {
 // toward the 3 main workouts a week, don't change which main workout is next, and don't affect Workout/Recovery on the chart.
 const PROJECTS = {
   Neck: {
-    icon: '🛡️', name: 'Neck strength',
+    icon: '🛡️', name: 'Neck strength', order: 1,
     why: 'A strong neck supports the spine and helps absorb contact and headers in soccer.',
     how: '3 times a week, about 8 minutes: right after Workouts A, B and C. Slow and controlled: never jerk your head. Start with no extra weight. Stop if you feel sharp pain, numbness, tingling or a headache.',
     ex: ['Supine chin tuck', 'Neck isometric hold', 'Prone neck extension', 'Side-lying neck raise', 'Dumbbell shrug'],
@@ -35,7 +35,7 @@ const PROJECTS = {
       'Prone neck extension': '2 × 12, slow', 'Side-lying neck raise': '2 × 12 each side', 'Dumbbell shrug': '3 × 12–15, 1 s squeeze' },
   },
   Calves: {
-    icon: '🦵', name: 'Calf size',
+    icon: '🦵', name: 'Calf size', order: 2,
     why: 'Strong calves that need more size: more weekly sets, a full stretch at the bottom and steady added weight.',
     how: '3 times a week on rest days (Mon, Wed, Fri), about 10 minutes. Every rep: 3 s down, 2 s paused in the deepest stretch, then up and squeeze 1 s. When every set hits the top of the range, add weight. Size also needs the calorie surplus you are already eating.',
     ex: ['Single-leg deficit calf raise', 'Seated dumbbell calf raise', 'Tibialis raise'],
