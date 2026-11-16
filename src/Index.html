@@ -263,7 +263,7 @@
   .confetti { position: fixed; top: -12px; width: 8px; height: 14px; z-index: 40; pointer-events: none; border-radius: 2px; animation: fall 1.5s ease-in forwards; }
   @keyframes fall { to { transform: translateY(105vh) rotate(540deg); opacity: .7; } }
   .flist .fr.pending { opacity: .65; }
-  /* Player profile (radar + attribute bars) */
+  /* My daily progress (radar + bars) */
   .prof-head { display: flex; justify-content: space-between; align-items: baseline; }
   .prof-head .muted { font-size: 13px; }
   .radar { position: relative; height: 290px; margin: 4px 0 10px; }
@@ -390,8 +390,8 @@
 
   <section class="tab" id="t-prog">
     <div class="card" id="profCard">
-      <div class="prof-head"><h2>Player profile</h2><span class="muted">Last 7 days · score / 100</span></div>
-      <div class="radar"><canvas id="cRadar" role="img" aria-label="Player profile radar: seven scores out of 100"></canvas></div>
+      <div class="prof-head"><h2>My daily progress</h2><span class="muted" id="profWhen">Today · % of each goal</span></div>
+      <div class="radar"><canvas id="cRadar" role="img" aria-label="Daily progress radar: percent of each daily goal reached"></canvas></div>
       <div class="attrs" id="attrs"></div>
       <div class="scale"></div><div class="scale-l"><span>25 or below</span><span>50</span><span>75</span><span>100</span></div>
       <div class="prof-foot"><span id="profBest"></span><span id="profWorst"></span></div>
@@ -507,7 +507,7 @@ function streakBadge() {
   return n ? `<span class="streak">🔥 ${n}-day streak</span>` : '';
 }
 
-// ---------- Player profile: seven scores out of 100, from the last 7 days ----------
+// ---------- 7-day scores (OVR badge) and today's progress (radar) ----------
 // Each score = your average on the days you logged that thing, as a share of its target (capped at 100).
 // Training uses this week's sessions; Calm uses all 7 days, so a skipped day counts as zero.
 function profile() {
@@ -528,18 +528,40 @@ function profile() {
   ].map(([name, v]) => ({ name, v: Math.round(v * 10) / 10 }));
 }
 function scoreColor(v) { return css(v >= 85 ? '--good' : v >= 65 ? '--lime' : v >= 40 ? '--warn' : '--bad'); }
+// Today's progress toward each daily goal (or the day you're viewing). Each value is % of goal, capped at 100.
+function dailyProgress() {
+  const t = D.targets, G = (D.food && D.food.targets) || {}, T = (D.food && D.food.totals) || {}, e = D.entry || {};
+  const A = D.activity || {}, day = A.day || {};
+  const pct = (v, goal) => goal ? Math.max(0, Math.min(100, (v || 0) / goal * 100)) : 0;
+  const n = v => Math.round(v || 0).toLocaleString();
+  const [y, m, d] = D.dateKey.split('-').map(Number), dow = new Date(y, m - 1, d).getDay() || 7;
+  const planned = ((D.workoutInfo || {}).day || {})[dow], trained = D.lastWorkoutDate === D.dateKey;
+  const sg = A.stepGoal || 8000, kg = t.calories, pg = G.protein || 150, wg = G.water || 125, mg = t.mindful || 10, fg = t.stretch || 5;
+  return [
+    { name: 'Calories', v: pct(T.kcal, kg), d: `${n(T.kcal)} / ${n(kg)} kcal` },
+    { name: 'Protein', v: pct(T.p, pg), d: `${n(T.p)} / ${pg} g` },
+    { name: 'Water', v: pct(T.w, wg), d: `${n(T.w)} / ${wg} oz` },
+    { name: 'Sleep', v: pct(e.sleep, 7), d: e.sleep != null ? `${e.sleep} / 7 h` : 'not logged yet' },
+    { name: 'Workout', v: trained || !planned ? 100 : 0, d: trained ? 'done ✓' : planned ? `Workout ${planned} not logged yet` : 'rest day ✓' },
+    { name: 'Steps', v: pct(day.st, sg), d: `${n(day.st)} / ${n(sg)}` },
+    { name: 'Calm', v: pct(e.mind, mg), d: `${e.mind || 0} / ${mg} min` },
+    { name: 'Flex', v: pct(e.stretch, fg), d: `${e.stretch || 0} / ${fg} min` },
+  ].map(x => ({ ...x, v: Math.round(x.v) }));
+}
 function renderOvr() {
   const P = profile(), ovr = Math.round(P.reduce((a, x) => a + x.v, 0) / P.length);
   $('ovrN').textContent = ovr; $('ovr').hidden = false;
   return P;
 }
 function renderProfile() {
-  const P = renderOvr();
-  $('attrs').innerHTML = P.map(x => `<div class="attr"><div class="ah"><span>${x.name}</span><b style="color:${scoreColor(x.v)}">${x.v.toFixed(1)}</b></div>
+  renderOvr();   // the OVR badge stays a 7-day score; this chart is today only
+  const P = dailyProgress();
+  $('profWhen').textContent = (D.dateKey === D.today ? 'Today' : fmtDate(D.dateKey)) + ' · % of each goal';
+  $('attrs').innerHTML = P.map(x => `<div class="attr"><div class="ah"><span>${x.name} <small class="muted">${esc(x.d)}</small></span><b style="color:${scoreColor(x.v)}">${x.v}%</b></div>
     <div class="bar"><i style="width:${x.v}%;background:${scoreColor(x.v)}"></i></div></div>`).join('');
   const sorted = [...P].sort((a, b) => b.v - a.v), best = sorted[0], worst = sorted[sorted.length - 1];
-  $('profBest').innerHTML = `Strongest: <b style="color:${scoreColor(best.v)}">${best.name}</b>`;
-  $('profWorst').innerHTML = `Lowest score: <b style="color:${scoreColor(worst.v)}">${worst.name}</b>`;
+  $('profBest').innerHTML = `Furthest along: <b style="color:${scoreColor(best.v)}">${best.name}</b>`;
+  $('profWorst').innerHTML = `Needs attention: <b style="color:${scoreColor(worst.v)}">${worst.name}</b>`;
   if (typeof Chart === 'undefined') return;
   const teal = css('--teal'), grid = css('--border');
   mk('cRadar', { type: 'radar', data: { labels: P.map(x => x.name), datasets: [{ label: 'Score', data: P.map(x => x.v),
@@ -547,7 +569,7 @@ function renderProfile() {
       pointBackgroundColor: P.map(x => scoreColor(x.v)), pointBorderColor: css('--surface-1'), pointBorderWidth: 2 }] },
     options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false },
         tooltip: { backgroundColor: css('--surface-2'), titleColor: css('--text-primary'), bodyColor: css('--text-primary'), borderColor: grid, borderWidth: 1, padding: 10,
-          callbacks: { label: c => ` ${c.parsed.r.toFixed(1)} / 100` } } },
+          callbacks: { label: c => ` ${c.parsed.r}% · ${P[c.dataIndex].d}` } } },
       scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 25 }, grid: { color: grid }, angleLines: { color: grid },
         pointLabels: { color: css('--text-secondary'), font: { size: 13 } } } } } });
 }
