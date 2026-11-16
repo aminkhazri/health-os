@@ -251,6 +251,27 @@
   .s-prog i { display: block; height: 100%; width: 0; background: var(--lime); transition: width 1s linear; }
   .s-cue { color: var(--text-secondary); font-size: 16px; line-height: 1.45; text-align: center; max-width: 34ch; padding: 0 20px; }
   .s-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  /* Collapsible Today cards: a summary line when closed; the body slides open (grid 0fr -> 1fr animates to the content's real height). */
+  .fold-all { display: flex; justify-content: flex-end; margin: 4px 2px -4px; }
+  .fold-all button { font: inherit; font-size: 14px; font-weight: 600; color: var(--lime); background: none; border: 0; padding: 6px 4px; }
+  .card h2.fold-h { margin: 0; }
+  .fold-head { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 10px; row-gap: 3px;
+    background: none; border: 0; padding: 2px 0; margin: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; text-align: left; cursor: pointer; }
+  .fold-head:active { transform: none; filter: none; }
+  .fold-t { grid-column: 1; }
+  .fold-sum { grid-column: 1; font: 400 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    letter-spacing: 0; text-transform: none; color: var(--text-secondary); transition: opacity .2s ease; }
+  .fold.open .fold-sum { opacity: 0; height: 0; overflow: hidden; }
+  .fold-chev { grid-column: 2; grid-row: 1 / span 2; width: 9px; height: 9px; margin-right: 4px; border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted);
+    transform: translateY(-2px) rotate(45deg); transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+  .fold.open .fold-chev { transform: translateY(2px) rotate(-135deg); border-color: var(--lime); }
+  .fold-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .38s cubic-bezier(.2,.8,.2,1); }
+  .fold.open .fold-body { grid-template-rows: 1fr; }
+  .fold-inner { min-height: 0; overflow: hidden; opacity: 0; transform: translateY(-6px); transition: opacity .22s ease, transform .38s cubic-bezier(.2,.8,.2,1); }
+  .fold.open .fold-inner { opacity: 1; transform: none; transition-delay: .06s; }
+  .fold-inner > :first-child { margin-top: 14px; }
+  .qbtns.drinks { margin-top: 12px; }
+  @media (prefers-reduced-motion: reduce) { .fold-body, .fold-inner, .fold-chev { transition: none; } }
   /* Instant feedback and rewards */
   button { transition: transform .08s ease-out, filter .08s; touch-action: manipulation; }
   button:active { transform: scale(.95); filter: brightness(1.15); }
@@ -302,8 +323,10 @@
       <div class="d" id="dlabel"></div>
       <button onclick="shiftDay(1)" aria-label="Next day">›</button>
     </div>
-    <div class="card">
-      <h2>Morning</h2>
+    <div class="fold-all"><button type="button" id="foldAll" onclick="foldAll()">Expand all</button></div>
+    <div class="card fold" data-fold="morning">
+      <h2 class="fold-h"><button class="fold-head" type="button" aria-expanded="false" aria-controls="fb-morning" onclick="toggleFold('morning')"><span class="fold-t">Morning</span><span class="fold-sum" id="sum-morning"></span><i class="fold-chev" aria-hidden="true"></i></button></h2>
+      <div class="fold-body" id="fb-morning"><div class="fold-inner">
       <div class="row">
         <div><label class="f" for="w">Weight (lb)</label><input id="w" type="number" inputmode="decimal" step="0.1" placeholder="e.g. 160.4"></div>
         <div><label class="f" for="s">Sleep (hrs)</label><input id="s" type="number" inputmode="decimal" step="0.25" placeholder="6"></div>
@@ -314,9 +337,11 @@
       <details class="ritual"><summary>Morning ritual · about 10 minutes, same order every day</summary>
         <ol><li>Bathroom, then weigh in</li><li>Sit still 1 minute: slow breaths (in 4, out 6) while the watch reads your heart rate</li><li>Log weight, sleep, heart rate and energy above</li><li>Big glass of water</li>
         <li>Wake-up stretch: <a href="#" onclick="show('str');return false" style="color:var(--lime)">open the Stretch tab</a> and press Start Wake-up (5 min)</li><li>Breakfast, and log it</li></ol></details>
+      </div></div>
     </div>
-    <div class="card">
-      <h2>Food & drinks</h2>
+    <div class="card fold" data-fold="food">
+      <h2 class="fold-h"><button class="fold-head" type="button" aria-expanded="false" aria-controls="fb-food" onclick="toggleFold('food')"><span class="fold-t">Food & drinks</span><span class="fold-sum" id="sum-food"></span><i class="fold-chev" aria-hidden="true"></i></button></h2>
+      <div class="fold-body" id="fb-food"><div class="fold-inner">
       <form class="qa" onsubmit="event.preventDefault();quickAdd()">
         <input id="qa" autocomplete="off" placeholder="What did you have? e.g. 2 eggs and coffee" oninput="renderSuggest()">
         <button type="submit">Add</button>
@@ -325,8 +350,11 @@
       <div class="sugg" id="sugg"></div>
       <div id="ask"></div>
       <div class="flist" id="flist"></div>
+      </div></div>
     </div>
-    <div class="card gauges"><h2>Vitals</h2>
+    <div class="card gauges fold" data-fold="vitals">
+      <h2 class="fold-h"><button class="fold-head" type="button" aria-expanded="false" aria-controls="fb-vitals" onclick="toggleFold('vitals')"><span class="fold-t">Vitals</span><span class="fold-sum" id="sum-vitals"></span><i class="fold-chev" aria-hidden="true"></i></button></h2>
+      <div class="fold-body" id="fb-vitals"><div class="fold-inner">
       <div class="gauge kcal" id="gK"><div class="g-head"><span>🔥 Calories</span><span class="g-sub" id="gKs"></span></div>
         <div class="g-track"><div class="g-fill"></div><div class="g-ticks"></div><div class="g-text"></div></div></div>
       <div class="gauge water" id="gW"><div class="g-head"><span>💧 Water</span><span class="g-sub" id="gWs"></span></div>
@@ -342,23 +370,28 @@
       <div class="qbtns three" style="margin-bottom:8px">
         <button onclick="breathe(1)">Breathe 1 min</button><button onclick="breathe(3)">3 min</button><button onclick="breathe(5)">5 min</button><button onclick="undoMindful()" aria-label="Remove one minute">−1</button>
       </div>
-      <div class="qbtns">
+      </div></div>
+      <div class="qbtns drinks">
         <button onclick="quickItem('Water')">+8 oz 💧</button><button onclick="quickItem('Water bottle')">+24 oz 💧</button>
         <button onclick="quickItem('Coffee, black')">+ Coffee ☕</button><button onclick="quickItem('Celsius energy drink')">+ Celsius ⚡</button>
       </div>
     </div>
-    <div class="card">
-      <h2>Objectives</h2>
+    <div class="card fold" data-fold="goals">
+      <h2 class="fold-h"><button class="fold-head" type="button" aria-expanded="false" aria-controls="fb-goals" onclick="toggleFold('goals')"><span class="fold-t">Objectives</span><span class="fold-sum" id="sum-goals"></span><i class="fold-chev" aria-hidden="true"></i></button></h2>
+      <div class="fold-body" id="fb-goals"><div class="fold-inner">
       <p class="muted" style="margin:-4px 0 10px">Fills in automatically as you log food — or tap to mark manually.</p>
       <div class="chips" id="meals"></div>
       <div class="chips" style="margin-top:8px">
         <button class="chip" id="prot" onclick="tog(this)">Protein ~150g</button>
         <button class="chip" id="water" onclick="tog(this)">Water ~125 oz</button>
       </div>
+      </div></div>
     </div>
-    <div class="card">
-      <h2>Notes</h2>
+    <div class="card fold" data-fold="notes">
+      <h2 class="fold-h"><button class="fold-head" type="button" aria-expanded="false" aria-controls="fb-notes" onclick="toggleFold('notes')"><span class="fold-t">Notes</span><span class="fold-sum" id="sum-notes"></span><i class="fold-chev" aria-hidden="true"></i></button></h2>
+      <div class="fold-body" id="fb-notes"><div class="fold-inner">
       <textarea id="notes" placeholder="Optional — e.g. slept badly, long shift"></textarea>
+      </div></div>
     </div>
     <button class="primary" id="saveDay" onclick="saveDay()">Save weight, sleep & checklist</button>
   </section>
@@ -786,6 +819,56 @@ function demo(name) {
 }
 function closeDemo() { $('vFrame').innerHTML = ''; $('vid').hidden = true; }
 
+// ---------- Collapsible Today cards. Open/closed is remembered on this phone; all start closed. ----------
+const FOLD_KEY = 'healthos-folds';
+function foldState() { try { return JSON.parse(localStorage.getItem(FOLD_KEY)) || {}; } catch (e) { return {}; } }
+function applyFolds() {
+  const st = foldState();
+  document.querySelectorAll('.fold').forEach(c => setFold(c, !!st[c.dataset.fold]));
+  syncFoldAll();
+}
+function setFold(card, open) {
+  card.classList.toggle('open', open);
+  card.querySelector('.fold-head').setAttribute('aria-expanded', open);
+  card.querySelector('.fold-inner').inert = !open;   // closed cards can't be tabbed into
+}
+function toggleFold(key) {
+  const c = document.querySelector(`.fold[data-fold="${key}"]`), st = foldState();
+  st[key] = !c.classList.contains('open'); setFold(c, st[key]);
+  try { localStorage.setItem(FOLD_KEY, JSON.stringify(st)); } catch (e) {}
+  syncFoldAll();
+}
+function foldAll() {
+  const cards = [...document.querySelectorAll('.fold')], open = !cards.every(c => c.classList.contains('open')), st = {};
+  cards.forEach(c => { setFold(c, open); st[c.dataset.fold] = open; });
+  try { localStorage.setItem(FOLD_KEY, JSON.stringify(st)); } catch (e) {}
+  syncFoldAll();
+}
+function syncFoldAll() { const all = [...document.querySelectorAll('.fold')].every(c => c.classList.contains('open')); $('foldAll').textContent = all ? 'Collapse all' : 'Expand all'; }
+// One-line summaries, read from what's on screen so they also follow unsaved typing.
+function renderFolds() {
+  if (!D) return;
+  const n = v => Math.round(v || 0).toLocaleString();
+  const w = $('w').value, sl = $('s').value, hr = $('hr').value, en = [...$('energy').children].findIndex(b => b.classList.contains('on')) + 1;
+  const got = [w && w + ' lb', sl && sl + ' h sleep', hr && 'HR ' + hr, en && 'energy ' + en + '/5'].filter(Boolean);
+  $('sum-morning').textContent = got.length ? got.join(' · ') + (got.length < 4 ? ` · ${4 - got.length} to log` : ' ✓') : 'Not logged yet · weight, sleep, heart rate, energy';
+  if (D.food) {
+    const T = D.food.totals, E = D.food.entries;
+    $('sum-food').textContent = E.length ? `${n(T.kcal)} kcal · ${n(T.p)} g protein · ${E.length} item${E.length === 1 ? '' : 's'}` : 'Nothing logged yet';
+    const G = D.food.targets, A = D.activity || {}, e = D.entry || {};
+    $('sum-vitals').textContent = `🔥 ${n(T.kcal / (D.targets.calories || 1) * 100)}% · 💧 ${n(T.w)}/${G.water} oz · 👟 ${n((A.day || {}).st)} · 🧘 ${e.mind || 0}/${D.targets.mindful || 10} · 🤸 ${e.stretch || 0}/${D.targets.stretch || 5}`
+      + (T.caf > G.caffeine ? ' · ⚡ over' : '');
+  }
+  const chips = [...document.querySelectorAll('#meals .chip'), $('prot'), $('water')], done = chips.filter(c => c.classList.contains('on'));
+  const left = chips.filter(c => !c.classList.contains('on')).map(c => c.textContent.replace(/\s*~.*$/, ''));
+  $('sum-goals').textContent = `${done.length} of ${chips.length} done` + (left.length ? ' · left: ' + left.join(', ') : ' ✓');
+  const nt = $('notes').value.trim();
+  $('sum-notes').textContent = nt ? (nt.length > 60 ? nt.slice(0, 60) + '…' : nt) : 'No notes';
+}
+$('t-today').addEventListener('input', () => renderFolds());
+$('t-today').addEventListener('click', () => setTimeout(renderFolds, 0));
+applyFolds();
+
 // ---------- Breathing timer: in for 4 s, out for 6 s (6 breaths a minute). Logs the minutes when it finishes. ----------
 let bTimer = null, bTick = null, bEnd = 0, bMin = 0, bStart = 0;
 function breathe(min) {
@@ -931,7 +1014,7 @@ function itemFor(f, qty) { return { meal: f.cat === 'Drinks' ? 'Drink' : curMeal
 function renderFood() {
   if (!D.food) { $('flist').innerHTML = '<p class="muted">Food tabs not set up yet.</p>'; return; }
   $('mealTag').textContent = curMeal();
-  renderSuggest(); renderList(); renderGauges();
+  renderSuggest(); renderList(); renderGauges(); renderFolds();
 }
 function renderSuggest() {
   const q = $('qa').value.trim().toLowerCase(), L = D.food.library;
