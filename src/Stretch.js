@@ -75,6 +75,10 @@ const VIDEOS = {
   // Hip mobility project
   '90/90 hip switch': 'qq_Z7sAmVrA', 'Hip CARs': 'hRMrq6G81p8', 'Pigeon pose': 'lqCqETr7Q0g', 'Frog stretch': '1wpyPsr0Rx0',
   'Deep squat hold': 'IHApHfNA2Ag', 'Cossack squat': 'nLNqEQ4B6XI',
+  // Isometric holds
+  'Copenhagen plank': 'bU8aazv5voo', 'Side plank': 'iNbH7_edNI8', 'Split squat bottom hold': '9-E7YW2WAlM',
+  'Single-leg glute bridge hold': 'mUEViZ1R7l4', 'Push-up bottom hold': 'mmTAFhFpdY8', "Dumbbell farmer's hold": 'BJByPr07bts',
+  'Single-leg calf raise hold': '7Udb4E3Uks8',
 };
 
 if (typeof module !== 'undefined') module.exports = { STRETCHES, STRETCH_ROUTINES, VIDEOS, routineSeconds_ }; // Node tests only

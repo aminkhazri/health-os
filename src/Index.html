@@ -251,6 +251,7 @@
   .s-prog i { display: block; height: 100%; width: 0; background: var(--lime); transition: width 1s linear; }
   .s-cue { color: var(--text-secondary); font-size: 16px; line-height: 1.45; text-align: center; max-width: 34ch; padding: 0 20px; }
   .s-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .hold-tag { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--teal); border: 1px solid var(--teal); border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: 2px; }
   /* Projects: add-on sessions for specific goals */
   .proj-l { margin: 14px 0 6px; font-size: 13px; color: var(--text-muted); }
   #projSeg button { font-size: 14px; }
@@ -677,22 +678,24 @@ function renderWorkout() {
   const lastP = P && (D.lastSession || {})[letter];
   $('lastw').textContent = P ? (lastP ? `Last ${P.name.toLowerCase()} session: ${fmtDate(lastP)}` : `No ${P.name.toLowerCase()} sessions logged yet. Start easy.`)
     : D.lastWorkoutDate ? `Last session: ${fmtDate(D.lastWorkoutDate)} (Workout ${D.lastLetter})` : 'No sessions logged yet. Start light: every set should end with 1–2 good reps left.';
-  $('exlist').innerHTML = list.map((ex, i) => {
+  const holdNote = list.some(isHold) ? '<p class="muted" style="margin:0 0 10px">⏱️ Moves marked HOLD are isometric: get into position and stay still at about 8/10 effort. Breathe steadily the whole time (never hold your breath). Log seconds in the Reps box, e.g. 30,30,25.</p>' : '';
+  $('exlist').innerHTML = holdNote + list.map((ex, i) => {
     const L = D.last[ex], tg = WI.targets[ex] || (P && P.targets[ex]);
     const goal = tg ? `<b>Goal ${tg}</b> · ` : '', tgSets = (String(tg || '').match(/^(\d+)\s*(?:×|rounds)/) || [])[1];
     const hint = goal + (L ? `Last: ${L.sets ?? '?'}×${L.reps || '?'}${L.weight ? ' @ ' + L.weight + ' lb' : ''} (${fmtDate(L.date)})` : P ? 'first time, start easy' : 'first time, pick a light weight');
     return `<div class="ex" data-ex="${ex.replace(/"/g,'&quot;')}">
-      <div class="exhead"><div class="name">${ex}</div><button class="demo" data-v="${esc(ex)}" onclick="demo(this.dataset.v)">▶ Demo</button><button class="check" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓':''" aria-label="Done"></button></div>
+      <div class="exhead"><div class="name">${ex}${isHold(ex) ? ' <span class="hold-tag">HOLD</span>' : ''}</div><button class="demo" data-v="${esc(ex)}" onclick="demo(this.dataset.v)">▶ Demo</button><button class="check" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓':''" aria-label="Done"></button></div>
       <div class="muted">${hint}</div>
       <div class="row">
         <div><label class="f">Weight</label><input inputmode="decimal" type="number" value="${L && L.weight != null ? L.weight : ''}" placeholder="lb"></div>
         <div><label class="f">Sets</label><input inputmode="numeric" type="number" value="${L && L.sets != null ? L.sets : (tgSets || 3)}"></div>
-        <div><label class="f">Reps</label><input inputmode="text" value="${L && L.reps ? L.reps : ''}" placeholder="e.g. 10,10,9"></div>
+        <div><label class="f">Reps</label><input inputmode="text" value="${L && L.reps ? L.reps : ''}" placeholder="${isHold(ex) ? 'seconds, e.g. 30,30' : 'e.g. 10,10,9'}"></div>
       </div>
       <input style="margin-top:8px;font-size:15px" placeholder="Note (optional)">
     </div>`; }).join('');
   $('saveW').disabled = false;
 }
+function isHold(ex) { return /hold|plank/i.test(ex); }
 function saveW() {
   const items = [...document.querySelectorAll('#exlist .ex')].filter(el => el.querySelector('.check').classList.contains('on')).map(el => {
     const ins = el.querySelectorAll('input');

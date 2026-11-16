@@ -12,7 +12,7 @@ Realistic target for Phase 1, with hard eating: about **4–8 lb** (149 → roug
 
 ## Phase 1: Build
 
-**Schedule:** A on Thursday 9:00 AM · B on Saturday 9:00 AM · C on Sunday 7:00 PM. About 40 minutes each, at home with dumbbells, bands and a mat. The calendar reminds you 15 minutes before, and the app's Workout tab picks the right session for the day.
+**Schedule:** A on Thursday 9:00 AM · B on Saturday 9:00 AM · C on Sunday 7:00 PM. About 45 minutes each, at home with dumbbells, bands and a mat. The calendar reminds you 15 minutes before, and the app's Workout tab picks the right session for the day.
 
 **How hard:** slow, controlled reps, no jumping. Every set should end with 1–2 good reps left. Easy sets don't build muscle; grinding to failure isn't needed either. Rest 90 seconds to 2 minutes between sets.
 
@@ -28,6 +28,8 @@ Realistic target for Phase 1, with hard eating: about **4–8 lb** (149 → roug
 | Dumbbell Romanian deadlift | 3 × 10–12 |
 | Dumbbell shoulder press | 3 × 8–12 |
 | Band pull-apart | 2 × 15–20 |
+| **Hold:** Copenhagen plank (knee on a couch or chair) | 3 × 15–20 s each side |
+| **Hold:** Side plank | 2 × 30–45 s each side |
 
 ### B · Legs + core (Saturday)
 
@@ -39,6 +41,8 @@ Realistic target for Phase 1, with hard eating: about **4–8 lb** (149 → roug
 | Heel-raised goblet squat | 2 × 12–15 |
 | Standing calf raise | 3 × 12–20 |
 | Dead bug | 2 × 8 each side, slow |
+| **Hold:** Split squat bottom hold (back knee just off the floor) | 3 × 30 s each leg |
+| **Hold:** Single-leg glute bridge hold | 2 × 30 s each leg |
 
 ### C · Upper body (Sunday)
 
@@ -50,6 +54,20 @@ Realistic target for Phase 1, with hard eating: about **4–8 lb** (149 → roug
 | Dumbbell lateral raise | 3 × 12–15 |
 | Dumbbell curl | 3 × 10–12 |
 | Overhead triceps extension | 3 × 10–12 |
+| **Hold:** Push-up bottom hold (chest 2 inches off the floor) | 3 × 20–30 s |
+| **Hold:** Dumbbell farmer's hold (heaviest pair you can grip) | 3 × 30–45 s |
+
+### Isometric holds (the last two moves of each workout)
+
+An isometric hold means getting into a position and staying still while the muscle works. They're placed at the end so they never tire you before the main lifts, and most are held where the muscle is stretched (bottom of a split squat or push-up), which is the position where holds best support muscle growth. They also build tendon strength, which matters for sprinting, jumping and contact.
+
+- **Copenhagen plank** strengthens the inner thighs; it's one of the best-studied exercises for preventing groin injuries in soccer.
+- **Single-leg glute bridge hold** strengthens the hamstrings and glutes, the muscles most often strained when sprinting.
+- **Farmer's hold** builds grip, traps and core bracing for contact.
+
+How: about 8/10 effort, perfectly still, steady breathing (never hold your breath). Log seconds in the Reps box. Progress by adding 5–10 seconds, then weight. Holds add to the lifts; they don't replace them.
+
+The Neck project already uses isometric holds, and the Calves project ends with a single-leg calf raise hold (2 × 30 s each leg) for Achilles tendon strength.
 
 ### How to progress
 
@@ -107,6 +125,7 @@ Short sessions for specific goals. They log like any workout but don't count tow
 - Single-leg deficit calf raise on a step, holding a dumbbell: 3 × 10–15 each leg
 - Seated dumbbell calf raise (soleus): 3 × 15–20
 - Tibialis raise against a wall: 2 × 15–20
+- Single-leg calf raise hold, halfway up: 2 × 30 s each leg
 - Every rep: 3 s down, 2 s pause in the stretch, up and squeeze 1 s. Add weight when every set hits the top of the range. Size also needs the calorie surplus.
 
 **Hip mobility** (Stretch tab, 8 min, daily for 4 weeks, then 4× a week). Why: tight hips limit squat depth, stride and kicking range, and pull on the lower back.

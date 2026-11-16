@@ -90,7 +90,7 @@ function buildTaskItems_(dow, shiftPhaseActive) {
     ['Morning ritual + Wake-up stretch (10 min)', 'Weigh in, 1 min of slow breathing, log it, big glass of water, then Stretch tab > Start Wake-up (5 min).'],
     ['Flex: 5 min of stretching', 'Wake-up in the morning ritual fills it. Missed it? Do Unwind before bed. After a workout: Legs + hips. Stretch tab in Health OS.'],
   ];
-  if (d.workout.includes(dow)) items.push(['Workout ' + ({ 4: 'A: full body', 6: 'B: legs + core', 7: 'C: upper body' }[dow] || '') + ' + log sets', 'About 40 min at home. Tap Demo for form videos. Log it in the Workout tab, then do the Legs + hips stretch (6 min).']);
+  if (d.workout.includes(dow)) items.push(['Workout ' + ({ 4: 'A: full body', 6: 'B: legs + core', 7: 'C: upper body' }[dow] || '') + ' + log sets', 'About 45 min at home, ending with two isometric holds. Tap Demo for form videos. Log it in the Workout tab, then do the Legs + hips stretch (6 min).']);
   if (shiftDay) items.push(['Pack shift snack + water', '']);
   if (d.prep.includes(dow)) items.push(["Prep tomorrow's lunch", '']);
   items.push([CONFIG.WINDDOWN, 'Last check: anything not logged today? Add it in Health OS.']);

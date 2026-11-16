@@ -5,10 +5,15 @@
  */
 
 // Phase 1 "Build" (8 weeks): home workouts with dumbbells, bands and a mat. 3 sets, stop 1-2 reps short of failure.
+// Each workout ends with two isometric holds (no movement, ~8/10 effort): mostly at long muscle lengths, plus
+// the Copenhagen plank, which protects the groin in soccer.
 const WORKOUTS = {
-  A: ['Goblet squat', 'Dumbbell floor press', 'One-arm dumbbell row', 'Dumbbell Romanian deadlift', 'Dumbbell shoulder press', 'Band pull-apart'],
-  B: ['Bulgarian split squat', 'Single-leg Romanian deadlift', 'Dumbbell hip thrust', 'Heel-raised goblet squat', 'Standing calf raise', 'Dead bug'],
-  C: ['Push-up', 'Band row', 'Incline dumbbell press', 'Dumbbell lateral raise', 'Dumbbell curl', 'Overhead triceps extension'],
+  A: ['Goblet squat', 'Dumbbell floor press', 'One-arm dumbbell row', 'Dumbbell Romanian deadlift', 'Dumbbell shoulder press', 'Band pull-apart',
+      'Copenhagen plank', 'Side plank'],
+  B: ['Bulgarian split squat', 'Single-leg Romanian deadlift', 'Dumbbell hip thrust', 'Heel-raised goblet squat', 'Standing calf raise', 'Dead bug',
+      'Split squat bottom hold', 'Single-leg glute bridge hold'],
+  C: ['Push-up', 'Band row', 'Incline dumbbell press', 'Dumbbell lateral raise', 'Dumbbell curl', 'Overhead triceps extension',
+      'Push-up bottom hold', "Dumbbell farmer's hold"],
 };
 const WORKOUT_INFO = {
   names: { A: 'Full body', B: 'Legs + core', C: 'Upper body' },
@@ -20,6 +25,10 @@ const WORKOUT_INFO = {
     'Heel-raised goblet squat': '2 × 12–15', 'Standing calf raise': '3 × 12–20', 'Dead bug': '2 × 8 each side, slow',
     'Push-up': '3 × as many as you can, minus 2', 'Band row': '3 × 12–15', 'Incline dumbbell press': '3 × 8–12',
     'Dumbbell lateral raise': '3 × 12–15', 'Dumbbell curl': '3 × 10–12', 'Overhead triceps extension': '3 × 10–12',
+    // Isometric finishers (hold times in seconds)
+    'Copenhagen plank': '3 × 15–20 s each side, knee on a couch or chair', 'Side plank': '2 × 30–45 s each side',
+    'Split squat bottom hold': '3 × 30 s each leg, back knee just off the floor', 'Single-leg glute bridge hold': '2 × 30 s each leg',
+    'Push-up bottom hold': '3 × 20–30 s, chest 2 inches off the floor', "Dumbbell farmer's hold": '3 × 30–45 s, heaviest pair you can grip',
   },
 };
 
@@ -38,8 +47,9 @@ const PROJECTS = {
     icon: '🦵', name: 'Calf size', order: 2,
     why: 'Strong calves that need more size: more weekly sets, a full stretch at the bottom and steady added weight.',
     how: '3 times a week on rest days (Mon, Wed, Fri), about 10 minutes. Every rep: 3 s down, 2 s paused in the deepest stretch, then up and squeeze 1 s. When every set hits the top of the range, add weight. Size also needs the calorie surplus you are already eating.',
-    ex: ['Single-leg deficit calf raise', 'Seated dumbbell calf raise', 'Tibialis raise'],
-    targets: { 'Single-leg deficit calf raise': '3 × 10–15 each leg', 'Seated dumbbell calf raise': '3 × 15–20', 'Tibialis raise': '2 × 15–20' },
+    ex: ['Single-leg deficit calf raise', 'Seated dumbbell calf raise', 'Tibialis raise', 'Single-leg calf raise hold'],
+    targets: { 'Single-leg deficit calf raise': '3 × 10–15 each leg', 'Seated dumbbell calf raise': '3 × 15–20', 'Tibialis raise': '2 × 15–20',
+      'Single-leg calf raise hold': '2 × 30 s each leg, halfway up, holding a dumbbell' },
   },
 };
 
