@@ -110,6 +110,8 @@ J["Shoulder"] = np.array([0.03, S0[1] - 0.02, S0[2] + 0.03])
 print("arm length", round(L, 3), "tip", np.round(tip, 3))
 spine = {"Hips": 0.555, "Spine": 0.61, "Spine1": 0.67, "Spine2": 0.735, "Neck": 0.858, "Head": 0.912}
 C = {k: np.array([0, torso_y(f * H) + (0.02 if k in ("Neck", "Head") else 0.012), f * H]) for k, f in spine.items()}
+head_y = C["Head"][1]                      # middle of the head, front to back (used for the hairline)
+C["Head"][1] = C["Neck"][1] - 0.012        # the neck bone stands nearly upright, so "neck straight up" in the app means looking ahead, not up
 C["HeadEnd"] = np.array([0, C["Head"][1], H])
 for k, v in list(J.items()) + list(C.items()): print("  joint", k, np.round(v, 3))
 
@@ -167,7 +169,7 @@ for p in baked.polygons:
     c = p.center; vi = list(p.vertices)
     if hem < c.z < waist and armw[vi].mean() < 0.3: p.material_index = 1
     elif c.z > 0.93 * H:
-        line = 0.984 * H - 0.066 * H * min(1, max(0, (c.y - C["Head"][1] + 0.085) / 0.12))   # hairline: high at the forehead, low at the back of the head
+        line = 0.984 * H - 0.066 * H * min(1, max(0, (c.y - head_y + 0.085) / 0.12))   # hairline: high at the forehead, low at the back of the head
         if c.z > line: p.material_index = 2
 print("faces: skin", sum(p.material_index == 0 for p in baked.polygons), "shorts", sum(p.material_index == 1 for p in baked.polygons), "hair", sum(p.material_index == 2 for p in baked.polygons))
 white, iris = material("EyeWhite", (0.92, 0.92, 0.9, 1), 0.3), material("Iris", (0.12, 0.07, 0.04, 1), 0.3)
