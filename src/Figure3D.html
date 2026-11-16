@@ -18,9 +18,9 @@
   const LIB = CDN + 'npm/three@0.160.0/+esm', LOADER = CDN + 'npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm';
   // The athlete: Blender Studio's CC0 realistic male base mesh, made athletic, rigged and exported by tools/blender/build_body.py.
   // MODEL_REV is the git commit the model file was added in, so phones can cache it forever and a new model gets a new address.
-  const MODEL_REV = '9a228ba429c2c6b03c2be017fb3d9c2c07177dcd', MODEL = CDN + 'gh/aminkhazri/health-os@' + MODEL_REV + '/models/athlete.glb';
+  const MODEL_REV = '2a7bcdce2104e56946aea1b2d8c502aea33c1765', MODEL = CDN + 'gh/aminkhazri/health-os@' + MODEL_REV + '/models/athlete.glb';
   const FALLBACK = CDN + 'gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb';   // "X Bot" sample character, used if the athlete cannot load
-  const HOT = { thigh: ['UpLeg'], shin: ['Leg'], foot: ['Foot', 'ToeBase'], armU: ['Arm', 'Shoulder'], armL: ['ForeArm'], torso: ['Spine', 'Spine1', 'Spine2'], head: ['Neck', 'Head'] };
+  const HOT = { thigh: ['UpLeg'], shin: ['Leg'], foot: ['Foot', 'ToeBase'], armU: ['Arm', 'Shoulder'], armL: ['ForeArm'], torso: ['Spine', 'Spine1', 'Spine2'], head: ['Neck'] };
   const LOOK = { body: 0xdfe5ec, joints: 0x4a5666, hot: 0xb8f23e, floor: 0x1b222c, block: 0x2b3542, steel: 0x2dd4bf, band: 0xf0c33c };
   // A few moves are drawn in 2D from an unusual angle. This says how to stand them up in 3D:
   //   side = lying on one side, chest toward the viewer · up / down = lying face up / face down, drawn from above · sit = sitting, drawn from above
@@ -195,7 +195,7 @@
       const names = [].concat(...(hot || []).map(h => HOT[h] || [])), lime = new T.Color(LOOK.hot);
       meshes.forEach(m => {
         const idx = m.geometry.attributes.skinIndex, wt = m.geometry.attributes.skinWeight, col = m.geometry.attributes.color, base = m.userData.base;
-        const isHot = m.skeleton.bones.map(b => names.includes(b.name.replace(/^mixamorig:?(Left|Right)?/, '')));
+        const isHot = m.skeleton.bones.map(b => names.includes(b.name.replace(/^(mixamorig:?)?(Left|Right)?/, '')));
         for (let i = 0; i < col.count; i++) {
           let w = 0; for (let k = 0; k < 4; k++) if (isHot[idx.getComponent(i, k)]) w += wt.getComponent(i, k);
           w = m.userData.tint ? Math.min(1, w * 1.15) * 0.85 : 0;
@@ -226,7 +226,7 @@
       P = flat ? p => V((p[0] - 120) * s, HIP_H[mode], (p[1] - 108) * s) : front ? p => V((p[0] - 120) * s, (floorY - p[1]) * s, 0) : p => V(0, (floorY - p[1]) * s, (p[0] - 120) * s);
       plane = flat ? V(0, 1, 0) : front ? V(0, 0, 1) : V(1, 0, 0);
       target = P([v[0] + v[2] / 2, v[1] + v[3] / 2]); if (flat) target.y = 0.25;
-      dist = (v[3] * s / 2) / Math.tan(rad(fov / 2)) * (flat ? 0.95 : 0.98); az = flat ? rad(18) : front ? rad(22) : rad(-58); tilt = rad(flat ? 40 : 10);
+      dist = (v[3] * s / 2) / Math.tan(rad(fov / 2)) * (flat ? 0.98 : 1.06); az = flat ? rad(18) : front ? rad(22) : rad(-58); tilt = rad(flat ? 40 : 10);
       floor.position.set(target.x, 0, target.z);
       const half = dist * Math.tan(rad(fov / 2)) * v[2] / v[3]; floor.scale.setScalar(half * (flat ? 0.8 : 0.98) / 2.6); shade.scale.setScalar(1 / floor.scale.x);   // the pool of light fades out just inside the picture
       camera.aspect = v[2] / v[3]; camera.updateProjectionMatrix(); aimCamera();
