@@ -91,6 +91,28 @@ Rules: ease in until you feel a pull, never pain. Keep breathing. Don't bounce.
 
 Every exercise and stretch has a **▶ Demo** button that plays a short how-to video (most are 30–120 seconds) inside the app. They are other people's YouTube videos, picked for clear form. If one is a poor match or disappears, the video IDs live in one list in `src/Stretch.js` and are easy to swap.
 
+## Projects (add-on sessions)
+
+Short sessions for specific goals. They log like any workout but don't count toward the 3 main workouts a week and don't change which workout is next. Find them under **Projects** in the Workout tab (Neck, Calves) and the Stretch tab (Hip mobility). Every move has a ▶ Demo video.
+
+**Neck strength** (3× a week, ~8 min, right after Workouts A, B and C). Why: a strong neck supports the spine and helps absorb contact and headers.
+- Supine chin tuck 2 × 10, hold 3 s
+- Neck isometric hold, hand resistance: 2 rounds × 10 s each way (front, back, left, right)
+- Prone neck extension 2 × 12, slow
+- Side-lying neck raise 2 × 12 each side
+- Dumbbell shrug 3 × 12–15
+- Slow and controlled, no jerking. Start with no extra weight. Stop for sharp pain, numbness, tingling or a headache.
+
+**Calf size** (3× a week on rest days: Mon, Wed, Fri, ~10 min). Why: the calves are strong but small; size comes from more weekly sets, a deep stretch at the bottom and steady added weight.
+- Single-leg deficit calf raise on a step, holding a dumbbell: 3 × 10–15 each leg
+- Seated dumbbell calf raise (soleus): 3 × 15–20
+- Tibialis raise against a wall: 2 × 15–20
+- Every rep: 3 s down, 2 s pause in the stretch, up and squeeze 1 s. Add weight when every set hits the top of the range. Size also needs the calorie surplus.
+
+**Hip mobility** (Stretch tab, 8 min, daily for 4 weeks, then 4× a week). Why: tight hips limit squat depth, stride and kicking range, and pull on the lower back.
+- 90/90 hip switch 60 s · Hip CARs 30 s each side · Half-kneeling hip flexor 45 s each side · Pigeon pose 45 s each side · Frog stretch 60 s · Deep squat hold 60 s · Cossack squat 60 s
+- Counts toward the Flex bar.
+
 ## Phase 2: Engine (outline, detailed when you get there)
 
 - **Strength:** 2 sessions a week (one full body, one legs) to hold muscle.
