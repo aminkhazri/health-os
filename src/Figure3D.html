@@ -16,10 +16,10 @@
 (function (root) {
   const CDN = 'https://cdn.jsdelivr.net/';
   const LIB = CDN + 'npm/three@0.160.0/+esm', LOADER = CDN + 'npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm';
-  // The athlete: a steel android built from Blender Studio's CC0 realistic male base mesh by tools/blender/build_body.py.
+  // The athlete: a faceless matte mannequin in workout clothes, built from Blender Studio's CC0 realistic male base mesh by tools/blender/build_body.py.
   // MODEL_REV is the git commit the model file was added in, so phones can cache it forever and a new model gets a new address.
   const ROOM = CDN + 'npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js/+esm';   // a soft studio to reflect in metal surfaces
-  const MODEL_REV = 'd09be7646e33a115c4e6b5d77e84f4b8bf96eb28', MODEL = CDN + 'gh/aminkhazri/health-os@' + MODEL_REV + '/models/athlete.glb';
+  const MODEL_REV = '9813da466923eea292fc4067c8fb05239b2e51e5', MODEL = CDN + 'gh/aminkhazri/health-os@' + MODEL_REV + '/models/athlete.glb';
   const FALLBACK = CDN + 'gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb';   // "X Bot" sample character, used if the athlete cannot load
   const HOT = { thigh: ['UpLeg'], shin: ['Leg'], foot: ['Foot', 'ToeBase'], armU: ['Arm', 'Shoulder'], armL: ['ForeArm'], torso: ['Spine', 'Spine1', 'Spine2'], head: ['Neck'] };
   const LOOK = { body: 0xdfe5ec, joints: 0x4a5666, hot: 0xb8f23e, floor: 0x1b222c, block: 0x2b3542, steel: 0x2dd4bf, band: 0xf0c33c };
@@ -76,9 +76,9 @@
     model.updateMatrixWorld(true);
     if (wp('RightToeBase').z < wp('RightFoot').z) { model.rotation.y = Math.PI; model.updateMatrixWorld(true); }
     meshes.forEach(m => {
-      const src = m.material, name = src.name || '', own = /^(Shell|Joint|Glow)$/.test(name), joints = /joint/i.test(name || m.name);
-      m.userData.base = own ? src.color.clone() : new T.Color(joints ? LOOK.joints : LOOK.body);   // the robot brings its own colours; the fallback mannequin gets ours
-      m.userData.tint = own ? name === 'Shell' : true;                                             // only the body shell lights up for working muscles
+      const src = m.material, name = src.name || '', own = /^(Body|Shirt|Shorts|Shoes)$/.test(name), joints = /joint/i.test(name || m.name);
+      m.userData.base = own ? src.color.clone() : new T.Color(joints ? LOOK.joints : LOOK.body);   // the athlete brings its own colours; the fallback mannequin gets ours
+      m.userData.tint = own ? name !== 'Shoes' : true;                                             // working muscles light up through the clothes; shoes stay as they are
       m.material = new T.MeshStandardMaterial({ vertexColors: true, roughness: own ? src.roughness : joints ? 0.45 : 0.62, metalness: own ? src.metalness : joints ? 0.3 : 0.02,
         emissive: own && src.emissive ? src.emissive.clone() : new T.Color(0), emissiveIntensity: own ? (src.emissiveIntensity || 1) : 1, envMapIntensity: 1.0 });
       m.geometry.setAttribute('color', new T.BufferAttribute(new Float32Array(m.geometry.attributes.position.count * 3), 3));
