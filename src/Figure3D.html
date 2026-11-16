@@ -18,7 +18,7 @@
   const LIB = CDN + 'npm/three@0.160.0/+esm', LOADER = CDN + 'npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm';
   const MODEL = CDN + 'gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb';   // "X Bot" sample character from the three.js examples
   const HOT = { thigh: ['UpLeg'], shin: ['Leg'], foot: ['Foot', 'ToeBase'], armU: ['Arm', 'Shoulder'], armL: ['ForeArm'], torso: ['Spine', 'Spine1', 'Spine2'], head: ['Neck', 'Head'] };
-  const LOOK = { body: 0xdfe5ec, joints: 0x2a3441, hot: 0xb8f23e, floor: 0x1b222c, block: 0x2b3542, steel: 0x2dd4bf, band: 0xf0c33c };
+  const LOOK = { body: 0xdfe5ec, joints: 0x4a5666, hot: 0xb8f23e, floor: 0x1b222c, block: 0x2b3542, steel: 0x2dd4bf, band: 0xf0c33c };
   const rad = d => d * Math.PI / 180;
   let S = null, loading = null;
 
@@ -40,8 +40,15 @@
     Object.assign(key.shadow.camera, { left: -2.2, right: 2.2, top: 2.6, bottom: -1, near: 0.5, far: 12 }); key.shadow.bias = -0.0015;
     const rim = new T.DirectionalLight(0x9fd8ff, 1.1);
     scene.add(key, key.target, rim, rim.target);
-    const floor = new T.Mesh(new T.CircleGeometry(1.9, 64), new T.MeshStandardMaterial({ color: LOOK.floor, roughness: 1 }));
-    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+    // floor: a soft pool of light that fades out at the edge, with a separate invisible plane that only catches the shadow
+    const fade = document.createElement('canvas'); fade.width = fade.height = 256;
+    const fc = fade.getContext('2d'), fg = fc.createRadialGradient(128, 128, 10, 128, 128, 128);
+    fg.addColorStop(0, 'rgba(58,70,86,0.95)'); fg.addColorStop(0.55, 'rgba(40,49,61,0.7)'); fg.addColorStop(1, 'rgba(27,34,44,0)');
+    fc.fillStyle = fg; fc.fillRect(0, 0, 256, 256);
+    const floor = new T.Group(), pool = new T.Mesh(new T.CircleGeometry(2.6, 64), new T.MeshBasicMaterial({ map: new T.CanvasTexture(fade), transparent: true, depthWrite: false }));
+    const shade = new T.Mesh(new T.CircleGeometry(2.6, 32), new T.ShadowMaterial({ opacity: 0.45 })); shade.receiveShadow = true; shade.position.z = 0.002;
+    pool.material.map.colorSpace = T.SRGBColorSpace;
+    floor.add(pool, shade); floor.rotation.x = -Math.PI / 2; scene.add(floor);
     const props = new T.Group(); scene.add(props);
 
     // --- the model: find its bones and skinned meshes, face it toward +Z, give it our own materials
@@ -60,6 +67,16 @@
       m.material = new T.MeshStandardMaterial({ vertexColors: true, roughness: joints ? 0.45 : 0.62, metalness: joints ? 0.3 : 0.05 });
       m.geometry.setAttribute('color', new T.BufferAttribute(new Float32Array(m.geometry.attributes.position.count * 3), 3));
     });
+
+    // relax the hands: the model's rest pose has flat, spread fingers, so curl each finger joint toward the palm once
+    Object.keys(B).filter(n => /Hand(Thumb|Index|Middle|Ring|Pinky)[123]$/.test(n)).map(n => {
+      const b = B[n], f = b.children[0] ? b.children[0].getWorldPosition(V()).sub(b.getWorldPosition(V())).normalize() : null;
+      return f && { b, axis: V().crossVectors(f, V(0, -1, 0)).normalize(), pq: b.parent.getWorldQuaternion(Q()), deg: /Thumb/.test(n) ? 18 : /1$/.test(n) ? 38 : 55 };
+    }).filter(Boolean).forEach(o => {
+      const turn = Q().setFromAxisAngle(o.axis, rad(o.deg));
+      o.b.quaternion.premultiply(o.pq.clone().invert().multiply(turn).multiply(o.pq));
+    });
+    model.updateMatrixWorld(true);
 
     // --- rest pose: for each bone we steer, remember its orientation, the way it points, and its hinge axis
     const CH = { Hips: 'Spine1', Spine2: 'Neck', Neck: 'Head' };
@@ -184,7 +201,7 @@
       const v = (fig.view || '0 0 240 212').split(' ').map(Number), front = !!fig.front;
       P = front ? p => V((p[0] - 120) * s, (floorY - p[1]) * s, 0) : p => V(0, (floorY - p[1]) * s, (p[0] - 120) * s);
       plane = front ? V(0, 0, 1) : V(1, 0, 0);
-      target = P([v[0] + v[2] / 2, v[1] + v[3] / 2]); dist = (v[3] * s / 2) / Math.tan(rad(fov / 2)) * 1.06; az = front ? rad(22) : rad(-58);
+      target = P([v[0] + v[2] / 2, v[1] + v[3] / 2]); dist = (v[3] * s / 2) / Math.tan(rad(fov / 2)) * 0.98; az = front ? rad(22) : rad(-58);
       floor.visible = !fig.noGround; floor.position.set(target.x, 0, target.z);
       camera.aspect = v[2] / v[3]; camera.updateProjectionMatrix(); aimCamera();
       const w = Math.max(120, el.clientWidth || 300); renderer.setSize(w, Math.round(w * v[3] / v[2]), false);
