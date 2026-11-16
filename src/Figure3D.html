@@ -19,6 +19,10 @@
   const MODEL = CDN + 'gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb';   // "X Bot" sample character from the three.js examples
   const HOT = { thigh: ['UpLeg'], shin: ['Leg'], foot: ['Foot', 'ToeBase'], armU: ['Arm', 'Shoulder'], armL: ['ForeArm'], torso: ['Spine', 'Spine1', 'Spine2'], head: ['Neck', 'Head'] };
   const LOOK = { body: 0xdfe5ec, joints: 0x4a5666, hot: 0xb8f23e, floor: 0x1b222c, block: 0x2b3542, steel: 0x2dd4bf, band: 0xf0c33c };
+  // A few moves are drawn in 2D from an unusual angle. This says how to stand them up in 3D:
+  //   side = lying on one side, chest toward the viewer · up / down = lying face up / face down, drawn from above · sit = sitting, drawn from above
+  const MODE = { 'Copenhagen plank': 'side', 'Side plank': 'side', 'Side-lying neck raise': 'side', 'Supine spinal twist': 'up', 'Frog stretch': 'down', '90/90 hip switch': 'sit' };
+  const HIP_H = { up: 0.11, down: 0.2, sit: 0.1 };
   const rad = d => d * Math.PI / 180;
   let S = null, loading = null;
 
@@ -34,7 +38,7 @@
     const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(root.devicePixelRatio || 1, 2));
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
-    const canvas = renderer.domElement; canvas.style.cssText = 'display:block;width:100%;height:auto;touch-action:pan-y;cursor:grab';
+    const canvas = renderer.domElement; canvas.style.cssText = 'display:block;width:100%;height:auto;max-height:44vh;object-fit:contain;touch-action:pan-y;cursor:grab';
     scene.add(new T.HemisphereLight(0xffffff, 0x39424f, 1.5));
     const key = new T.DirectionalLight(0xffffff, 2.4); key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
     Object.assign(key.shadow.camera, { left: -2.2, right: 2.2, top: 2.6, bottom: -1, near: 0.5, far: 12 }); key.shadow.bias = -0.0015;
@@ -103,21 +107,30 @@
       B[name].quaternion.copy(worldQ(B[name].parent, wq).clone().invert().multiply(q)); wq.set(B[name], q);
     }
     /** Hinge axis for a two-bone limb: the bend itself when it is bent, sliding to a natural default when it is straight. */
-    function hinge(name, d1, d2) {
-      const r = rest[name], fb = r.n.clone().applyQuaternion(Q().setFromUnitVectors(r.d, d1));
+    function hinge(name, d1, d2, body, wq) {
+      const r = rest[name], turn = wq.get(B[body]).clone().multiply(rest[body].q.clone().invert());   // how far the torso has turned from its rest pose
+      const local = d1.clone().applyQuaternion(turn.clone().invert());
+      const fb = r.n.clone().applyQuaternion(Q().setFromUnitVectors(r.d, local)).applyQuaternion(turn);
       return V().crossVectors(d1, d2).addScaledVector(fb, 0.2).normalize();
     }
 
-    let P = null, plane = null, cur = null;   // 2D point -> 3D point for the current move; the axis sticking out of the 2D drawing
+    let P = null, plane = null, cur = null, mode = null;   // 2D point -> 3D point for the current move; the axis sticking out of the 2D drawing
     function pose(fig, j) {
-      const D = (a, b) => P(b).sub(P(a)).normalize(), wq = new Map(), front = !!j.front;
+      const D = (a, b) => P(b).sub(P(a)).normalize(), wq = new Map(), front = !!j.front, flat = mode === 'up' || mode === 'down' || mode === 'sit';
       const hip = j.hip, sh = front ? j.chest : j.sh, mid = front ? [(hip[0] + sh[0]) / 2, (hip[1] + sh[1]) / 2] : j.mid;
-      const lat = front ? D(j.near.shJ, j.far.shJ) : V(1, 0, 0);
-      aim('Hips', D(hip, mid), front ? D(j.near.hipJ, j.far.hipJ) : lat, wq); aim('Spine2', D(mid, sh), lat, wq); aim('Neck', D(sh, j.head), lat, wq);
-      [['Right', j.near], ['Left', j.far]].forEach(([side, l]) => {
-        const t = D(front ? l.hipJ : hip, l.knee), c = D(l.knee, l.ank), n = hinge(side + 'UpLeg', t, c);
-        aim(side + 'UpLeg', t, n, wq); aim(side + 'Leg', c, n, wq); aim(side + 'Foot', D(l.ank, l.toe).applyAxisAngle(n, footPitch), n, wq);
-        const u = D(front ? l.shJ : sh, l.el), f = D(l.el, l.hand), m = hinge(side + 'Arm', u, f);
+      let near = 'Right', far = 'Left', dHip = D(hip, mid), dChest = D(mid, sh), dNeck = D(sh, j.head), latHip, latChest;
+      if (mode === 'sit') { dHip = dChest = dNeck = V(0, 1, 0); latHip = latChest = V(1, 0, 0); }
+      else if (mode) {   // we know which way the chest faces, so the left-right axis follows from it
+        const face = mode === 'side' ? V(-1, 0, 0) : V(0, mode === 'up' ? 1 : -1, 0);
+        latHip = V().crossVectors(dHip, face).normalize(); latChest = V().crossVectors(dChest, face).normalize();
+        if (mode === 'side' || latChest.dot(D(j.near.shJ, j.far.shJ)) < 0) { near = 'Left'; far = 'Right'; }
+      } else { latChest = front ? D(j.near.shJ, j.far.shJ) : V(1, 0, 0); latHip = front ? D(j.near.hipJ, j.far.hipJ) : latChest; }
+      aim('Hips', dHip, latHip, wq); aim('Spine2', dChest, latChest, wq); aim('Neck', dNeck, latChest, wq);
+      const droop = d => mode === 'sit' ? d.add(V(0, -1, 0)).normalize() : d;   // seated, seen from above: arms hang down toward the floor
+      [[near, j.near], [far, j.far]].forEach(([side, l]) => {
+        const t = D(front ? l.hipJ : hip, l.knee), c = D(l.knee, l.ank), n = hinge(side + 'UpLeg', t, c, 'Hips', wq);
+        aim(side + 'UpLeg', t, n, wq); aim(side + 'Leg', c, n, wq); aim(side + 'Foot', (flat ? c.clone() : D(l.ank, l.toe)).applyAxisAngle(n, footPitch), n, wq);
+        const u = droop(D(front ? l.shJ : sh, l.el)), f = droop(D(l.el, l.hand)), m = hinge(side + 'Arm', u, f, 'Spine2', wq);
         aim(side + 'Arm', u, m, wq); aim(side + 'ForeArm', f, m, wq);
       });
       rig.position.copy(P(hip)).sub(hips0);
@@ -184,9 +197,9 @@
     }
 
     // --- camera: framed from the 2D view box, turned a little so the depth shows; drag sideways to look around
-    let az = 0, target = V(), dist = 4;
+    let az = 0, tilt = rad(10), target = V(), dist = 4;
     function aimCamera() {
-      const el = rad(10);
+      const el = tilt;
       camera.position.set(target.x + dist * Math.sin(az) * Math.cos(el), target.y + dist * Math.sin(el), target.z + dist * Math.cos(az) * Math.cos(el));
       camera.lookAt(target);
       key.position.set(camera.position.x * 0.4 + 1.2, 4.5, camera.position.z * 0.4 + 1.5); key.target.position.set(target.x, 0, target.z);
@@ -197,12 +210,15 @@
     canvas.addEventListener('pointermove', e => { if (drag === null) return; az -= (e.clientX - drag) * 0.012; drag = e.clientX; aimCamera(); if (cur && cur.still) renderer.render(scene, camera); });
     ['pointerup', 'pointercancel'].forEach(t => canvas.addEventListener(t, () => { drag = null; }));
 
-    function mount(el, fig) {
+    function mount(el, fig, name) {
       const v = (fig.view || '0 0 240 212').split(' ').map(Number), front = !!fig.front;
-      P = front ? p => V((p[0] - 120) * s, (floorY - p[1]) * s, 0) : p => V(0, (floorY - p[1]) * s, (p[0] - 120) * s);
-      plane = front ? V(0, 0, 1) : V(1, 0, 0);
-      target = P([v[0] + v[2] / 2, v[1] + v[3] / 2]); dist = (v[3] * s / 2) / Math.tan(rad(fov / 2)) * 0.98; az = front ? rad(22) : rad(-58);
-      floor.visible = !fig.noGround; floor.position.set(target.x, 0, target.z);
+      mode = MODE[name] || null; const flat = mode && mode !== 'side';
+      if (v[3] < v[2] * 0.62) { const h = v[2] * 0.62; v[1] = v[1] + v[3] - h; v[3] = h; }   // floor moves: the flat 2D crop is too tight once there is depth
+      P = flat ? p => V((p[0] - 120) * s, HIP_H[mode], (p[1] - 108) * s) : front ? p => V((p[0] - 120) * s, (floorY - p[1]) * s, 0) : p => V(0, (floorY - p[1]) * s, (p[0] - 120) * s);
+      plane = flat ? V(0, 1, 0) : front ? V(0, 0, 1) : V(1, 0, 0);
+      target = P([v[0] + v[2] / 2, v[1] + v[3] / 2]); if (flat) target.y = 0.25;
+      dist = (v[3] * s / 2) / Math.tan(rad(fov / 2)) * (flat ? 1.0 : 1.08); az = flat ? rad(18) : front ? rad(22) : rad(-58); tilt = rad(flat ? 40 : 10);
+      floor.position.set(target.x, 0, target.z);
       camera.aspect = v[2] / v[3]; camera.updateProjectionMatrix(); aimCamera();
       const w = Math.max(120, el.clientWidth || 300); renderer.setSize(w, Math.round(w * v[3] / v[2]), false);
       paint(fig.hot); cur = { fig, live: buildProps(fig), still: false };
@@ -216,6 +232,6 @@
     return { mount, draw, unmount, bones: B, T, scene, camera, renderer };
   }
 
-  root.fig3d = { load, ready: () => !!S, mount: (el, fig) => S.mount(el, fig), draw: (fig, p, still) => S.draw(fig, p, still), unmount: () => S && S.unmount(), state: () => S };
+  root.fig3d = { load, ready: () => !!S, mount: (el, fig, name) => S.mount(el, fig, name), draw: (fig, p, still) => S.draw(fig, p, still), unmount: () => S && S.unmount(), state: () => S };
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
