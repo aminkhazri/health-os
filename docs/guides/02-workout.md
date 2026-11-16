@@ -105,13 +105,23 @@ The app's **Stretch** tab has three guided routines. Press Start and a timer wal
 
 Rules: ease in until you feel a pull, never pain. Keep breathing. Don't bounce.
 
-## Demo videos
+## Animated demos and guided sets
 
-Every exercise and stretch has a **▶ Demo** button that plays a short how-to video (most are 30–120 seconds) inside the app. They are other people's YouTube videos, picked for clear form. If one is a poor match or disappears, the video IDs live in one list in `src/Stretch.js` and are easy to swap.
+Every exercise and stretch has a **▶ Demo** button. It opens an animated figure, drawn by the app itself, that performs the move on a loop: the working muscles are lit in green, dumbbells in teal, bands in yellow, and a one-line cue changes as the move goes.
+
+Below the figure, **Start guided set** runs the set for you:
+
+- 5 seconds to get into position, then a start tone.
+- Rep moves: the counter goes up each time the figure finishes a rep, with a soft tick. A higher blip means you reached the bottom of the rep range; the set ends at the top of the range, or tap **Set done**.
+- Holds: a countdown with ticks on 3, 2, 1 and a chime at the end.
+- Moves done on each side get a "Switch sides" pause.
+- Between sets a rest timer runs (75 s for rep moves, 45 s for holds) with ticks before the next set.
+
+The figure sets a steady tempo of about 4 seconds a rep. That is deliberate: slow reps build more control. **Watch a video instead** opens a real person doing the move on YouTube; the video IDs live in one list in `src/Stretch.js`.
 
 ## Projects (add-on sessions)
 
-Short sessions for specific goals. They log like any workout but don't count toward the 3 main workouts a week and don't change which workout is next. Find them under **Projects** in the Workout tab (Neck, Calves) and the Stretch tab (Hip mobility). Every move has a ▶ Demo video.
+Short sessions for specific goals. They log like any workout but don't count toward the 3 main workouts a week and don't change which workout is next. Find them under **Projects** in the Workout tab (Neck, Calves) and the Stretch tab (Hip mobility). Every move has an animated ▶ Demo.
 
 **Neck strength** (3× a week, ~8 min, right after Workouts A, B and C). Why: a strong neck supports the spine and helps absorb contact and headers.
 - Supine chin tuck 2 × 10, hold 3 s

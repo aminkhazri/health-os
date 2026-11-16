@@ -2,117 +2,344 @@
 /**
  * Animated demo figure, drawn in code (no video, no images, no libraries).
  *
- * How it works: the figure is a side-view skeleton. A "pose" is a set of angles in degrees, one per body segment.
- * A move is a list of keyframes (time in seconds + pose). Every frame we blend between the two nearest keyframes
- * ("interpolation", with ease-in-out so it accelerates and slows like a real limb), turn the angles into joint
- * positions ("forward kinematics": start at the hip and walk outward segment by segment), and move the SVG lines.
+ * How it works: the figure is a skeleton. A "pose" is a set of angles in degrees, one per body segment. A move is a
+ * list of keyframes (time in seconds + pose). Every frame we blend between the two nearest keyframes
+ * ("interpolation", eased so limbs speed up and slow down naturally), turn the angles into joint positions
+ * ("forward kinematics": start at the hip and walk outward), and redraw. Hands or feet that must stay planted are
+ * solved the other way round ("inverse kinematics": the end point is fixed, so work out where the elbow or knee must be).
  *
- * Angle conventions: limbs: 0 = pointing straight down, 90 = forward, -90 = back. Torso: 0 = upright, 90 = flat, facing right.
- * head is relative to the torso. arch bends the spine (+ rounds up, - sags). A "2" suffix is the far-side limb;
- * leave it out and it copies the near side.
- * view: an SVG viewBox that crops the drawing for floor moves, so the figure fills the space.
- * anchor: [x, y] pins the near ankle to that spot, so feet stay planted and the hips move (squats, push-ups).
- * Without anchor the pose gives the hip position as x, y (floor moves).
- * hands: [x, y] pins both hands to that spot (push-ups); the elbows are then worked out automatically.
+ * Two rigs:
+ *  - side (default): seen from the side, facing right. Limb angles: 0 = straight down, 90 = forward, -90 = back, 180 = up.
+ *    torso: 0 = upright, 90 = flat face-down, -90 = flat on the back. A "2" suffix is the far-side limb (drawn dimmer);
+ *    left out, it copies the near side.
+ *  - front (front: true): seen from the front, or from above when the pose sets rot. Unsuffixed = the limb on screen-left,
+ *    "2" = screen-right; left out, it mirrors the left. Angles: 0 = down, + = toward screen-right. ts shortens the torso
+ *    (a seated person seen from above). rot turns the whole figure.
+ * Other pose keys: head (relative to the torso), arch (bends the spine), sh (shrugs the shoulders up), hx/hy (a moving hand target).
  *
- * poseAt() and joints() are pure functions, unit-tested in tests/figure.test.js.
+ * Per-move options: anchor / toe / ankle pin the near foot (with ik: true the hip is given and the knee is solved; otherwise
+ * the hip follows the foot). both pins the far foot the same way; ankle2 pins it somewhere else. hand, hand2, hands pin hands.
+ * elbow / knee / knee2 flip the bend direction. props draws equipment. hot names the working parts (drawn in the accent colour).
+ * view crops the drawing. still is the time shown when animation is switched off.
+ *
+ * figPoseAt(), figJoints() and figFrame() are pure functions, unit-tested in tests/figure.test.js.
  */
 (function (root) {
-  const LEN = { torso: 52, neck: 6, head: 11, armU: 30, armL: 28, legU: 44, legL: 42, foot: 16 };
-  const KEYS = ['x', 'y', 'torso', 'arch', 'head', 'armU', 'armL', 'armU2', 'armL2', 'legU', 'legL', 'foot', 'legU2', 'legL2', 'foot2'];
+  const LEN = { torso: 52, neck: 6, head: 11, armU: 30, armL: 28, legU: 44, legL: 42, foot: 16, hipW: 9, shW: 17 };
+  const WID = { thigh: 13, shin: 11, armU: 10, armL: 9, foot: 9, torso: 17 };
+  const KEYS = ['x', 'y', 'torso', 'arch', 'head', 'sh', 'ts', 'rot', 'hx', 'hy', 'armU', 'armL', 'armU2', 'armL2', 'legU', 'legL', 'foot', 'legU2', 'legL2', 'foot2'];
+  const DEF = { ts: 1 };
   const rad = d => d * Math.PI / 180;
   const down = (p, len, a) => [p[0] + len * Math.sin(rad(a)), p[1] + len * Math.cos(rad(a))];
   const up = (p, len, a) => [p[0] + len * Math.sin(rad(a)), p[1] - len * Math.cos(rad(a))];
   const ease = t => 0.5 - 0.5 * Math.cos(Math.PI * t);
-  const val = (p, k) => p[k] !== undefined ? p[k] : (k.endsWith('2') && p[k.slice(0, -1)] !== undefined ? p[k.slice(0, -1)] : 0);
+  function val(fig, p, k) {
+    if (p[k] !== undefined) return p[k];
+    if (k.endsWith('2')) { const b = p[k.slice(0, -1)]; if (b !== undefined) return fig.front ? -b : b; }
+    return DEF[k] || 0;
+  }
+  const duration = fig => fig.keys[fig.keys.length - 1].at;
 
   /** Pose at time t (seconds). Loops forever. `say` is the cue for the current part of the move. */
   function poseAt(fig, t) {
-    const K = fig.keys, dur = K[K.length - 1].at, tt = ((t % dur) + dur) % dur;
+    const K = fig.keys, dur = duration(fig), tt = ((t % dur) + dur) % dur;
     let i = 0; while (i < K.length - 2 && tt >= K[i + 1].at) i++;
     const a = K[i], b = K[i + 1], f = ease((tt - a.at) / (b.at - a.at)), out = { say: a.say || '' };
-    KEYS.forEach(k => { const va = val(a.p, k), vb = val(b.p, k); out[k] = va + (vb - va) * f; });
+    KEYS.forEach(k => { const va = val(fig, a.p, k), vb = val(fig, b.p, k); out[k] = va + (vb - va) * f; });
     return out;
   }
 
-  /** Joint positions for a pose. */
-  function joints(fig, p) {
-    let hip = [p.x, p.y];
-    if (fig.anchor) { const ank = down(down([0, 0], LEN.legU, p.legU), LEN.legL, p.legL); hip = [fig.anchor[0] - ank[0], fig.anchor[1] - ank[1]]; }
-    const sh = up(hip, LEN.torso, p.torso);
-    const leg = (u, l, f) => { const knee = down(hip, LEN.legU, u), ank = down(knee, LEN.legL, l); return { knee, ank, toe: down(ank, LEN.foot, f) }; };
-    // Planted hands ("inverse kinematics"): the hand is fixed, so work backwards to where the elbow must be.
-    // The elbow lies where two circles cross: one around the shoulder (upper-arm length), one around the hand (forearm length).
-    const pinned = () => {
-      const h = fig.hands, dx = h[0] - sh[0], dy = h[1] - sh[1], d = Math.min(Math.hypot(dx, dy), LEN.armU + LEN.armL - 0.01) || 0.01;
-      const a = (LEN.armU * LEN.armU - LEN.armL * LEN.armL + d * d) / (2 * d), hgt = Math.sqrt(Math.max(0, LEN.armU * LEN.armU - a * a));
-      const ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy);
-      return { el: [sh[0] + ux * a - uy * hgt * (fig.elbow || -1) * -1, sh[1] + uy * a + ux * hgt * (fig.elbow || -1) * -1], hand: h };
-    };
-    const arm = (u, l) => { if (fig.hands) return pinned(); const el = down(sh, LEN.armU, u); return { el, hand: down(el, LEN.armL, l) }; };
-    const n = [-Math.cos(rad(p.torso)), -Math.sin(rad(p.torso))];   // direction the back faces
-    const mid = [(hip[0] + sh[0]) / 2 + n[0] * p.arch * 2, (hip[1] + sh[1]) / 2 + n[1] * p.arch * 2];
-    return { hip, sh, mid, head: up(sh, LEN.neck + LEN.head, p.torso + p.head),
-      near: Object.assign(leg(p.legU, p.legL, p.foot), arm(p.armU, p.armL)), far: Object.assign(leg(p.legU2, p.legL2, p.foot2), arm(p.armU2, p.armL2)) };
+  /** Two-bone inverse kinematics: from joint a, reach target t with bones l1 and l2. s (+1 or -1) picks which way the middle joint bends. */
+  function ik(a, t, l1, l2, s) {
+    const dx = t[0] - a[0], dy = t[1] - a[1], dist = Math.hypot(dx, dy) || 0.01, ux = dx / dist, uy = dy / dist;
+    const d = Math.max(Math.abs(l1 - l2) + 0.01, Math.min(dist, l1 + l2 - 0.01));
+    const k = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - k * k));
+    return { mid: [a[0] + ux * k - uy * h * s, a[1] + uy * k + ux * h * s], end: [a[0] + ux * d, a[1] + uy * d] };
   }
 
-  // ---------- The moves. First three; more are added here, one entry each. ----------
-  const stand = { torso: 4, head: -4, armU: 15, armL: 165, legU: 0, legL: 0, foot: 90 };
-  const squat = { torso: 28, head: -22, armU: 22, armL: 150, legU: 75, legL: -28, foot: 90 };
-  const cow = { x: 80, y: 151, torso: 74.4, arch: -9, head: -32, armU: 0, armL: 0, legU: 0, legL: -90, foot: -90 };
-  const cat = { x: 80, y: 151, torso: 74.4, arch: 13, head: 38, armU: 0, armL: 0, legU: 0, legL: -90, foot: -90 };
-  const plankTop = { torso: 71.4, head: -12, armU: 0, armL: 0, legU: -71.4, legL: -71.4, foot: 20 };
-  const plankLow = { torso: 84.5, head: -14, armU: -80, armL: 65, legU: -84.5, legL: -84.5, foot: 20 };
+  function sideJoints(fig, p) {
+    let hip = [p.x, p.y], A = fig.anchor || fig.ankle || null;
+    if (fig.toe) A = [fig.toe[0] - LEN.foot * Math.sin(rad(p.foot)), fig.toe[1] - LEN.foot * Math.cos(rad(p.foot))];
+    if (A && !fig.ik) { const e = down(down([0, 0], LEN.legU, p.legU), LEN.legL, p.legL); hip = [A[0] - e[0], A[1] - e[1]]; }
+    const sh0 = up(hip, LEN.torso, p.torso), sh = [sh0[0], sh0[1] - p.sh];
+    const leg = (u, l, f, pin, s) => {
+      let knee, ank;
+      if (pin) { const r = ik(hip, pin, LEN.legU, LEN.legL, s); knee = r.mid; ank = r.end; } else { knee = down(hip, LEN.legU, u); ank = down(knee, LEN.legL, l); }
+      return { knee, ank, toe: down(ank, LEN.foot, f) };
+    };
+    const arm = (u, l, pin) => {
+      if (pin) { const r = ik(sh, pin, LEN.armU, LEN.armL, fig.elbow || 1); return { el: r.mid, hand: r.end }; }
+      const el = down(sh, LEN.armU, u); return { el, hand: down(el, LEN.armL, l) };
+    };
+    const nearLegPin = A && fig.ik ? A : null, farLegPin = fig.ankle2 || (fig.both ? A : null);
+    const n = [-Math.cos(rad(p.torso)), -Math.sin(rad(p.torso))];
+    const floor = l => { ['el', 'hand', 'toe'].forEach(k => { l[k] = [l[k][0], Math.min(l[k][1], 197)]; }); return l; };   // nothing sinks into the floor mid-move
+    if (!fig.noGround) return { hip, sh, mid: [(hip[0] + sh0[0]) / 2 + n[0] * p.arch * 2, (hip[1] + sh0[1]) / 2 + n[1] * p.arch * 2], head: up(sh0, LEN.neck + LEN.head, p.torso + p.head),
+      near: floor(Object.assign(leg(p.legU, p.legL, p.foot, nearLegPin, fig.knee || -1), arm(p.armU, p.armL, fig.handPose ? [p.hx, p.hy] : (fig.hand || fig.hands)))),
+      far: floor(Object.assign(leg(p.legU2, p.legL2, p.foot2, farLegPin, fig.knee2 || -1), arm(p.armU2, p.armL2, fig.hand2 || fig.hands))) };
+    return { hip, sh, mid: [(hip[0] + sh0[0]) / 2 + n[0] * p.arch * 2, (hip[1] + sh0[1]) / 2 + n[1] * p.arch * 2], head: up(sh0, LEN.neck + LEN.head, p.torso + p.head),
+      near: Object.assign(leg(p.legU, p.legL, p.foot, nearLegPin, fig.knee || -1), arm(p.armU, p.armL, fig.handPose ? [p.hx, p.hy] : (fig.hand || fig.hands))),
+      far: Object.assign(leg(p.legU2, p.legL2, p.foot2, farLegPin, fig.knee2 || -1), arm(p.armU2, p.armL2, fig.hand2 || fig.hands)) };
+  }
+
+  function frontJoints(fig, p) {
+    const c = [p.x, p.y], w = [Math.cos(rad(p.torso)), Math.sin(rad(p.torso))], chest = up(c, LEN.torso * p.ts, p.torso);
+    const off = (pt, k) => [pt[0] + w[0] * k, pt[1] + w[1] * k];
+    const hipL = off(c, -LEN.hipW), hipR = off(c, LEN.hipW), shL = off([chest[0], chest[1] - p.sh], -LEN.shW), shR = off([chest[0], chest[1] - p.sh], LEN.shW);
+    const leg = (hip, u, l, f, pin, s) => {
+      let knee, ank;
+      if (pin) { const r = ik(hip, pin, LEN.legU, LEN.legL, s); knee = r.mid; ank = r.end; } else { knee = down(hip, LEN.legU, u); ank = down(knee, LEN.legL, l); }
+      return { hipJ: hip, knee, ank, toe: down(ank, LEN.foot, f) };
+    };
+    const arm = (sh, u, l, pin, s) => {
+      if (pin) { const r = ik(sh, pin, LEN.armU, LEN.armL, s); return { shJ: sh, el: r.mid, hand: r.end }; }
+      const el = down(sh, LEN.armU, u); return { shJ: sh, el, hand: down(el, LEN.armL, l) };
+    };
+    const j = { front: true, hip: c, chest, head: up(chest, LEN.neck + LEN.head, p.torso + p.head),
+      near: Object.assign(leg(hipL, p.legU, p.legL, p.foot, fig.ankleL, 1), arm(shL, p.armU, p.armL, fig.handL, -1)),
+      far: Object.assign(leg(hipR, p.legU2, p.legL2, p.foot2, fig.ankleR, -1), arm(shR, p.armU2, p.armL2, fig.handR, 1)) };
+    if (p.rot) {
+      const cs = Math.cos(rad(p.rot)), sn = Math.sin(rad(p.rot));
+      const turn = q => { const dx = q[0] - c[0], dy = q[1] - c[1]; return [c[0] + dx * cs - dy * sn, c[1] + dx * sn + dy * cs]; };
+      j.chest = turn(j.chest); j.head = turn(j.head);
+      [j.near, j.far].forEach(l => Object.keys(l).forEach(k => { l[k] = turn(l[k]); }));
+    }
+    return j;
+  }
+  /** Joint positions for a pose. */
+  function joints(fig, p) { return fig.front ? frontJoints(fig, p) : sideJoints(fig, p); }
+
+  // ---------- Drawing: one frame as SVG markup ----------
+  const n1 = v => v.toFixed(1);
+  const seg = (a, b, w, cls) => `<line class="${cls}" x1="${n1(a[0])}" y1="${n1(a[1])}" x2="${n1(b[0])}" y2="${n1(b[1])}" stroke-width="${w}"/>`;
+  function frame(fig, p) {
+    const j = joints(fig, p), hot = fig.hot || [], out = [];
+    const c = (part, far) => 'fg-l' + (far ? ' fg-far' : '') + (!far && hot.includes(part) ? ' fg-hot' : '');
+    (fig.props || []).forEach(q => {
+      if (q[0] === 'rect') out.push(`<rect class="fg-block" x="${q[1]}" y="${q[2]}" width="${q[3]}" height="${q[4]}" rx="4"/>`);
+      if (q[0] === 'line') out.push(`<line class="fg-wall" x1="${q[1]}" y1="${q[2]}" x2="${q[3]}" y2="${q[4]}"/>`);
+    });
+    if (!fig.noGround) out.push('<line class="fg-ground" x1="8" y1="201.5" x2="232" y2="201.5"/>');
+    const limbLeg = (l, hip, far) => seg(hip, l.knee, WID.thigh, c('thigh', far)) + seg(l.knee, l.ank, WID.shin, c('shin', far)) + seg(l.ank, l.toe, WID.foot, c('foot', far));
+    const limbArm = (l, sh, far) => seg(sh, l.el, WID.armU, c('armU', far)) + seg(l.el, l.hand, WID.armL, c('armL', far));
+    const head = `<circle class="fg-head${hot.includes('head') ? ' fg-hot' : ''}" cx="${n1(j.head[0])}" cy="${n1(j.head[1])}" r="${LEN.head}"/>`;
+    if (j.front) {
+      out.push(limbLeg(j.near, j.near.hipJ, false), limbLeg(j.far, j.far.hipJ, false));
+      out.push(`<polygon class="fg-chest${hot.includes('torso') ? ' fg-hot' : ''}" points="${[j.near.shJ, j.far.shJ, j.far.hipJ, j.near.hipJ].map(q => n1(q[0]) + ',' + n1(q[1])).join(' ')}"/>`);
+      out.push(head, limbArm(j.near, j.near.shJ, false), limbArm(j.far, j.far.shJ, false));
+    } else {
+      out.push(limbArm(j.far, j.sh, true), limbLeg(j.far, j.hip, true));
+      out.push(`<path class="${c('torso', false)}" stroke-width="${WID.torso}" d="M${n1(j.hip[0])},${n1(j.hip[1])} Q${n1(j.mid[0])},${n1(j.mid[1])} ${n1(j.sh[0])},${n1(j.sh[1])}"/>`);
+      out.push(head, limbLeg(j.near, j.hip, false), limbArm(j.near, j.sh, false));
+    }
+    const pt = k => Array.isArray(k) ? k : k === 'hand2' ? j.far.hand : k === 'knee' ? j.near.knee : k === 'foot' ? j.near.ank : j.near.hand;
+    (fig.props || []).forEach(q => {
+      if (q[0] === 'band') out.push(seg(pt(q[1]), pt(q[2]), 3, 'fg-band'));
+      if (q[0] === 'db') (q[1] === 'both' ? ['hand', 'hand2'] : [q[1]]).forEach(k => {
+        const h = pt(k), el = k === 'hand2' ? j.far.el : j.near.el; let dx = h[0] - el[0], dy = h[1] - el[1]; const m = Math.hypot(dx, dy) || 1; dx /= m; dy /= m;
+        if (q[2] === 'dot' || k === 'knee') return out.push(`<circle class="fg-dbdot" cx="${n1(h[0])}" cy="${n1(h[1])}" r="7"/>`);
+        const d = q[2] === 'p' ? [-dy, dx] : q[2] === 'v' ? [0, 1] : q[2] === 'h' ? [1, 0] : [dx, dy], o = q[2] === 'a' ? 6 : 0;
+        const cx = h[0] + dx * o, cy = h[1] + dy * o;
+        out.push(seg([cx - d[0] * 10, cy - d[1] * 10], [cx + d[0] * 10, cy + d[1] * 10], 8, 'fg-db'));
+      });
+    });
+    return { svg: out.join(''), say: p.say, joints: j };
+  }
+  function figFrame(name, t) { return frame(FIGS[name], poseAt(FIGS[name], t)); }
+
+  // ---------- The moves ----------
+  const K = (at, p, say) => ({ at, p, say });
+  const P = (...parts) => Object.assign({}, ...parts);
+  /** Down-and-up move: pose a -> pose b -> a, with pauses. T = [seconds to b, pause, seconds back, pause]. C = four cues. */
+  const rep = (a, b, T, C) => [K(0, a, C[0]), K(T[0], b, C[1]), K(T[0] + T[1], b, C[2]), K(T[0] + T[1] + T[2], a, C[3]), K(T[0] + T[1] + T[2] + T[3], a)];
+  const hold = (p, a, b) => [K(0, p, a), K(4, p, b || 'Keep breathing. Stay still'), K(8, p)];
+  const S = { torso: 3, head: -3, armU: 0, armL: 0, legU: 0, legL: 0, foot: 90 };                                    // standing, side view
+  const FS = { x: 120, y: 105, torso: 0, head: 0, legU: -5, legL: 0, foot: -75, armU: -6, armL: -4 };                 // standing, front view
+  const Q = { x: 80, y: 151, torso: 74.4, arch: 0, head: 0, armU: 0, armL: 0, legU: 0, legL: -90, foot: -90 };        // hands and knees
+  const BACK = { torso: -90, head: 0, legU: 130, legL: 37.5, foot: 90, armU: 90, armL: 90 };                          // on the back, knees bent
+  const PRONE = { torso: 90, legU: -90, legL: -90, foot: -90 };                                                       // face down
+  const plankTop = { torso: 71.4, head: -12, legU: -71.4, legL: -71.4, foot: 20 }, plankLow = { torso: 84.5, head: -14, legU: -84.5, legL: -84.5, foot: 20 };
+  const FLOOR = '0 62 240 150', LOW = '0 84 240 128';
+  const squatStand = P(S, { torso: 4, armU: 15, armL: 165 }), squatLow = { torso: 28, head: -22, armU: 22, armL: 150, legU: 75, legL: -28, foot: 90 };
+  const rowLegs = { torso: 72, head: 0, legU: 15, legL: -10, foot: 90 }, hinge = { torso: 75, head: -6, armU: 0, armL: 0, legU: 18, legL: 2, foot: 90 };
+  const thrustLow = { x: 120.6, y: 182.8, torso: -55, head: 12, armU: 55, armL: 55, foot: 90 }, thrustTop = { x: 130, y: 153, torso: -90, head: 25, armU: 90, armL: 80, foot: 90 };
+  const bridgeLow = { x: 112, y: 189, torso: -90, head: 10, armU: 85, armL: 90, legU2: 100, legL2: 100, foot: 90, foot2: 150 };
+  const bridgeTop = { x: 106, y: 165, torso: -118.6, head: 12, armU: 80, armL: 90, legU2: 115, legL2: 115, foot: 90, foot2: 160 };
+  const rowSit = { x: 80, y: 189, head: 2, legU: 90, legL: 90, foot: 180 }, incline = { x: 120, y: 188, torso: -50, head: 8, foot: 90 };
+  const calfLeg = { legU2: 0, legL2: -80, foot2: -80 }, seated = { x: 95, y: 153, torso: 5, head: -4, armU: 35, armL: 60 };
+  const wallLean = { torso: -4, head: 4, armU: 0, armL: 0, legU: 15, legL: 15 }, child = { torso: 105, arch: 6, head: -12, armU: 80, armL: 88, legU: 59, legL: -90, foot: -90 };
+  const lunge = { legU: 80, legL: 0, foot: 90, foot2: 20 }, kneel = { armU: -10, armL: 40, legL: -90, foot: -90, foot2: 90 };
+  const ham = { x: 120, y: 190, torso: -90, head: 0, legU2: 90, legL2: 90, foot2: 180 };
+  const fig4 = { x: 130, y: 190, torso: -90, head: 0, armU: 150, armL: 110, legU: 150, legL: -95, foot: -140, legU2: 200, legL2: 100, foot2: 180 };
+  const fly = { x: 120, y: 180, torso: 0, head: 0, armU: -8, armL: 12, foot: 90 }, pigeon = { x: 112, y: 186, legU: -88, legL: -90, foot: -90, legU2: 88, legL2: -80, foot2: -90 };
+  const frog = { x: 120, torso: 0, head: 0, legL: 0, foot: 0 }, deep = { torso: 30, head: -22, armU: 40, armL: 120, legU: 105, legL: -32, foot: 90 };
+  const calfCues = ['Rise as high as you can', 'Squeeze: 1 second', 'Lower for 3 seconds', 'Pause in the deep stretch'];
   const FIGS = {
-    'Goblet squat': { anchor: [120, 195], prop: 'dumbbell', still: 2.5, keys: [
-      { at: 0, p: stand, say: 'Sit back and down: 2 seconds' }, { at: 2.2, p: squat, say: 'Pause. Chest up, knees over toes' },
-      { at: 2.9, p: squat, say: 'Drive up through your whole foot' }, { at: 4.3, p: stand, say: 'Stand tall' }, { at: 5, p: stand }] },
-    'Cat-cow': { view: '0 84 240 128', still: 3, keys: [
-      { at: 0, p: cow, say: 'Breathe out: round your back up, chin to chest' }, { at: 2.6, p: cat, say: 'Pause at the top' },
-      { at: 3.4, p: cat, say: 'Breathe in: let your belly sink, look ahead' }, { at: 6, p: cow, say: 'Pause' }, { at: 6.8, p: cow }] },
-    'Push-up bottom hold': { view: '0 84 240 128', anchor: [38, 181], hands: [170, 195], still: 4, keys: [
-      { at: 0, p: plankTop, say: 'Lower slowly' }, { at: 2.2, p: plankLow, say: 'Hold. Body in one line, elbows in, keep breathing' },
-      { at: 8, p: plankLow, say: 'Press back up' }, { at: 9.4, p: plankTop, say: 'Reset' }, { at: 10.2, p: plankTop }] },
+    // ----- Workout A -----
+    'Goblet squat': { anchor: [120, 195], props: [['db', 'hand', 'v']], hot: ['thigh'], still: 2.5,
+      keys: rep(squatStand, squatLow, [2.2, 0.7, 1.4, 0.7], ['Sit back and down: 2 seconds', 'Pause. Chest up, knees over toes', 'Drive up through your whole foot', 'Stand tall']) },
+    'Dumbbell floor press': { view: FLOOR, props: [['db', 'hand', 'p']], hot: ['armU', 'armL'], still: 2,
+      keys: rep(P(BACK, { x: 110, y: 190, armU: 90, armL: 180 }), P(BACK, { x: 110, y: 190, armU: 180, armL: 180 }), [1.4, 0.6, 2, 0.6], ['Press straight up', 'Squeeze at the top', 'Lower for 2 seconds until your arms touch the floor', 'Pause']) },
+    'One-arm dumbbell row': { anchor: [95, 195], hand2: [141, 153], props: [['rect', 118, 158, 62, 43], ['db', 'hand', 'a']], hot: ['armU', 'torso'], still: 1.5,
+      keys: rep(P(rowLegs, { armU: 0, armL: 0 }), P(rowLegs, { armU: -55, armL: 5 }), [1.2, 0.6, 1.5, 0.6], ['Pull your elbow to your hip', 'Squeeze your back', 'Lower slowly, back flat', 'Full stretch']) },
+    'Dumbbell Romanian deadlift': { anchor: [120, 195], props: [['db', 'hand', 'a']], hot: ['thigh', 'torso'], still: 2.4,
+      keys: rep(S, hinge, [2.2, 0.7, 1.4, 0.7], ['Push your hips back, soft knees', 'Feel the stretch behind your thighs. Back flat', 'Squeeze your glutes to stand', 'Stand tall']) },
+    'Dumbbell shoulder press': { front: true, view: '0 -22 240 234', props: [['db', 'both', 'p']], hot: ['armU'], still: 1.5,
+      keys: rep(P(FS, { armU: -80, armL: 180 }), P(FS, { armU: -168, armL: 180 }), [1.4, 0.6, 1.8, 0.6], ['Press overhead', 'Arms by your ears, ribs down', 'Lower for 2 seconds', 'Elbows just below shoulders']) },
+    'Band pull-apart': { front: true, props: [['band', 'hand', 'hand2']], hot: ['armU', 'torso'], still: 1.4,
+      keys: rep(P(FS, { armU: 10, armL: 140 }), P(FS, { armU: -90, armL: 270 }), [1.3, 0.7, 1.5, 0.5], ['Pull the band apart, arms straight', 'Squeeze your shoulder blades', 'Return slowly', 'Keep tension on the band']) },
+    'Copenhagen plank': { view: '0 70 240 142', props: [['rect', 50, 172, 48, 29]], hot: ['thigh', 'torso'], still: 0,
+      keys: hold({ x: 118, y: 166, torso: 91, head: 0, armU: 0, armL: 90, armU2: -85, armL2: -88, legU: -90, legL: -90, foot: -90, legU2: -60, legL2: -100, foot2: -90 }, 'Top knee on the couch, lift your hips. Body in one line', 'Squeeze the top inner thigh. Keep breathing') },
+    'Side plank': { anchor: [34, 190], view: '0 70 240 142', hot: ['torso'], still: 0,
+      keys: hold({ torso: 79.6, head: 0, armU: 0, armL: 90, armU2: -78, armL2: -82, legU: -79.6, legL: -79.6, foot: -80 }, 'Elbow under shoulder. Lift your hips into one straight line', 'Hips high and forward. Keep breathing') },
+    // ----- Workout B -----
+    'Bulgarian split squat': { anchor: [130, 195], ankle2: [62, 144], props: [['rect', 40, 150, 40, 51], ['db', 'hand', 'a']], hot: ['thigh'], still: 2.4,
+      keys: rep(P(S, { torso: 8, legU: 5, legL: -5, foot2: -90 }), { torso: 14, head: -8, armU: 0, armL: 0, legU: 70, legL: -20, foot: 90, foot2: -90 }, [2.2, 0.7, 1.4, 0.7], ['Drop straight down: 2 seconds', 'Front heel down, knee over toes', 'Push through the front foot', 'Stand tall']) },
+    'Single-leg Romanian deadlift': { anchor: [125, 195], props: [['db', 'hand', 'a']], hot: ['thigh', 'torso'], still: 2.5,
+      keys: rep(S, { torso: 80, head: -4, armU: 0, armL: 0, legU: 12, legL: 4, foot: 90, legU2: -97, legL2: -97, foot2: 0 }, [2.4, 0.7, 1.7, 0.7], ['Hinge forward, back leg reaches behind you', 'Hips square, back flat', 'Squeeze the standing glute to come up', 'Stand tall']) },
+    'Dumbbell hip thrust': { ik: true, ankle: [174, 195], both: true, props: [['rect', 20, 157, 60, 44], ['db', 'hand', 'dot']], hot: ['thigh', 'torso'], still: 1.6,
+      keys: rep(thrustLow, thrustTop, [1.4, 1, 1.8, 0.6], ['Drive your hips up', 'Squeeze your glutes: 1 second', 'Lower slowly', 'Chin tucked, ribs down']) },
+    'Heel-raised goblet squat': { toe: [136, 195], props: [['rect', 104, 197, 24, 4], ['db', 'hand', 'v']], hot: ['thigh'], still: 2.5,
+      keys: rep(P(squatStand, { foot: 75 }), { torso: 18, head: -14, armU: 22, armL: 150, legU: 84, legL: -36, foot: 75 }, [2.2, 0.7, 1.4, 0.7], ['Heels on a book or plate. Sit straight down', 'Stay upright, knees travel forward', 'Drive up', 'Stand tall']) },
+    'Standing calf raise': { toe: [136, 195], props: [['db', 'hand', 'a']], hot: ['shin'], still: 1.2,
+      keys: rep(S, P(S, { foot: 50 }), [1, 1, 3, 0.6], ['Rise onto your toes', 'Squeeze at the top: 1 second', 'Lower for 3 seconds', 'Full stretch at the bottom']) },
+    'Dead bug': { view: FLOOR, hot: ['torso'], still: 1.6, keys: (() => {
+      const base = { x: 125, y: 188, torso: -90, head: 0 }, T = { armU: 180, armL: 180, armU2: 180, armL2: 180, legU: 180, legL: 90, foot: 180, legU2: 180, legL2: 90, foot2: 180 };
+      const A = P(base, T, { armU: 265, armL: 268, legU2: 100, legL2: 95, foot2: 150 }), B = P(base, T, { armU2: 265, armL2: 268, legU: 100, legL: 95, foot: 150 });
+      return [K(0, P(base, T), 'Reach one arm back and the opposite leg out'), K(1.6, A, 'Lower back stays pressed into the floor'), K(2.4, A, 'Return slowly'),
+        K(4, P(base, T), 'Other side'), K(5.6, B, 'Lower back stays pressed into the floor'), K(6.4, B, 'Return slowly'), K(8, P(base, T))]; })() },
+    'Split squat bottom hold': { anchor: [150, 195], ankle2: [52, 182], hot: ['thigh'], still: 0,
+      keys: hold({ torso: 5, head: -4, armU: 0, armL: 0, legU: 85, legL: -10, foot: 90, foot2: 20 }, 'Back knee an inch off the floor. Hold', 'Tall chest, weight on the front heel') },
+    'Single-leg glute bridge hold': { ik: true, ankle: [165, 195], view: FLOOR, hot: ['thigh', 'torso'], still: 4,
+      keys: [K(0, bridgeLow, 'Lift your hips with one leg'), K(1.5, bridgeTop, 'Hold. Hips level, squeeze the glute'), K(8, bridgeTop, 'Lower slowly'), K(9.5, bridgeLow, 'Switch legs'), K(10.2, bridgeLow)] },
+    // ----- Workout C -----
+    'Push-up': { view: LOW, anchor: [38, 181], hands: [170, 195], hot: ['armU', 'torso'], still: 2,
+      keys: rep(plankTop, plankLow, [2, 0.5, 1.2, 0.6], ['Lower for 2 seconds', 'Chest just off the floor, elbows at 45°', 'Push the floor away', 'Body in one line']) },
+    'Band row': { view: '0 70 240 142', props: [['band', 'hand', [166, 187]]], hot: ['armU', 'torso'], still: 1.4,
+      keys: rep(P(rowSit, { torso: -5, armU: 75, armL: 85 }), P(rowSit, { torso: -8, armU: -40, armL: 80 }), [1.2, 0.7, 1.5, 0.6], ['Pull your elbows back past your ribs', 'Squeeze your shoulder blades', 'Return slowly, sit tall', 'Arms long']) },
+    'Incline dumbbell press': { ik: true, ankle: [190, 195], both: true, view: '0 50 240 162', props: [['rect', 20, 140, 62, 61], ['db', 'hand', 'p']], hot: ['armU', 'armL'], still: 1.5,
+      keys: rep(P(incline, { armU: 50, armL: 150 }), P(incline, { armU: 140, armL: 140 }), [1.4, 0.6, 1.9, 0.6], ['Press up and slightly back', 'Squeeze your upper chest', 'Lower for 2 seconds', 'Elbows under the dumbbells']) },
+    'Dumbbell lateral raise': { front: true, props: [['db', 'both', 'dot']], hot: ['armU'], still: 1.4,
+      keys: rep(P(FS, { armU: -8, armL: -6 }), P(FS, { armU: -88, armL: -84 }), [1.3, 0.6, 2, 0.5], ['Raise your arms out to the sides', 'Stop at shoulder height', 'Lower for 2 seconds. No swinging', 'Slight bend in the elbows']) },
+    'Dumbbell curl': { anchor: [120, 195], props: [['db', 'hand', 'p']], hot: ['armU'], still: 1.3,
+      keys: rep(P(S, { armU: 2, armL: 2 }), P(S, { armU: 6, armL: 152 }), [1.2, 0.6, 2, 0.5], ['Curl up, elbows pinned to your sides', 'Squeeze', 'Lower for 2 seconds', 'Arms fully straight']) },
+    'Overhead triceps extension': { view: '0 -18 240 230', anchor: [120, 195], props: [['db', 'hand', 'a']], hot: ['armU'], still: 0.2,
+      keys: rep(P(S, { armU: 172, armL: -20 }), P(S, { armU: 172, armL: -185 }), [1.3, 0.6, 2, 0.5], ['Straighten your arms overhead', 'Squeeze the back of your arms', 'Lower behind your head for 2 seconds', 'Elbows point forward, not out']) },
+    'Push-up bottom hold': { view: LOW, anchor: [38, 181], hands: [170, 195], hot: ['armU', 'torso'], still: 4,
+      keys: [K(0, plankTop, 'Lower slowly'), K(2.2, plankLow, 'Hold. Body in one line, elbows in, keep breathing'), K(8, plankLow, 'Press back up'), K(9.4, plankTop, 'Reset'), K(10.2, plankTop)] },
+    "Dumbbell farmer's hold": { anchor: [120, 195], props: [['db', 'hand', 'a']], hot: ['armL', 'torso'], still: 0,
+      keys: hold(P(S, { torso: 2 }), 'Stand tall with heavy dumbbells. Squeeze the handles', 'Shoulders back and down. Do not lean') },
+    // ----- Neck project -----
+    'Supine chin tuck': { view: FLOOR, hot: ['head'], still: 2,
+      keys: rep(P(BACK, { x: 150, y: 190, head: 0 }), P(BACK, { x: 150, y: 190, head: 28 }), [1.2, 3, 1.2, 0.8], ['Tuck your chin, then lift your head an inch', 'Hold 3 seconds. Make a double chin', 'Lower slowly', 'Relax']) },
+    'Neck isometric hold': { anchor: [120, 195], handPose: true, hot: ['head'], still: 1, keys: [
+      K(0, P(S, { hx: 136, hy: 42 }), 'Forehead into your hand. Push, but do not let your head move'), K(4, P(S, { hx: 136, hy: 42 }), 'Now the back of your head into your hand'),
+      K(5, P(S, { hx: 108, hy: 40 }), 'Push back. Head stays still'), K(9, P(S, { hx: 108, hy: 40 }), 'Then each side: palm above the ear, push sideways'), K(10, P(S, { hx: 136, hy: 42 }))] },
+    'Prone neck extension': { view: FLOOR, hot: ['head'], still: 2,
+      keys: rep(P(PRONE, { x: 112, y: 190, head: 6, armU: -90, armL: -90 }), P(PRONE, { x: 112, y: 190, head: -30, armU: -90, armL: -90 }), [1.2, 1.2, 1.4, 0.6], ['Face down. Lift your head, chin tucked', 'Pause. Eyes on the floor, long neck', 'Lower slowly', 'Relax']) },
+    'Side-lying neck raise': { view: FLOOR, hot: ['head'], still: 2,
+      keys: rep(P(PRONE, { x: 106, y: 190, head: 10, armU: 90, armL: 90, armU2: -90, armL2: -90 }), P(PRONE, { x: 106, y: 190, head: -28, armU: 90, armL: 90, armU2: -90, armL2: -90 }), [1.2, 1.2, 1.4, 0.6], ['Lie on your side. Lift your ear toward the ceiling', 'Pause. Nose stays pointing forward', 'Lower slowly', 'Relax']) },
+    'Dumbbell shrug': { anchor: [120, 195], props: [['db', 'hand', 'a']], hot: ['torso'], still: 1,
+      keys: rep(S, P(S, { sh: 9 }), [0.9, 1, 1.5, 0.6], ['Shrug your shoulders straight up to your ears', 'Squeeze: 1 second', 'Lower slowly. No rolling', 'Arms stay straight']) },
+    // ----- Calves project -----
+    'Single-leg deficit calf raise': { toe: [128, 185], hand2: [168, 72], props: [['rect', 100, 190, 62, 11], ['line', 172, 20, 172, 190], ['db', 'hand', 'a']], hot: ['shin'], still: 0,
+      keys: rep(P(S, calfLeg, { foot: 110 }), P(S, calfLeg, { foot: 50 }), [1, 1, 3, 2], calfCues) },
+    'Seated dumbbell calf raise': { ik: true, toe: [155, 195], both: true, props: [['rect', 70, 159, 50, 42], ['db', 'knee', 'dot']], hot: ['shin'], still: 1.2,
+      keys: rep(P(seated, { foot: 90 }), P(seated, { foot: 55 }), [1, 1, 3, 0.8], ['Dumbbells on your knees. Lift your heels', 'Squeeze: 1 second', 'Lower for 3 seconds', 'Pause at the bottom']) },
+    'Tibialis raise': { anchor: [100, 195], props: [['line', 62, 20, 62, 201]], hot: ['shin'], still: 1,
+      keys: rep(P(wallLean, { foot: 90 }), P(wallLean, { foot: 140 }), [1, 0.7, 1.5, 0.5], ['Back on the wall, heels a foot out. Pull your toes up', 'Squeeze your shins', 'Lower slowly', 'Legs stay straight']) },
+    'Single-leg calf raise hold': { toe: [128, 185], hand2: [168, 72], props: [['rect', 100, 190, 62, 11], ['line', 172, 20, 172, 190], ['db', 'hand', 'a']], hot: ['shin'], still: 0,
+      keys: hold(P(S, calfLeg, { foot: 72 }), 'Halfway up on one leg. Hold still', 'Knee straight, heel level with the step') },
+    // ----- Stretches -----
+    'Cat-cow': { view: LOW, still: 3,
+      keys: rep(P(Q, { arch: -9, head: -32 }), P(Q, { arch: 13, head: 38 }), [2.6, 0.8, 2.6, 0.8], ['Breathe out: round your back up, chin to chest', 'Pause at the top', 'Breathe in: let your belly sink, look ahead', 'Pause']) },
+    "Child's pose": { anchor: [38, 195], hands: [150, 195], elbow: -1, view: LOW, still: 4, keys: rep(Q, child, [2.5, 5.5, 2, 0.6], ['Sit your hips back to your heels', 'Arms long, forehead down. Breathe into your back', 'Come back up slowly', 'Reset']) },
+    "World's greatest stretch": { anchor: [150, 195], ankle2: [30, 182], hand2: [157, 195], view: '0 50 240 162', hot: ['thigh', 'torso'], still: 3, keys: [
+      K(0, P(lunge, { torso: 80, head: -10, armU: 0, armL: 0 }), 'Long lunge, both hands inside the front foot'), K(1.5, P(lunge, { torso: 80, head: -10, armU: 0, armL: 0 }), 'Reach the inside arm to the ceiling and look at it'),
+      K(3.5, P(lunge, { torso: 78, head: -55, armU: -175, armL: -178 }), 'Pause. Back leg straight'), K(5.5, P(lunge, { torso: 78, head: -55, armU: -175, armL: -178 }), 'Bring the hand back down'), K(7.5, P(lunge, { torso: 80, head: -10, armU: 0, armL: 0 }))] },
+    'Downward dog': { anchor: [60, 190], hands: [188, 195], view: FLOOR, still: 0, keys: [
+      K(0, { torso: 132.4, head: 0, legU: -33.4, legL: -33.4, foot: 75 }, 'Hips high. Press the floor away'), K(3, { torso: 130, head: 0, legU: -35.5, legL: -31, foot: 78 }, 'Bend your knees as much as you need. Long spine'),
+      K(6, { torso: 132.4, head: 0, legU: -33.4, legL: -33.4, foot: 75 }, 'Heels reach toward the floor'), K(8, { torso: 132.4, head: 0, legU: -33.4, legL: -33.4, foot: 75 })] },
+    'Thread the needle': { hand2: [130, 195], elbow: -1, view: LOW, hot: ['torso'], still: 4,
+      keys: rep(Q, P(Q, { torso: 128, armU: -75, armL: -88 }), [2.5, 4.5, 2, 0.6], ['Slide one arm under your body, palm up', 'Shoulder and ear rest down. Breathe into your upper back', 'Unwind slowly', 'Reset']) },
+    'Half-kneeling hip flexor stretch': { anchor: [48, 195], ankle2: [150, 195], hot: ['thigh'], still: 4,
+      keys: rep(P(kneel, { torso: 0, head: 0, legU: 0 }), P(kneel, { torso: -4, head: 0, legU: -18 }), [2.2, 4.8, 1.6, 0.6], ['Squeeze the glute of the down leg, then shift forward', 'Stay tall. Feel the front of the hip open', 'Ease back', 'Reset']) },
+    'Lying hamstring stretch': { hands: [116, 170], elbow: -1, view: '0 50 240 162', hot: ['thigh'], still: 4,
+      keys: rep(P(ham, { legU: 185, legL: 80, foot: 170 }), P(ham, { legU: 188, legL: 188, foot: 270 }), [2.5, 4.5, 1.6, 0.6], ['Hold behind your thigh. Straighten the knee slowly', 'Stop at a firm pull. Other leg stays long', 'Bend the knee to release', 'Reset']) },
+    'Figure-four stretch': { view: FLOOR, hot: ['thigh'], still: 4,
+      keys: (() => { const b = P(BACK, { x: 130, y: 190 }), lift = P(b, { legU: 150, legL: 30 });   // lift the knee first so the shin clears the floor
+        return [K(0, b, 'Cross one ankle over the other knee'), K(1.2, lift, 'Cross one ankle over the other knee'), K(2.6, fig4, 'Pull both legs toward your chest. Feel the outer hip'),
+          K(7.6, fig4, 'Release slowly'), K(8.8, lift, 'Release slowly'), K(9.8, b, 'Reset'), K(10.3, b)]; })() },
+    'Standing calf stretch': { anchor: [70, 195], ankle2: [130, 195], hands: [160, 80], props: [['line', 164, 20, 164, 201]], hot: ['shin'], still: 4,
+      keys: rep({ torso: 8, head: 0, legU: -18, legL: -18, foot: 90, foot2: 90 }, { torso: 15, head: 0, legU: -28, legL: -28, foot: 90, foot2: 90 }, [2.2, 4.8, 1.6, 0.6], ['Hands on the wall, one leg back. Lean in', 'Back heel down, back knee straight', 'Ease off', 'Reset']) },
+    'Butterfly stretch': { front: true, view: FLOOR, hot: ['thigh'], still: 4,
+      keys: rep(P(fly, { legU: -105, legL: 63 }), P(fly, { legU: -78, legL: 83 }), [2.5, 5, 1.5, 0.6], ['Soles together. Let your knees fall open', 'Sit tall, hinge forward a little from the hips', 'Release', 'Reset']) },
+    'Doorway chest stretch': { anchor: [140, 195], hand: [111, 32], elbow: -1, props: [['line', 110, 14, 110, 201]], hot: ['armU', 'torso'], still: 4,
+      keys: rep(P(S, { legU: 6, legL: 6 }), P(S, { torso: 4, head: -6, legU: -5, legL: -5 }), [2.2, 4.8, 1.6, 0.6], ['Forearm on the door frame, elbow at shoulder height', 'Step through until your chest opens. No arching', 'Step back', 'Reset']) },
+    'Supine spinal twist': { front: true, noGround: true, view: '0 14 240 190', hot: ['torso'], still: 4, keys: (() => {
+      const flat = { x: 125, y: 108, rot: -90, torso: 0, head: 0, armU: -90, armL: -90, legU: 0, legL: 0, foot: 0, legU2: 0, legL2: 0, foot2: 0 };
+      return rep(flat, P(flat, { legU2: -78, legL2: 28, head: 28 }), [2.5, 5, 2, 0.5], ['Seen from above. Arms wide, bring one knee across your body', 'Both shoulders heavy on the floor. Look away from the knee', 'Come back to the middle', 'Reset']); })() },
+    '90/90 hip switch': { front: true, noGround: true, view: '0 14 240 190', hot: ['thigh'], still: 0, keys: (() => {
+      const b = { x: 120, y: 95, torso: 0, ts: 0.18, head: 0, armU: -8, armL: 172, foot: 0, foot2: 0 };
+      const A = P(b, { legU: -90, legL: -180, legU2: 0, legL2: -90 }), B = P(b, { legU: 0, legL: 90, legU2: 90, legL2: 180 });
+      return [K(0, A, 'Seen from above. Both knees bent at 90°, sitting tall'), K(2, A, 'Lift your knees and rotate them to the other side'), K(4.5, B, 'Sit tall over the front shin'), K(6.5, B, 'Rotate back'), K(9, A)]; })() },
+    'Hip CARs': { view: LOW, hot: ['thigh'], still: 1.5, keys: (() => {
+      const b = P(Q, { x: 100, legU2: 0, legL2: -90, foot2: -90 });
+      return [K(0, b, 'Bring one knee toward your chest'), K(1.5, P(b, { legU: 55, legL: -78, foot: -85 }), 'Open the knee out to the side, as high as you can'),
+        K(3, P(b, { legU: 25, legL: -115, foot: -120 }), 'Sweep it back behind you'), K(4.5, P(b, { legU: -62, legL: -130, foot: -140 }), 'Lower with control. Keep the rest of your body still'), K(6, b)]; })() },
+    'Pigeon pose': { view: FLOOR, hot: ['thigh'], still: 4,
+      keys: rep(P(pigeon, { torso: 10, head: 0, armU: 15, armL: 10 }), P(pigeon, { torso: 80, head: -5, armU: 85, armL: 88 }), [2.5, 5.5, 2, 0.6], ['Front shin across the mat, back leg long', 'Fold forward. Hips square. Feel the outer hip', 'Walk your hands back up', 'Reset']) },
+    'Frog stretch': { front: true, noGround: true, handL: [88, 24], handR: [152, 24], view: '0 6 240 204', hot: ['thigh'], still: 3, keys: [
+      K(0, P(frog, { y: 126, legU: -80 }), 'Seen from above. Knees wide, feet out, on your forearms'), K(1, P(frog, { y: 126, legU: -80 }), 'Rock your hips slowly back toward your heels'),
+      K(3.5, P(frog, { y: 139, legU: -84 }), 'Pause in the stretch. Breathe'), K(6, P(frog, { y: 139, legU: -84 }), 'Rock forward'), K(8, P(frog, { y: 126, legU: -80 }))] },
+    'Deep squat hold': { anchor: [125, 195], hot: ['thigh'], still: 4, keys: [
+      K(0, P(S, { armU: 30, armL: 120 }), 'Sink as low as you can, heels down'), K(2.5, deep, 'Elbows push your knees out. Chest tall'),
+      K(5, P(deep, { torso: 26, head: -20, legU: 103, legL: -30 }), 'Shift gently side to side'), K(8, deep, 'Stand up slowly'), K(10, P(S, { armU: 30, armL: 120 }))] },
+    'Cossack squat': { front: true, ankleL: [74, 191], ankleR: [166, 191], hot: ['thigh'], still: 2, keys: (() => {
+      const m = { x: 120, y: 116, torso: 0, head: 0, armU: -20, armL: 100, foot: -75 }, L = P(m, { x: 90, y: 156 }), R = P(m, { x: 150, y: 156 });
+      return [K(0, m, 'Wide stance. Sit down into one leg'), K(2, L, 'Other leg straight, toes up. Chest tall'), K(3, L, 'Push back to the middle'), K(5, m, 'Other side'), K(7, R, 'Only as deep as is comfortable'), K(8, R, 'Push back to the middle'), K(10, m)]; })() },
   };
 
-  // ---------- Drawing ----------
-  const pts = a => a.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-  let stopCurrent = null, holdPose = false;
-  /** While a hold timer runs, keep the figure in its hold position instead of looping. */
-  function holdFigure(on) { holdPose = !!on; }
-  /** Draw `name` into element `el` and animate it. Returns false if there is no figure for that move. */
-  function mountFigure(el, name) {
+  // ---------- Showing it in the page ----------
+  let stopCurrent = null, holdPose = false, restart = null;
+  /** Draw `name` into element `el` and animate it. opts.onLoop(n) fires each time the move starts another repetition. Returns false if there is no figure. */
+  function mountFigure(el, name, opts) {
     stopFigure();
     const fig = FIGS[name]; if (!fig) return false;
-    el.innerHTML = '<svg viewBox="' + (fig.view || '0 0 240 212') + '" role="img" aria-label="Animated figure showing ' + name.replace(/"/g, '') + '">'
-      + '<line class="fg-ground" x1="8" y1="201" x2="232" y2="201"/>'
-      + '<polyline class="fg-far" data-k="farArm"/><polyline class="fg-far" data-k="farLeg"/>'
-      + '<path class="fg-body" data-k="torso"/><circle class="fg-head" data-k="head" r="' + LEN.head + '"/>'
-      + '<polyline class="fg-body" data-k="nearLeg"/><polyline class="fg-body" data-k="nearArm"/>'
-      + '<line class="fg-prop" data-k="prop" visibility="hidden"/></svg><div class="fg-say" aria-live="off"></div>';
-    const q = k => el.querySelector('[data-k="' + k + '"]'), say = el.querySelector('.fg-say');
-    const draw = t => {
-      const p = poseAt(fig, t), j = joints(fig, p);
-      q('farArm').setAttribute('points', pts([j.sh, j.far.el, j.far.hand]));
-      q('farLeg').setAttribute('points', pts([j.hip, j.far.knee, j.far.ank, j.far.toe]));
-      q('nearArm').setAttribute('points', pts([j.sh, j.near.el, j.near.hand]));
-      q('nearLeg').setAttribute('points', pts([j.hip, j.near.knee, j.near.ank, j.near.toe]));
-      q('torso').setAttribute('d', 'M' + pts([j.hip]) + ' Q' + pts([j.mid]) + ' ' + pts([j.sh]));
-      q('head').setAttribute('cx', j.head[0].toFixed(1)); q('head').setAttribute('cy', j.head[1].toFixed(1));
-      if (fig.prop === 'dumbbell') { const h = j.near.hand, pr = q('prop'); pr.setAttribute('visibility', 'visible');
-        pr.setAttribute('x1', h[0] + 3); pr.setAttribute('x2', h[0] + 3); pr.setAttribute('y1', h[1] - 10); pr.setAttribute('y2', h[1] + 10); }
-      if (say.textContent !== p.say) say.textContent = p.say;
-    };
+    el.innerHTML = '<svg viewBox="' + (fig.view || '0 0 240 212') + '" role="img" aria-label="Animated figure showing ' + name.replace(/"/g, '') + '"></svg><div class="fg-say" aria-live="off"></div>';
+    const svg = el.firstChild, say = el.lastChild, dur = duration(fig);
+    const draw = t => { const f = frame(fig, poseAt(fig, t)); svg.innerHTML = f.svg; if (say.textContent !== f.say) say.textContent = f.say; };
     const still = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (still || !root.requestAnimationFrame) { draw(fig.still || 0); return true; }
-    let raf = 0; const t0 = performance.now();
-    const loop = now => { draw(holdPose ? (fig.still || 0) : (now - t0) / 1000); raf = requestAnimationFrame(loop); };
+    let raf = 0, t0 = performance.now(), loops = 0;
+    const loop = now => {
+      const t = (now - t0) / 1000, n = Math.floor(t / dur);
+      if (n !== loops) { loops = n; if (opts && opts.onLoop) opts.onLoop(n); }
+      draw(holdPose ? (fig.still || 0) : t); raf = requestAnimationFrame(loop);
+    };
     raf = requestAnimationFrame(loop);
+    restart = () => { t0 = performance.now(); loops = 0; };
     stopCurrent = () => cancelAnimationFrame(raf);
     return true;
   }
-  function stopFigure() { holdPose = false; if (stopCurrent) { stopCurrent(); stopCurrent = null; } }
+  /** While a hold timer runs, keep the figure in its hold position instead of looping. */
+  function holdFigure(on) { holdPose = !!on; }
+  /** Start the current move again from its first frame (used to line the animation up with a guided set). */
+  function restartFigure() { if (restart) restart(); }
+  function stopFigure() { holdPose = false; restart = null; if (stopCurrent) { stopCurrent(); stopCurrent = null; } }
 
-  root.FIGS = FIGS; root.mountFigure = mountFigure; root.stopFigure = stopFigure; root.holdFigure = holdFigure; root.figPoseAt = poseAt; root.figJoints = joints;
+  /** Turn a target like "3 × 8–12 each leg" or "2 × 30–45 s each side" into numbers a guided set can follow. `secs` is given for stretches, which have no target text. */
+  function figPlan(target, secs) {
+    const t = String(target || ''), sets = Number((t.match(/^(\d+)\s*(?:rounds\s*)?×/) || [])[1]) || 1;
+    const sides = /each way/.test(t) ? 4 : /each (arm|leg|side)/.test(t) ? 2 : 1;
+    const hold = t.match(/×\s*(\d+)(?:–(\d+))?\s*s\b/), reps = t.match(/×\s*(\d+)(?:–(\d+))?/);
+    if (hold) return { sets, sides, hold: Number(hold[1]), rest: 45 };
+    if (!t && secs) return { sets: 1, sides: 1, hold: secs, rest: 0 };
+    if (reps) return { sets, sides, lo: Number(reps[1]), hi: Number(reps[2] || reps[1]), rest: 75 };
+    return { sets, sides, lo: 0, hi: 0, rest: 75 };   // open-ended, like "as many as you can"
+  }
+
+  root.FIGS = FIGS; root.figPlan = figPlan; root.mountFigure = mountFigure; root.stopFigure = stopFigure; root.holdFigure = holdFigure; root.restartFigure = restartFigure;
+  root.figPoseAt = poseAt; root.figJoints = joints; root.figFrame = figFrame; root.figDuration = name => duration(FIGS[name]);
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
