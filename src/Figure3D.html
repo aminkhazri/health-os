@@ -16,9 +16,10 @@
 (function (root) {
   const CDN = 'https://cdn.jsdelivr.net/';
   const LIB = CDN + 'npm/three@0.160.0/+esm', LOADER = CDN + 'npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm';
-  // The athlete: Blender Studio's CC0 realistic male base mesh, made athletic, rigged and exported by tools/blender/build_body.py.
+  // The athlete: a steel android built from Blender Studio's CC0 realistic male base mesh by tools/blender/build_body.py.
   // MODEL_REV is the git commit the model file was added in, so phones can cache it forever and a new model gets a new address.
-  const MODEL_REV = '2a7bcdce2104e56946aea1b2d8c502aea33c1765', MODEL = CDN + 'gh/aminkhazri/health-os@' + MODEL_REV + '/models/athlete.glb';
+  const ROOM = CDN + 'npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js/+esm';   // a soft studio to reflect in metal surfaces
+  const MODEL_REV = 'd09be7646e33a115c4e6b5d77e84f4b8bf96eb28', MODEL = CDN + 'gh/aminkhazri/health-os@' + MODEL_REV + '/models/athlete.glb';
   const FALLBACK = CDN + 'gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb';   // "X Bot" sample character, used if the athlete cannot load
   const HOT = { thigh: ['UpLeg'], shin: ['Leg'], foot: ['Foot', 'ToeBase'], armU: ['Arm', 'Shoulder'], armL: ['ForeArm'], torso: ['Spine', 'Spine1', 'Spine2'], head: ['Neck'] };
   const LOOK = { body: 0xdfe5ec, joints: 0x4a5666, hot: 0xb8f23e, floor: 0x1b222c, block: 0x2b3542, steel: 0x2dd4bf, band: 0xf0c33c };
@@ -26,24 +27,27 @@
   //   side = lying on one side, chest toward the viewer · up / down = lying face up / face down, drawn from above · sit = sitting, drawn from above
   const MODE = { 'Copenhagen plank': 'side', 'Side plank': 'side', 'Side-lying neck raise': 'side', 'Supine spinal twist': 'up', 'Frog stretch': 'down', '90/90 hip switch': 'sit' };
   const HIP_H = { up: 0.11, down: 0.2, sit: 0.1 };
+  // moves where both hands hold one thing in front of the body
+  const GRIP = ['Goblet squat', 'Heel-raised goblet squat', 'Overhead triceps extension', 'Deep squat hold'];
   const rad = d => d * Math.PI / 180;
   let S = null, loading = null;
 
   function load() {
-    if (!loading) loading = Promise.all([import(LIB), import(LOADER)])
-      .then(([T, L]) => new Promise((ok, fail) => {
-        const use = g => { try { ok(S = setup(T, g.scene)); } catch (e) { fail(e); } }, loader = new L.GLTFLoader();
+    if (!loading) loading = Promise.all([import(LIB), import(LOADER), import(ROOM).catch(() => null)])
+      .then(([T, L, R]) => new Promise((ok, fail) => {
+        const use = g => { try { ok(S = setup(T, g.scene, R)); } catch (e) { fail(e); } }, loader = new L.GLTFLoader();
         loader.load(MODEL, use, undefined, () => loader.load(FALLBACK, use, undefined, fail));
       }));
     return loading;
   }
 
-  function setup(T, model) {
+  function setup(T, model, R) {
     const V = (x, y, z) => new T.Vector3(x || 0, y || 0, z || 0), Q = () => new T.Quaternion();
     const fov = 26, scene = new T.Scene(), camera = new T.PerspectiveCamera(fov, 240 / 212, 0.1, 60);
     const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(root.devicePixelRatio || 1, 2));
-    renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+    if (R && R.RoomEnvironment) { try { scene.environment = new T.PMREMGenerator(renderer).fromScene(new R.RoomEnvironment(), 0.04).texture; } catch (e) {} }
     const canvas = renderer.domElement; canvas.style.cssText = 'display:block;width:100%;height:auto;max-height:44vh;object-fit:contain;touch-action:pan-y;cursor:grab';
     scene.add(new T.HemisphereLight(0xffffff, 0x39424f, 1.5));
     const key = new T.DirectionalLight(0xffffff, 2.4); key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
@@ -72,10 +76,11 @@
     model.updateMatrixWorld(true);
     if (wp('RightToeBase').z < wp('RightFoot').z) { model.rotation.y = Math.PI; model.updateMatrixWorld(true); }
     meshes.forEach(m => {
-      const name = m.material.name || '', own = /^(Skin|Shorts|Hair|EyeWhite|Iris)$/.test(name), joints = /joint/i.test(name || m.name);
-      m.userData.base = own ? m.material.color.clone() : new T.Color(joints ? LOOK.joints : LOOK.body);   // the athlete brings its own colours; the fallback mannequin gets ours
-      m.userData.tint = own ? /^(Skin|Shorts)$/.test(name) : true;                                       // hair and eyes never light up
-      m.material = new T.MeshStandardMaterial({ vertexColors: true, roughness: own ? (m.material.roughness || 0.6) : joints ? 0.45 : 0.62, metalness: joints ? 0.3 : 0.02 });
+      const src = m.material, name = src.name || '', own = /^(Shell|Joint|Glow)$/.test(name), joints = /joint/i.test(name || m.name);
+      m.userData.base = own ? src.color.clone() : new T.Color(joints ? LOOK.joints : LOOK.body);   // the robot brings its own colours; the fallback mannequin gets ours
+      m.userData.tint = own ? name === 'Shell' : true;                                             // only the body shell lights up for working muscles
+      m.material = new T.MeshStandardMaterial({ vertexColors: true, roughness: own ? src.roughness : joints ? 0.45 : 0.62, metalness: own ? src.metalness : joints ? 0.3 : 0.02,
+        emissive: own && src.emissive ? src.emissive.clone() : new T.Color(0), emissiveIntensity: own ? (src.emissiveIntensity || 1) : 1, envMapIntensity: 1.0 });
       m.geometry.setAttribute('color', new T.BufferAttribute(new Float32Array(m.geometry.attributes.position.count * 3), 3));
     });
 
@@ -162,17 +167,19 @@
         if (mode === 'side' || latChest.dot(D(j.near.shJ, j.far.shJ)) < 0) { near = 'Left'; far = 'Right'; }
       } else { latChest = front ? D(j.near.shJ, j.far.shJ) : V(1, 0, 0); latHip = front ? D(j.near.hipJ, j.far.hipJ) : latChest; }
       aim('Hips', dHip, latHip, wq); aim('Spine2', dChest, latChest, wq); aim('Neck', dNeck, latChest, wq);
-      rig.position.copy(P(hip)).sub(hips0);
+      // the 2D "hip" is the hip joint, so put the midpoint of the two 3D hip joints exactly there (not the pelvis bone, which sits higher)
+      rig.position.set(0, 0, 0); rig.updateMatrixWorld(true);
+      rig.position.copy(P(hip)).sub(wp('LeftUpLeg').add(wp('RightUpLeg')).multiplyScalar(0.5));
       rig.updateMatrixWorld(true);   // the torso is placed; now the limbs reach out from where it put the hips and shoulders
       // each limb stays in its own slice of space, parallel to the 2D drawing (so legs sit hip-width apart instead of on top of each other)
-      const target = (rootBone, root2, end2, lift) => { const t = P(end2); return lift ? t.addScaledVector(plane, wp(rootBone).sub(P(root2)).dot(plane)) : t; };
+      const target = (rootBone, root2, end2, lift) => { const t = P(end2); return lift ? t.addScaledVector(plane, wp(rootBone).sub(P(root2)).dot(plane) * lift) : t; };
       [[near, j.near], [far, j.far]].forEach(([side, l]) => {
         const hip2 = front ? l.hipJ : hip, sh2 = front ? l.shJ : sh;
         const n = hinge(side + 'UpLeg', D(hip2, l.knee), D(l.knee, l.ank), 'Hips', wq, true, still);
-        reach(side + 'UpLeg', side + 'Leg', target(side + 'UpLeg', hip2, l.ank, true), n, wq);
+        reach(side + 'UpLeg', side + 'Leg', target(side + 'UpLeg', hip2, l.ank, 1), n, wq);
         aim(side + 'Foot', (flat ? D(l.knee, l.ank) : D(l.ank, l.toe)).applyAxisAngle(n, footPitch), n, wq);
         const m = hinge(side + 'Arm', D(sh2, l.el), D(l.el, l.hand), 'Spine2', wq, false, still);
-        const hand = reach(side + 'Arm', side + 'ForeArm', target(side + 'Arm', sh2, l.hand, mode !== 'sit'), m, wq);
+        const hand = reach(side + 'Arm', side + 'ForeArm', target(side + 'Arm', sh2, l.hand, mode === 'sit' ? 0 : cur.grip ? 0.2 : 1), m, wq);   // both hands on one weight: bring them together
         // a hand resting on the floor lies flat, fingers pointing the way the head points; otherwise it simply follows the forearm
         const H = B[side + 'Hand'], flatDir = dChest.clone().setY(0);
         if (!flat && !fig.noGround && hand.y < 0.13 && flatDir.lengthSq() > 0.08) aim(side + 'Hand', flatDir.normalize(), V(0, 1, 0), wq);
@@ -217,6 +224,7 @@
           const side = o.at === 'hand2' ? 'Left' : 'Right', fore = wp(side + 'Hand').sub(wp(side + 'ForeArm')).normalize();
           const axis = o.how === 'dot' ? plane.clone() : o.how === 'v' ? UP.clone() : o.how === 'h' ? V().crossVectors(UP, plane) : o.how === 'p' ? V().crossVectors(fore, plane) : fore;
           o.db.position.copy(point(o.at)); if (o.how === 'a') o.db.position.addScaledVector(fore, 0.06);
+          if (cur.grip) o.db.position.lerp(point('hand2'), 0.5);
           o.db.quaternion.setFromUnitVectors(UP, axis.normalize());
         } else {
           const a = point(o.a), b = point(o.b), d = b.clone().sub(a), len = d.length() || 0.001;
@@ -266,7 +274,7 @@
       const half = dist * Math.tan(rad(fov / 2)) * v[2] / v[3]; floor.scale.setScalar(half * (flat ? 0.8 : 0.98) / 2.6); shade.scale.setScalar(1 / floor.scale.x);   // the pool of light fades out just inside the picture
       camera.aspect = v[2] / v[3]; camera.updateProjectionMatrix(); aimCamera();
       const w = Math.max(120, el.clientWidth || 300); renderer.setSize(w, Math.round(w * v[3] / v[2]), false);
-      prevN = {}; paint(fig.hot); cur = { fig, live: buildProps(fig), still: false };
+      prevN = {}; paint(fig.hot); cur = { fig, live: buildProps(fig), still: false, grip: GRIP.includes(name) };
       el.insertBefore(canvas, el.firstChild); return canvas;
     }
     function draw(fig, p, still) {
