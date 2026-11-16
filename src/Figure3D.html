@@ -1,0 +1,204 @@
+<script>
+/**
+ * 3D demo figure. Loads a free rigged human model and poses it with the same keyframes the 2D figure uses.
+ *
+ * How it works:
+ *  - Three.js (a 3D library) and the model are fetched from a public CDN the first time a demo is opened, then cached by the browser.
+ *  - A rigged model has a skeleton of "bones". Every frame we ask the 2D engine (Figure.html) where each joint is,
+ *    lift those points into 3D, and turn each bone so it points from its joint to the next one.
+ *  - Turning a bone needs two directions: where it points, and which way its hinge (knee, elbow) faces. Together they pin
+ *    the rotation down completely, so limbs do not twist at random.
+ *  - Working muscles are tinted by "skin weights": every point on the body surface knows which bones move it, so we colour
+ *    the points that belong to the working bones.
+ *
+ * If anything fails to load (offline, no WebGL), Figure.html keeps showing the 2D figure.
+ */
+(function (root) {
+  const CDN = 'https://cdn.jsdelivr.net/';
+  const LIB = CDN + 'npm/three@0.160.0/+esm', LOADER = CDN + 'npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm';
+  const MODEL = CDN + 'gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb';   // "X Bot" sample character from the three.js examples
+  const HOT = { thigh: ['UpLeg'], shin: ['Leg'], foot: ['Foot', 'ToeBase'], armU: ['Arm', 'Shoulder'], armL: ['ForeArm'], torso: ['Spine', 'Spine1', 'Spine2'], head: ['Neck', 'Head'] };
+  const LOOK = { body: 0xdfe5ec, joints: 0x2a3441, hot: 0xb8f23e, floor: 0x1b222c, block: 0x2b3542, steel: 0x2dd4bf, band: 0xf0c33c };
+  const rad = d => d * Math.PI / 180;
+  let S = null, loading = null;
+
+  function load() {
+    if (!loading) loading = Promise.all([import(LIB), import(LOADER)])
+      .then(([T, L]) => new Promise((ok, fail) => new L.GLTFLoader().load(MODEL, g => { try { ok(S = setup(T, g.scene)); } catch (e) { fail(e); } }, undefined, fail)));
+    return loading;
+  }
+
+  function setup(T, model) {
+    const V = (x, y, z) => new T.Vector3(x || 0, y || 0, z || 0), Q = () => new T.Quaternion();
+    const fov = 26, scene = new T.Scene(), camera = new T.PerspectiveCamera(fov, 240 / 212, 0.1, 60);
+    const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(root.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+    const canvas = renderer.domElement; canvas.style.cssText = 'display:block;width:100%;height:auto;touch-action:pan-y;cursor:grab';
+    scene.add(new T.HemisphereLight(0xffffff, 0x39424f, 1.5));
+    const key = new T.DirectionalLight(0xffffff, 2.4); key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+    Object.assign(key.shadow.camera, { left: -2.2, right: 2.2, top: 2.6, bottom: -1, near: 0.5, far: 12 }); key.shadow.bias = -0.0015;
+    const rim = new T.DirectionalLight(0x9fd8ff, 1.1);
+    scene.add(key, key.target, rim, rim.target);
+    const floor = new T.Mesh(new T.CircleGeometry(1.9, 64), new T.MeshStandardMaterial({ color: LOOK.floor, roughness: 1 }));
+    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+    const props = new T.Group(); scene.add(props);
+
+    // --- the model: find its bones and skinned meshes, face it toward +Z, give it our own materials
+    const rig = new T.Group(); rig.add(model); scene.add(rig);
+    const B = {}, meshes = [];
+    model.traverse(o => {
+      if (o.isBone) B[o.name.replace(/^mixamorig:?/, '')] = o;
+      if (o.isSkinnedMesh) { meshes.push(o); o.frustumCulled = false; o.castShadow = true; }
+    });
+    const wp = n => B[n].getWorldPosition(V());
+    model.updateMatrixWorld(true);
+    if (wp('RightToeBase').z < wp('RightFoot').z) { model.rotation.y = Math.PI; model.updateMatrixWorld(true); }
+    meshes.forEach(m => {
+      const joints = /joint/i.test(m.material.name || m.name);
+      m.userData.base = new T.Color(joints ? LOOK.joints : LOOK.body);
+      m.material = new T.MeshStandardMaterial({ vertexColors: true, roughness: joints ? 0.45 : 0.62, metalness: joints ? 0.3 : 0.05 });
+      m.geometry.setAttribute('color', new T.BufferAttribute(new Float32Array(m.geometry.attributes.position.count * 3), 3));
+    });
+
+    // --- rest pose: for each bone we steer, remember its orientation, the way it points, and its hinge axis
+    const CH = { Hips: 'Spine1', Spine2: 'Neck', Neck: 'Head' };
+    ['Right', 'Left'].forEach(s => Object.assign(CH, { [s + 'UpLeg']: s + 'Leg', [s + 'Leg']: s + 'Foot', [s + 'Foot']: s + 'ToeBase', [s + 'Arm']: s + 'ForeArm', [s + 'ForeArm']: s + 'Hand' }));
+    const rest = {};
+    Object.keys(CH).forEach(n => { rest[n] = { q: B[n].getWorldQuaternion(Q()), d: wp(CH[n]).sub(wp(n)).normalize(), n: /Arm/.test(n) ? V(0, /^Right/.test(n) ? 1 : -1, 0) : V(1, 0, 0) }; });
+    const legLen = wp('RightUpLeg').distanceTo(wp('RightLeg')) + wp('RightLeg').distanceTo(wp('RightFoot'));
+    const s = legLen / 86, floorY = 195 + wp('RightFoot').y / s, hips0 = wp('Hips'), footPitch = Math.asin(-rest.RightFoot.d.y);
+    const rootQ = B.Hips.parent.getWorldQuaternion(Q());
+
+    const m1 = new T.Matrix4(), m2 = new T.Matrix4();
+    function frameOf(d, n, out) {   // a full orientation from "points along d" and "hinge faces n"
+      const y = d.clone().normalize(), x = n.clone().addScaledVector(y, -n.dot(y));
+      if (x.lengthSq() < 1e-8) x.set(1, 0, 0).addScaledVector(y, -y.x);
+      x.normalize(); return out.makeBasis(x, y, V().crossVectors(x, y));
+    }
+    function worldQ(o, wq) {
+      if (wq.has(o)) return wq.get(o);
+      const q = o.isBone ? worldQ(o.parent, wq).clone().multiply(o.quaternion) : rootQ; wq.set(o, q); return q;
+    }
+    function aim(name, d, n, wq) {
+      const r = rest[name]; frameOf(r.d, r.n, m1); frameOf(d, n, m2); m2.multiply(m1.transpose());
+      const q = Q().setFromRotationMatrix(m2).multiply(r.q);
+      B[name].quaternion.copy(worldQ(B[name].parent, wq).clone().invert().multiply(q)); wq.set(B[name], q);
+    }
+    /** Hinge axis for a two-bone limb: the bend itself when it is bent, sliding to a natural default when it is straight. */
+    function hinge(name, d1, d2) {
+      const r = rest[name], fb = r.n.clone().applyQuaternion(Q().setFromUnitVectors(r.d, d1));
+      return V().crossVectors(d1, d2).addScaledVector(fb, 0.2).normalize();
+    }
+
+    let P = null, plane = null, cur = null;   // 2D point -> 3D point for the current move; the axis sticking out of the 2D drawing
+    function pose(fig, j) {
+      const D = (a, b) => P(b).sub(P(a)).normalize(), wq = new Map(), front = !!j.front;
+      const hip = j.hip, sh = front ? j.chest : j.sh, mid = front ? [(hip[0] + sh[0]) / 2, (hip[1] + sh[1]) / 2] : j.mid;
+      const lat = front ? D(j.near.shJ, j.far.shJ) : V(1, 0, 0);
+      aim('Hips', D(hip, mid), front ? D(j.near.hipJ, j.far.hipJ) : lat, wq); aim('Spine2', D(mid, sh), lat, wq); aim('Neck', D(sh, j.head), lat, wq);
+      [['Right', j.near], ['Left', j.far]].forEach(([side, l]) => {
+        const t = D(front ? l.hipJ : hip, l.knee), c = D(l.knee, l.ank), n = hinge(side + 'UpLeg', t, c);
+        aim(side + 'UpLeg', t, n, wq); aim(side + 'Leg', c, n, wq); aim(side + 'Foot', D(l.ank, l.toe).applyAxisAngle(n, footPitch), n, wq);
+        const u = D(front ? l.shJ : sh, l.el), f = D(l.el, l.hand), m = hinge(side + 'Arm', u, f);
+        aim(side + 'Arm', u, m, wq); aim(side + 'ForeArm', f, m, wq);
+      });
+      rig.position.copy(P(hip)).sub(hips0);
+      rig.updateMatrixWorld(true);
+    }
+
+    // --- equipment
+    const mat = (c, o) => new T.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.6 }, o));
+    function dumbbell() {
+      const g = new T.Group(), plate = new T.CylinderGeometry(0.05, 0.05, 0.05, 20), m = mat(LOOK.steel, { metalness: 0.4, roughness: 0.35 });
+      g.add(new T.Mesh(new T.CylinderGeometry(0.014, 0.014, 0.2, 10), m));
+      [-0.085, 0.085].forEach(y => { const p = new T.Mesh(plate, m); p.position.y = y; g.add(p); });
+      g.traverse(o => { o.castShadow = true; }); return g;
+    }
+    function buildProps(fig) {
+      props.clear(); const live = [];
+      (fig.props || []).forEach(q => {
+        if (q[0] === 'rect' || q[0] === 'line') {
+          const r = q[0] === 'rect' ? [q[1], q[2], q[3], q[4]] : [Math.min(q[1], q[3]) - 2, Math.min(q[2], q[4]), Math.abs(q[3] - q[1]) + 4, Math.abs(q[4] - q[2]) + 4];
+          const wall = q[0] === 'line', deep = wall ? 1.3 : 0.75, size = fig.front ? [r[2] * s, r[3] * s, deep] : [deep, r[3] * s, r[2] * s];
+          const b = new T.Mesh(new T.BoxGeometry(size[0], size[1], size[2]), mat(LOOK.block, wall ? { transparent: true, opacity: 0.45 } : {}));
+          b.position.copy(P([r[0] + r[2] / 2, r[1] + r[3] / 2])); b.castShadow = !wall; b.receiveShadow = true; props.add(b);
+        }
+        if (q[0] === 'db') (q[1] === 'both' ? ['hand', 'hand2'] : [q[1]]).forEach(k => { const g = dumbbell(); props.add(g); live.push({ db: g, at: k, how: q[1] === 'knee' ? 'dot' : q[2] }); });
+        if (q[0] === 'band') { const b = new T.Mesh(new T.CylinderGeometry(0.012, 0.012, 1, 8), mat(LOOK.band)); props.add(b); live.push({ band: b, a: q[1], b: q[2] }); }
+      });
+      return live;
+    }
+    const UP = V(0, 1, 0);
+    function point(k, j) {
+      if (Array.isArray(k)) return P(k);
+      if (k === 'knee') return wp('RightLeg').add(V(0, 0.07, 0));
+      if (k === 'foot') return wp('RightFoot');
+      const side = k === 'hand2' ? 'Left' : 'Right', h = wp(side + 'Hand');
+      return h.add(h.clone().sub(wp(side + 'ForeArm')).normalize().multiplyScalar(0.07));   // the palm, a little past the wrist
+    }
+    function moveProps(live) {
+      live.forEach(o => {
+        if (o.db) {
+          const side = o.at === 'hand2' ? 'Left' : 'Right', fore = wp(side + 'Hand').sub(wp(side + 'ForeArm')).normalize();
+          const axis = o.how === 'dot' ? plane.clone() : o.how === 'v' ? UP.clone() : o.how === 'h' ? V().crossVectors(UP, plane) : o.how === 'p' ? V().crossVectors(fore, plane) : fore;
+          o.db.position.copy(point(o.at)); if (o.how === 'a') o.db.position.addScaledVector(fore, 0.06);
+          o.db.quaternion.setFromUnitVectors(UP, axis.normalize());
+        } else {
+          const a = point(o.a), b = point(o.b), d = b.clone().sub(a), len = d.length() || 0.001;
+          o.band.position.copy(a).addScaledVector(d, 0.5); o.band.scale.set(1, len, 1); o.band.quaternion.setFromUnitVectors(UP, d.divideScalar(len));
+        }
+      });
+    }
+
+    /** Tint the parts of the body surface that belong to the working bones. */
+    function paint(hot) {
+      const names = [].concat(...(hot || []).map(h => HOT[h] || [])), lime = new T.Color(LOOK.hot);
+      meshes.forEach(m => {
+        const idx = m.geometry.attributes.skinIndex, wt = m.geometry.attributes.skinWeight, col = m.geometry.attributes.color, base = m.userData.base;
+        const isHot = m.skeleton.bones.map(b => names.includes(b.name.replace(/^mixamorig:?(Left|Right)?/, '')));
+        for (let i = 0; i < col.count; i++) {
+          let w = 0; for (let k = 0; k < 4; k++) if (isHot[idx.getComponent(i, k)]) w += wt.getComponent(i, k);
+          w = Math.min(1, w * 1.15) * 0.85;
+          col.setXYZ(i, base.r + (lime.r - base.r) * w, base.g + (lime.g - base.g) * w, base.b + (lime.b - base.b) * w);
+        }
+        col.needsUpdate = true;
+      });
+    }
+
+    // --- camera: framed from the 2D view box, turned a little so the depth shows; drag sideways to look around
+    let az = 0, target = V(), dist = 4;
+    function aimCamera() {
+      const el = rad(10);
+      camera.position.set(target.x + dist * Math.sin(az) * Math.cos(el), target.y + dist * Math.sin(el), target.z + dist * Math.cos(az) * Math.cos(el));
+      camera.lookAt(target);
+      key.position.set(camera.position.x * 0.4 + 1.2, 4.5, camera.position.z * 0.4 + 1.5); key.target.position.set(target.x, 0, target.z);
+      rim.position.set(-camera.position.x, 2.5, -camera.position.z); rim.target.position.copy(target);
+    }
+    let drag = null;
+    canvas.addEventListener('pointerdown', e => { drag = e.clientX; canvas.setPointerCapture(e.pointerId); });
+    canvas.addEventListener('pointermove', e => { if (drag === null) return; az -= (e.clientX - drag) * 0.012; drag = e.clientX; aimCamera(); if (cur && cur.still) renderer.render(scene, camera); });
+    ['pointerup', 'pointercancel'].forEach(t => canvas.addEventListener(t, () => { drag = null; }));
+
+    function mount(el, fig) {
+      const v = (fig.view || '0 0 240 212').split(' ').map(Number), front = !!fig.front;
+      P = front ? p => V((p[0] - 120) * s, (floorY - p[1]) * s, 0) : p => V(0, (floorY - p[1]) * s, (p[0] - 120) * s);
+      plane = front ? V(0, 0, 1) : V(1, 0, 0);
+      target = P([v[0] + v[2] / 2, v[1] + v[3] / 2]); dist = (v[3] * s / 2) / Math.tan(rad(fov / 2)) * 1.06; az = front ? rad(22) : rad(-58);
+      floor.visible = !fig.noGround; floor.position.set(target.x, 0, target.z);
+      camera.aspect = v[2] / v[3]; camera.updateProjectionMatrix(); aimCamera();
+      const w = Math.max(120, el.clientWidth || 300); renderer.setSize(w, Math.round(w * v[3] / v[2]), false);
+      paint(fig.hot); cur = { fig, live: buildProps(fig), still: false };
+      el.insertBefore(canvas, el.firstChild); return canvas;
+    }
+    function draw(fig, p, still) {
+      if (!cur || cur.fig !== fig) return;
+      cur.still = !!still; pose(fig, root.figJoints(fig, p)); moveProps(cur.live); renderer.render(scene, camera);
+    }
+    function unmount() { cur = null; if (canvas.parentNode) canvas.parentNode.removeChild(canvas); }
+    return { mount, draw, unmount, bones: B, T, scene, camera, renderer };
+  }
+
+  root.fig3d = { load, ready: () => !!S, mount: (el, fig) => S.mount(el, fig), draw: (fig, p, still) => S.draw(fig, p, still), unmount: () => S && S.unmount(), state: () => S };
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
