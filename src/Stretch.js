@@ -54,14 +54,14 @@ function routineSeconds_(routine) {
 // If one is ever removed, the app still offers "Search YouTube" for that move. To swap one, change its ID here.
 const VIDEOS = {
   // Workout A
-  'Goblet squat': 'gCESNsDsbqk', 'Dumbbell floor press': 'uUGDRwge4F8', 'One-arm dumbbell row': 'nehAvSrfUOg',
-  'Dumbbell Romanian deadlift': 'hQgFixeXdZo', 'Dumbbell shoulder press': 'B-aVuyhvLHU', 'Band pull-apart': 'bYsgk9SrJ48',
+  'Goblet squat': 'gCESNsDsbqk', 'Dumbbell floor press': 'ijKVXhRDJ-U', 'One-arm dumbbell row': 'jyrudAO4Rxc',
+  'Dumbbell Romanian deadlift': 'O2dUYS-YYus', 'Dumbbell shoulder press': '-aVIf0bgMEs', 'Band pull-apart': 'bYsgk9SrJ48',
   // Workout B
-  'Bulgarian split squat': 'uODWo4YqbT8', 'Single-leg Romanian deadlift': 'X2BM5J3UkEo', 'Dumbbell hip thrust': '29OfN4ztW_g',
-  'Heel-raised goblet squat': 'RUXLuZ_GLrE', 'Standing calf raise': 'eMTy3qylqnE', 'Dead bug': 'GbSC02oU3To',
+  'Bulgarian split squat': '1bYdM_jK8nE', 'Single-leg Romanian deadlift': 'X2BM5J3UkEo', 'Dumbbell hip thrust': 'c3K1Afir9kk',
+  'Heel-raised goblet squat': 'RUXLuZ_GLrE', 'Standing calf raise': 'nkAh8pFrvEA', 'Dead bug': 'GbSC02oU3To',
   // Workout C
-  'Push-up': 'lsRAK6cr5kY', 'Band row': 'LSkyinhmA8k', 'Incline dumbbell press': 'gl8H4QLXKTo',
-  'Dumbbell lateral raise': 'kDqklk1ZESo', 'Dumbbell curl': 'cBSD6mQIPQk', 'Overhead triceps extension': '-Vyt2QdsR7E',
+  'Push-up': 'QCEyV-spfn8', 'Band row': 'LSkyinhmA8k', 'Incline dumbbell press': 'gl8H4QLXKTo',
+  'Dumbbell lateral raise': '-_XE4qbV7Yw', 'Dumbbell curl': 'pl3z_AihNzk', 'Overhead triceps extension': 'rFNQv9eae6I',
   // Stretches
   'Cat-cow': '1Y0YjXS9sKI', "Child's pose": 'LZgABs0IggM', "World's greatest stretch": '-CiWQ2IvY34',
   'Downward dog': 'sd-Fn6xpyeg', 'Thread the needle': '6roMIB2YV4Y', 'Half-kneeling hip flexor stretch': 'gqoPYLUgP48',
@@ -69,7 +69,7 @@ const VIDEOS = {
   'Butterfly stretch': '4J7kbCmPScQ', 'Doorway chest stretch': 'CEQMx4zFwYs', 'Supine spinal twist': 'mNdJti7ZwKI',
   // Neck project
   'Supine chin tuck': '7OgvJ653oxE', 'Neck isometric hold': 'WnKcq1Uh8m4', 'Prone neck extension': 'QrYSctbYQfg',
-  'Side-lying neck raise': 'duOfvQUQfWQ', 'Dumbbell shrug': 'g6qbq4Lf1FI',
+  'Side-lying neck raise': 'duOfvQUQfWQ', 'Dumbbell shrug': 'x22AJbViigk',
   // Calves project
   'Single-leg deficit calf raise': 'gUEffJQ2IdU', 'Seated dumbbell calf raise': 'fFWpWJy8ybU', 'Tibialis raise': 'VzIcGAgBiaM',
   // Hip mobility project
@@ -81,4 +81,9 @@ const VIDEOS = {
   'Single-leg calf raise hold': '7Udb4E3Uks8',
 };
 
-if (typeof module !== 'undefined') module.exports = { STRETCHES, STRETCH_ROUTINES, VIDEOS, routineSeconds_ }; // Node tests only
+// Moves whose video is a vertical 3D-animated short from the DEMIC channel (youtube.com/@officialdemic). The app shows these in a tall frame.
+// DEMIC has no clip for the stretches, neck, band or mobility moves, so those keep their regular how-to videos.
+const TALL_VIDEOS = ['One-arm dumbbell row', 'Dumbbell floor press', 'Dumbbell Romanian deadlift', 'Dumbbell shoulder press', 'Bulgarian split squat', 'Dumbbell hip thrust',
+  'Standing calf raise', 'Push-up', 'Dumbbell lateral raise', 'Dumbbell curl', 'Overhead triceps extension', 'Dumbbell shrug'];
+
+if (typeof module !== 'undefined') module.exports = { STRETCHES, STRETCH_ROUTINES, VIDEOS, TALL_VIDEOS, routineSeconds_ }; // Node tests only

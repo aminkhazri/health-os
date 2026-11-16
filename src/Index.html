@@ -271,6 +271,7 @@
   .fg-db { stroke: var(--teal); stroke-linecap: round; } .fg-dbdot { fill: var(--teal); }
   .fg-band { fill: none; stroke: var(--warn); stroke-linecap: round; }
   .fg-say { min-height: 2.8em; margin-top: 6px; text-align: center; font-size: 15px; line-height: 1.4; color: var(--teal); }
+  .vid-frame.tall { aspect-ratio: 9 / 16; width: auto; height: min(62vh, 560px); align-self: center; }   /* vertical clips (YouTube Shorts) */
   .vid-frame.fig { aspect-ratio: auto; background: var(--surface-1); border: 1px solid var(--border); padding: 10px 10px 4px; }
   .s-fig { width: min(300px, 74vw); }
   .s-fig .fg-say { display: none; }
@@ -541,6 +542,7 @@
   <div class="vid-frame" id="vFrame"></div>
   <div class="muted" id="vCue"></div>
   <div class="v-timer" id="vTimer" hidden></div>
+  <button class="btn2" id="vSwap" hidden></button>
   <div class="vid-row"><a class="btn2" id="vOpen" target="_blank" rel="noopener">Open in YouTube</a><button class="btn2" onclick="closeDemo()">Close</button></div>
 </div>
 <div class="toast" id="toast"></div>
@@ -868,21 +870,26 @@ function undoStretch() {
 }
 
 // ---------- Demo videos: the player is only created when you tap Demo, so videos cost nothing until then. ----------
-function demo(name) {
+function demo(name, mode) {
   const id = (D.videos || {})[name], yt = id ? 'https://www.youtube.com/watch?v=' + id : 'https://www.youtube.com/results?search_query=' + encodeURIComponent('how to ' + name);
   $('vTitle').textContent = name; $('vCue').textContent = (D.stretches || {})[name] || '';
-  const frame = $('vFrame'), hasFig = !!(window.FIGS && FIGS[name]);
-  frame.classList.toggle('fig', hasFig);
+  // Two ways to show a move: a real video from YouTube (the default), or the animated guide that counts reps with you.
+  const frame = $('vFrame'), figOK = !!(window.FIGS && FIGS[name]), hasFig = figOK && (mode === 'fig' || !id);
+  stopFigure(); frame.innerHTML = '';
+  frame.classList.toggle('fig', hasFig); frame.classList.toggle('tall', !hasFig && (D.tallVideos || []).includes(name));
   if (hasFig) mountFigure(frame, name, { onLoop: guideRep });
   else {
     // Note: no "//" inside a backtick string here. Apps Script's template step treats it as a comment and cuts the line.
-    const src = 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&playsinline=1';
+    const src = 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&playsinline=1&loop=1&playlist=' + id;
     frame.innerHTML = id
       ? '<iframe src="' + src + '" title="' + esc(name) + ' demo" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>'
       : '<div class="muted" style="padding:20px">No video saved for this one yet.</div>';
   }
   $('vOpen').href = yt;
-  $('vOpen').textContent = hasFig ? 'Watch a video instead' : id ? 'Open in YouTube' : 'Search YouTube';
+  $('vOpen').textContent = id ? 'Open in YouTube' : 'Search YouTube';
+  const swap = $('vSwap'); swap.hidden = !(figOK && id);
+  swap.textContent = hasFig ? 'Watch the video' : 'Guided set with rep counter';
+  swap.onclick = () => demo(name, hasFig ? 'video' : 'fig');
   // Guided set: 5 s to get set, a tone to start, reps counted in time with the figure (or a hold countdown), then a rest timer.
   const tg = String(((D.workoutInfo || {}).targets || {})[name] || Object.values(D.projects || {}).map(p => p.targets[name]).find(Boolean) || '');
   const step = [].concat(...(D.routines || []).map(r => r.steps)).find(st => st[0] === name);   // stretches have seconds instead of a target
