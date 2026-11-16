@@ -244,6 +244,7 @@
   .s-side { color: var(--teal); font-weight: 600; min-height: 1.3em; }
   .s-count { font-family: var(--display); font-weight: 800; font-size: 92px; line-height: 1; color: var(--lime); font-variant-numeric: tabular-nums; }
   .s-count.prep { color: var(--text-secondary); }
+  .s-count.last { color: var(--warn); animation: pop .38s cubic-bezier(.2,1.6,.4,1); }
   .s-prog { width: 70%; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
   .s-prog i { display: block; height: 100%; width: 0; background: var(--lime); transition: width 1s linear; }
   .s-cue { color: var(--text-secondary); font-size: 16px; line-height: 1.45; text-align: center; max-width: 34ch; padding: 0 20px; }
@@ -663,14 +664,23 @@ let sQ = [], sI = 0, sLeft = 0, sPrep = 0, sDone = 0, sTotal = 0, sTick = null, 
 function keepAwake(on) {   // ask the phone not to dim the screen mid-routine (ignored where unsupported)
   try { if (on && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeL = l; }, () => {}); else if (wakeL) { wakeL.release(); wakeL = null; } } catch (e) {}
 }
-function beep() {
-  try { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = 660; g.gain.value = .08; o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + .18); } catch (e) {}
+// A short tone. delay (seconds) lets two tones be queued as a two-note signal.
+function tone(freq, dur, delay) {
+  try {
+    if (actx.state === 'suspended') actx.resume();
+    const t = actx.currentTime + (delay || 0), o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
+  } catch (e) {}
 }
 function startStretch(id) {
   const r = D.routines.find(x => x.id === id); if (!r) return;
   sQ = []; r.steps.forEach(([n, s, both]) => both ? sQ.push([n, s, 'Left side'], [n, s, 'Right side']) : sQ.push([n, s, '']));
   sTotal = sQ.reduce((a, x) => a + x[1], 0); sI = 0; sDone = 0; sPaused = false; $('sPause').textContent = 'Pause';
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}   // iPhone: play even with the silent switch on
+  tone(520, 0.15);   // a sound inside the tap itself is what lets iPhone play the later ones
   $('str').hidden = false; keepAwake(true); stepStretch();
   clearInterval(sTick); sTick = setInterval(tickStretch, 1000);
 }
@@ -680,14 +690,22 @@ function paintStretch() {
   $('sStep').textContent = `Stretch ${sI + 1} of ${sQ.length}`;
   $('sName').textContent = n; $('sCue').textContent = (D.stretches || {})[n] || '';
   $('sSide').textContent = (side ? side + ' · ' : '') + (sPrep > 0 ? 'get into position' : 'hold and breathe');
-  $('sCount').textContent = sPrep > 0 ? sPrep : sLeft; $('sCount').classList.toggle('prep', sPrep > 0);
+  const c = $('sCount'), last = sPrep === 0 && sLeft <= 3;
+  c.textContent = sPrep > 0 ? sPrep : sLeft; c.classList.toggle('prep', sPrep > 0);
+  c.classList.remove('last'); if (last) { void c.offsetWidth; c.classList.add('last'); }   // re-adding the class replays the pulse each second
   $('sBar').style.width = (sDone / sTotal * 100) + '%';
 }
+// Sound signals: three ticks on 3, 2, 1, then a rising two-note "switch". A low tone means "start holding".
 function tickStretch() {
   if (sPaused) return;
-  if (sPrep > 0) { sPrep--; if (sPrep === 0) beep(); }
-  else { sLeft--; sDone++; }
-  if (sLeft <= 0) { beep(); sI++; if (sI >= sQ.length) return stopStretch(true); return stepStretch(); }
+  if (sPrep > 0) { sPrep--; if (sPrep === 0) tone(520, 0.25); }
+  else { sLeft--; sDone++; if (sLeft >= 1 && sLeft <= 3) tone(700, 0.12); }
+  if (sLeft <= 0) {
+    sI++;
+    if (sI >= sQ.length) { tone(784, 0.2); tone(988, 0.2, 0.2); tone(1175, 0.5, 0.4); return stopStretch(true); }
+    tone(940, 0.16); tone(1250, 0.3, 0.18);
+    return stepStretch();
+  }
   paintStretch();
 }
 function strPause() { sPaused = !sPaused; $('sPause').textContent = sPaused ? 'Resume' : 'Pause'; }
