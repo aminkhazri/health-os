@@ -23,6 +23,26 @@ const WORKOUT_INFO = {
   },
 };
 
+// Projects: short add-on sessions for specific goals. They log to the Workout Log like any session but don't count
+// toward the 3 main workouts a week, don't change which main workout is next, and don't affect Workout/Recovery on the chart.
+const PROJECTS = {
+  Neck: {
+    icon: '🛡️', name: 'Neck strength',
+    why: 'A strong neck supports the spine and helps absorb contact and headers in soccer.',
+    how: '3 times a week, about 8 minutes: right after Workouts A, B and C. Slow and controlled: never jerk your head. Start with no extra weight. Stop if you feel sharp pain, numbness, tingling or a headache.',
+    ex: ['Supine chin tuck', 'Neck isometric hold', 'Prone neck extension', 'Side-lying neck raise', 'Dumbbell shrug'],
+    targets: { 'Supine chin tuck': '2 × 10, hold 3 s', 'Neck isometric hold': '2 rounds × 10 s each way (front, back, left, right)',
+      'Prone neck extension': '2 × 12, slow', 'Side-lying neck raise': '2 × 12 each side', 'Dumbbell shrug': '3 × 12–15, 1 s squeeze' },
+  },
+  Calves: {
+    icon: '🦵', name: 'Calf size',
+    why: 'Strong calves that need more size: more weekly sets, a full stretch at the bottom and steady added weight.',
+    how: '3 times a week on rest days (Mon, Wed, Fri), about 10 minutes. Every rep: 3 s down, 2 s paused in the deepest stretch, then up and squeeze 1 s. When every set hits the top of the range, add weight. Size also needs the calorie surplus you are already eating.',
+    ex: ['Single-leg deficit calf raise', 'Seated dumbbell calf raise', 'Tibialis raise'],
+    targets: { 'Single-leg deficit calf raise': '3 × 10–15 each leg', 'Seated dumbbell calf raise': '3 × 15–20', 'Tibialis raise': '2 × 15–20' },
+  },
+};
+
 /** Pure: which workout is next. A planned day (Thu/Sat/Sun) wins; otherwise rotate A -> B -> C after the last one logged. */
 function nextWorkout_(isoDow, lastLetter) {
   if (WORKOUT_INFO.day[isoDow]) return WORKOUT_INFO.day[isoDow];
@@ -74,18 +94,20 @@ function getAppData(dateKey) {
 
   const wl = ss.getSheetByName('Workout Log');
   const wv = wl.getRange(2, 1, Math.max(wl.getLastRow() - 1, 1), 7).getValues().filter(r => r[0] instanceof Date && r[2] !== '');
-  const last = {};
+  const last = {}, lastSession = {};
   let lastLetter = null, lastDate = null;
   wv.forEach(r => {
     last[r[2]] = { date: key_(r[0], tz), sets: num_(r[3]), reps: String(r[4]), weight: num_(r[5]) };
-    if (r[1]) { lastLetter = String(r[1]); lastDate = key_(r[0], tz); }
+    const l = String(r[1] || '');
+    if (l) lastSession[l] = key_(r[0], tz);
+    if (WORKOUTS[l]) { lastLetter = l; lastDate = key_(r[0], tz); }   // projects don't move the main rotation
   });
 
   const cal = weekly.filter(w => w.cal).pop() || null;
   const food = getFoodData_(ss, dateKey, tz);
   const activity = getActivityData_(ss, dateKey, tz);
   return { today, dateKey, entry, series: series.slice(-120), weekly, targets, last,
-    next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, workouts: WORKOUTS, calCheck: cal, food, activity, stretches: STRETCHES, routines: STRETCH_ROUTINES, videos: VIDEOS, name: CONFIG.NAME || '' };
+    next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, lastSession, workouts: WORKOUTS, projects: PROJECTS, calCheck: cal, food, activity, stretches: STRETCHES, routines: STRETCH_ROUTINES, videos: VIDEOS, name: CONFIG.NAME || '' };
 }
 
 /** Write one Daily Log row (finds the row by date). */
@@ -145,7 +167,10 @@ function saveWorkout(o) {
   sh.getRange(r, 1, o.items.length, 7).setValues(o.items.map(it =>
     [date, o.letter, it.ex, num_(it.sets), String(it.reps || ''), num_(it.weight), it.notes || '']));
   sh.getRange(r, 1, o.items.length, 1).setNumberFormat('ddd mmm d');
-  sh.getRange(r, 8, o.items.length, 1).setFormulaR1C1('=IF(R[0]C1="","",IF(R[0]C1<>R[-1]C1,1,0))');
+  // Column H counts sessions for the weekly total: 1 on the first row of a main session, 0 for project rows.
+  // Comparing the letter too means a main workout logged after a project on the same day still counts.
+  if (PROJECTS[o.letter]) sh.getRange(r, 8, o.items.length, 1).setValue(0);
+  else sh.getRange(r, 8, o.items.length, 1).setFormulaR1C1('=IF(R[0]C1="","",IF(OR(R[0]C1<>R[-1]C1,R[0]C2<>R[-1]C2),1,0))');
   SpreadsheetApp.flush();
   return getAppData(o.date);
 }
@@ -171,4 +196,4 @@ function maintenance() {
   console.log('Sheet time zone: ' + ss.getSpreadsheetTimeZone());
 }
 
-if (typeof module !== 'undefined') module.exports = { nextWorkout_, WORKOUTS, WORKOUT_INFO }; // Node tests only
+if (typeof module !== 'undefined') module.exports = { nextWorkout_, WORKOUTS, WORKOUT_INFO, PROJECTS }; // Node tests only

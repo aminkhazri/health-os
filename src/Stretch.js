@@ -17,6 +17,13 @@ const STRETCHES = {
   'Butterfly stretch': 'Sit tall, soles of the feet together. Let the knees fall open; hinge forward a little from the hips.',
   'Doorway chest stretch': 'Forearm on a door frame, elbow at shoulder height. Step through until the chest opens.',
   'Supine spinal twist': 'On your back. Drop one knee across your body, arms wide, both shoulders heavy on the floor.',
+  // Hip mobility project
+  '90/90 hip switch': 'Sit with both knees bent at 90°, one in front, one to the side. Rotate both knees to the other side and back. Sit tall; use your hands behind you at first.',
+  'Hip CARs': 'On hands and knees. Lift one knee out to the side and draw the biggest slow circle you can with it, keeping the rest of your body still.',
+  'Pigeon pose': 'Front shin across the mat, back leg long. Square your hips and fold forward until you feel the outer hip. Pad under the hip if needed.',
+  'Frog stretch': 'On hands and knees, slide your knees wide with feet out to the sides. Rock your hips slowly back toward your heels.',
+  'Deep squat hold': 'Feet a bit wider than hips, sink as low as you can with heels down. Hold a door frame or a light dumbbell at your chest. Push knees out with your elbows.',
+  'Cossack squat': 'Wide stance. Shift down into one leg, keeping the other straight with toes up, then switch sides slowly. Only go as deep as is comfortable.',
 };
 
 // Each step: [stretch, seconds, eachSide]. eachSide = the timer runs once for the left and once for the right.
@@ -30,6 +37,11 @@ const STRETCH_ROUTINES = [
   { id: 'unwind', icon: '🌙', name: 'Unwind', when: 'After UPS, before bed', steps: [
     ["Child's pose", 60, false], ['Doorway chest stretch', 30, true], ['Supine spinal twist', 45, true],
     ['Figure-four stretch', 30, true], ['Cat-cow', 30, false]] },
+  // Project routine: shown under "Projects" in the Stretch tab. Counts toward the Flex bar like the others.
+  { id: 'hips', icon: '🦋', name: 'Hip mobility', project: true, when: 'Daily for 4 weeks, then 4 times a week. Evenings or after workouts.',
+    why: 'Tight hips limit squat depth, stride length and kicking range, and pull on the lower back. Daily practice loosens them faster than occasional long sessions.',
+    steps: [['90/90 hip switch', 60, false], ['Hip CARs', 30, true], ['Half-kneeling hip flexor stretch', 45, true],
+      ['Pigeon pose', 45, true], ['Frog stretch', 60, false], ['Deep squat hold', 60, false], ['Cossack squat', 60, false]] },
 ];
 
 /** Pure: total seconds in a routine (a step done on each side counts twice). */
@@ -55,6 +67,14 @@ const VIDEOS = {
   'Downward dog': 'sd-Fn6xpyeg', 'Thread the needle': '6roMIB2YV4Y', 'Half-kneeling hip flexor stretch': 'gqoPYLUgP48',
   'Lying hamstring stretch': '5P3E8Pec_L8', 'Figure-four stretch': '-g0nuyTHMrI', 'Standing calf stretch': 'mafo7o7OnFo',
   'Butterfly stretch': '4J7kbCmPScQ', 'Doorway chest stretch': 'CEQMx4zFwYs', 'Supine spinal twist': 'mNdJti7ZwKI',
+  // Neck project
+  'Supine chin tuck': '7OgvJ653oxE', 'Neck isometric hold': 'WnKcq1Uh8m4', 'Prone neck extension': 'QrYSctbYQfg',
+  'Side-lying neck raise': 'duOfvQUQfWQ', 'Dumbbell shrug': 'g6qbq4Lf1FI',
+  // Calves project
+  'Single-leg deficit calf raise': 'gUEffJQ2IdU', 'Seated dumbbell calf raise': 'fFWpWJy8ybU', 'Tibialis raise': 'VzIcGAgBiaM',
+  // Hip mobility project
+  '90/90 hip switch': 'qq_Z7sAmVrA', 'Hip CARs': 'hRMrq6G81p8', 'Pigeon pose': 'lqCqETr7Q0g', 'Frog stretch': '1wpyPsr0Rx0',
+  'Deep squat hold': 'IHApHfNA2Ag', 'Cossack squat': 'nLNqEQ4B6XI',
 };
 
 if (typeof module !== 'undefined') module.exports = { STRETCHES, STRETCH_ROUTINES, VIDEOS, routineSeconds_ }; // Node tests only

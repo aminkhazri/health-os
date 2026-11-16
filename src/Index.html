@@ -251,6 +251,14 @@
   .s-prog i { display: block; height: 100%; width: 0; background: var(--lime); transition: width 1s linear; }
   .s-cue { color: var(--text-secondary); font-size: 16px; line-height: 1.45; text-align: center; max-width: 34ch; padding: 0 20px; }
   .s-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  /* Projects: add-on sessions for specific goals */
+  .proj-l { margin: 14px 0 6px; font-size: 13px; color: var(--text-muted); }
+  #projSeg button { font-size: 14px; }
+  .proj-info { margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--surface-2); font-size: 15px; line-height: 1.5; color: var(--text-secondary); }
+  .proj-info b { color: var(--text-primary); }
+  .rt-why { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: var(--text-secondary); }
+  .proj-h { margin: 22px 2px 4px; font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: .08em; text-transform: uppercase; }
+  .proj-h small { display: block; font-family: inherit; font-size: 13px; letter-spacing: 0; text-transform: none; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
   /* Collapsible Today cards: a summary line when closed; the body slides open (grid 0fr -> 1fr animates to the content's real height). */
   .fold-all { display: flex; justify-content: flex-end; margin: 4px 2px -4px; }
   .fold-all button { font: inherit; font-size: 14px; font-weight: 600; color: var(--lime); background: none; border: 0; padding: 6px 4px; }
@@ -401,6 +409,9 @@
     <div class="card">
       <h2>Session</h2>
       <div class="seg" id="letter"></div>
+      <div class="proj-l">Projects</div>
+      <div class="seg" id="projSeg"></div>
+      <div class="proj-info" id="projInfo" hidden></div>
       <div class="muted" id="lastw" style="margin-top:8px"></div>
       <div class="row" style="margin-top:10px">
         <div><label class="f" for="wdate">Date</label><input id="wdate" type="date"></div>
@@ -656,13 +667,20 @@ function saveDay() {
 function renderWorkout() {
   if (!$('wdate').value) { $('wdate').value = D.today; $('wdate').max = D.today; letter = D.next; }
   const WI = D.workoutInfo || { names: {}, targets: {} };
-  if (!D.workouts[letter]) letter = D.next;
+  const PR = D.projects || {};
+  if (!D.workouts[letter] && !PR[letter]) letter = D.next;
+  const P = PR[letter], list = P ? P.ex : D.workouts[letter];
   $('letter').innerHTML = Object.keys(D.workouts).map(l => `<button class="${l===letter?'on':''}" onclick="letter='${l}';renderWorkout()">${l} · ${WI.names[l] || 'Workout'}${l===D.next?' ★':''}</button>`).join('');
-  $('lastw').textContent = D.lastWorkoutDate ? `Last session: ${fmtDate(D.lastWorkoutDate)} (Workout ${D.lastLetter})` : 'No sessions logged yet. Start light: every set should end with 1–2 good reps left.';
-  $('exlist').innerHTML = D.workouts[letter].map((ex, i) => {
-    const L = D.last[ex];
-    const goal = WI.targets[ex] ? `<b>Goal ${WI.targets[ex]}</b> · ` : '';
-    const hint = goal + (L ? `Last: ${L.sets ?? '?'}×${L.reps || '?'}${L.weight ? ' @ ' + L.weight + ' lb' : ''} (${fmtDate(L.date)})` : 'first time, pick a light weight');
+  $('projSeg').innerHTML = Object.keys(PR).map(k => `<button class="${k===letter?'on':''}" onclick="letter='${k}';renderWorkout()">${PR[k].icon} ${esc(PR[k].name)}</button>`).join('');
+  $('projInfo').hidden = !P;
+  if (P) $('projInfo').innerHTML = `<b>Why:</b> ${esc(P.why)}<br><b>How:</b> ${esc(P.how)}`;
+  const lastP = P && (D.lastSession || {})[letter];
+  $('lastw').textContent = P ? (lastP ? `Last ${P.name.toLowerCase()} session: ${fmtDate(lastP)}` : `No ${P.name.toLowerCase()} sessions logged yet. Start easy.`)
+    : D.lastWorkoutDate ? `Last session: ${fmtDate(D.lastWorkoutDate)} (Workout ${D.lastLetter})` : 'No sessions logged yet. Start light: every set should end with 1–2 good reps left.';
+  $('exlist').innerHTML = list.map((ex, i) => {
+    const L = D.last[ex], tg = WI.targets[ex] || (P && P.targets[ex]);
+    const goal = tg ? `<b>Goal ${tg}</b> · ` : '';
+    const hint = goal + (L ? `Last: ${L.sets ?? '?'}×${L.reps || '?'}${L.weight ? ' @ ' + L.weight + ' lb' : ''} (${fmtDate(L.date)})` : P ? 'first time, start easy' : 'first time, pick a light weight');
     return `<div class="ex" data-ex="${ex.replace(/"/g,'&quot;')}">
       <div class="exhead"><div class="name">${ex}</div><button class="demo" data-v="${esc(ex)}" onclick="demo(this.dataset.v)">▶ Demo</button><button class="check" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓':''" aria-label="Done"></button></div>
       <div class="muted">${hint}</div>
@@ -682,7 +700,8 @@ function saveW() {
   });
   if (!items.length) return toast('Tap ○ on the exercises you did');
   $('saveW').disabled = true;
-  google.script.run.withSuccessHandler(d => { D = d; letter = d.next; render(); toast('Workout saved 💪'); show('prog'); })
+  const proj = (D.projects || {})[letter];
+  google.script.run.withSuccessHandler(d => { D = d; letter = d.next; render(); toast(proj ? `${proj.name} session saved 💪` : 'Workout saved 💪'); show('prog'); })
     .withFailureHandler(fail).saveWorkout({ date: $('wdate').value || D.today, letter, items });
 }
 
@@ -728,12 +747,15 @@ function renderStretch() {
   const fx = (D.entry && D.entry.stretch) || 0, fg = D.targets.stretch || 5;
   const from = addDays(D.today, -7), f7 = D.series.filter(x => x.d > from).reduce((a, x) => a + (x.f || 0), 0);
   $('strSum').innerHTML = `<b style="font-size:20px">${fx} / ${fg} min</b> ${D.dateKey === D.today ? 'today' : 'on ' + fmtDate(D.dateKey)}${fx >= fg ? ' ✓' : ''}`;
-  $('rtlist').innerHTML = D.routines.map(r => {
+  const card = r => {
     const secs = r.steps.reduce((a, s) => a + s[1] * (s[2] ? 2 : 1), 0);
     return `<div class="card"><div class="rt-head"><b>${r.icon} ${esc(r.name)}</b><span class="muted">${Math.round(secs / 60)} min</span></div>
-      <div class="muted">${esc(r.when)}</div>
+      <div class="muted">${esc(r.when)}</div>${r.why ? `<p class="rt-why">${esc(r.why)}</p>` : ''}
       <ul class="rt-steps">${r.steps.map(s => `<li><span>${esc(s[0])}<span class="d">${s[1]} s${s[2] ? ' each side' : ''}</span></span><button class="demo" data-v="${esc(s[0])}" onclick="demo(this.dataset.v)">▶ Demo</button></li>`).join('')}</ul>
-      <button class="primary" onclick="startStretch('${r.id}')">Start ${esc(r.name)}</button></div>`; }).join('');
+      <button class="primary" onclick="startStretch('${r.id}')">Start ${esc(r.name)}</button></div>`; };
+  const main = D.routines.filter(r => !r.project), proj = D.routines.filter(r => r.project);
+  $('rtlist').innerHTML = main.map(card).join('')
+    + (proj.length ? '<div class="proj-h">Projects<small>Longer-term focus on one area. Minutes count toward your Flex bar.</small></div>' + proj.map(card).join('') : '');
   if ($('pFlex')) { $('pFlex').textContent = f7 ? (f7 / 7).toFixed(1) + ' min' : '—'; $('pFlexS').textContent = 'avg a day · goal ' + fg; }
 }
 let sQ = [], sI = 0, sLeft = 0, sPrep = 0, sDone = 0, sTotal = 0, sTick = null, sPaused = false, actx = null, wakeL = null;
