@@ -254,7 +254,8 @@
   .s-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .hold-tag { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--teal); border: 1px solid var(--teal); border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: 2px; }
   /* Animated demo figure */
-  .fig svg { display: block; width: 100%; height: auto; }
+  .fig svg { display: block; width: 100%; height: auto; max-height: 44vh; }
+  .fig path.fg-body { stroke-width: 13; }   /* torso a little thicker than the limbs */
   .fg-body, .fg-far { fill: none; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
   .fg-body { stroke: var(--text-primary); }
   .fg-far { stroke: #55606e; }
