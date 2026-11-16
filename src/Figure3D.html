@@ -16,13 +16,13 @@
 (function (root) {
   const CDN = 'https://cdn.jsdelivr.net/';
   const LIB = CDN + 'npm/three@0.160.0/+esm', LOADER = CDN + 'npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm';
-  // The athlete: a faceless matte mannequin in workout clothes, built from Blender Studio's CC0 realistic male base mesh by tools/blender/build_body.py.
+  // The athlete: a matte ivory mannequin with a smooth featureless head and black shorts, built from Blender Studio's CC0 realistic male base mesh by tools/blender/build_body.py.
   // MODEL_REV is the git commit the model file was added in, so phones can cache it forever and a new model gets a new address.
   const ROOM = CDN + 'npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js/+esm';   // a soft studio to reflect in metal surfaces
   const MODEL_REV = '9813da466923eea292fc4067c8fb05239b2e51e5', MODEL = CDN + 'gh/aminkhazri/health-os@' + MODEL_REV + '/models/athlete.glb';
   const FALLBACK = CDN + 'gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb';   // "X Bot" sample character, used if the athlete cannot load
   const HOT = { thigh: ['UpLeg'], shin: ['Leg'], foot: ['Foot', 'ToeBase'], armU: ['Arm', 'Shoulder'], armL: ['ForeArm'], torso: ['Spine', 'Spine1', 'Spine2'], head: ['Neck'] };
-  const LOOK = { body: 0xdfe5ec, joints: 0x4a5666, hot: 0xb8f23e, floor: 0x1b222c, block: 0x2b3542, steel: 0x2dd4bf, band: 0xf0c33c };
+  const LOOK = { body: 0xdfe5ec, joints: 0x4a5666, hot: 0xff4a2a, mat: 0x1d232c, block: 0x2b3542, steel: 0x8a929d, band: 0xf0c33c };   // hot = working muscles, glowing warm red
   // A few moves are drawn in 2D from an unusual angle. This says how to stand them up in 3D:
   //   side = lying on one side, chest toward the viewer · up / down = lying face up / face down, drawn from above · sit = sitting, drawn from above
   const MODE = { 'Copenhagen plank': 'side', 'Side plank': 'side', 'Side-lying neck raise': 'side', 'Supine spinal twist': 'up', 'Frog stretch': 'down', '90/90 hip switch': 'sit' };
@@ -35,13 +35,13 @@
   function load() {
     if (!loading) loading = Promise.all([import(LIB), import(LOADER), import(ROOM).catch(() => null)])
       .then(([T, L, R]) => new Promise((ok, fail) => {
-        const use = g => { try { ok(S = setup(T, g.scene, R)); } catch (e) { fail(e); } }, loader = new L.GLTFLoader();
+        const use = g => { try { ok(S = setup(T, g.scene, R, g.animations)); } catch (e) { fail(e); } }, loader = new L.GLTFLoader();
         loader.load(MODEL, use, undefined, () => loader.load(FALLBACK, use, undefined, fail));
       }));
     return loading;
   }
 
-  function setup(T, model, R) {
+  function setup(T, model, R, anims) {
     const V = (x, y, z) => new T.Vector3(x || 0, y || 0, z || 0), Q = () => new T.Quaternion();
     const fov = 26, scene = new T.Scene(), camera = new T.PerspectiveCamera(fov, 240 / 212, 0.1, 60);
     const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
@@ -57,12 +57,18 @@
     // floor: a soft pool of light that fades out at the edge, with a separate invisible plane that only catches the shadow
     const fade = document.createElement('canvas'); fade.width = fade.height = 256;
     const fc = fade.getContext('2d'), fg = fc.createRadialGradient(128, 128, 10, 128, 128, 128);
-    fg.addColorStop(0, 'rgba(58,70,86,0.95)'); fg.addColorStop(0.55, 'rgba(40,49,61,0.7)'); fg.addColorStop(1, 'rgba(27,34,44,0)');
+    fg.addColorStop(0, 'rgba(58,70,86,0.45)'); fg.addColorStop(0.55, 'rgba(40,49,61,0.3)'); fg.addColorStop(1, 'rgba(27,34,44,0)');
     fc.fillStyle = fg; fc.fillRect(0, 0, 256, 256);
     const floor = new T.Group(), pool = new T.Mesh(new T.CircleGeometry(2.6, 64), new T.MeshBasicMaterial({ map: new T.CanvasTexture(fade), transparent: true, depthWrite: false }));
     const shade = new T.Mesh(new T.CircleGeometry(2.6, 32), new T.ShadowMaterial({ opacity: 0.45 })); shade.receiveShadow = true; shade.position.z = 0.002;
     pool.material.map.colorSpace = T.SRGBColorSpace;
     floor.add(pool, shade); floor.rotation.x = -Math.PI / 2; scene.add(floor);
+    // exercise mat: a dark slab with rounded corners, its top surface exactly at floor height
+    const mw = 2.2, md = 0.95, mr = 0.06, ms = new T.Shape();
+    ms.moveTo(-mw / 2 + mr, -md / 2); ms.lineTo(mw / 2 - mr, -md / 2); ms.quadraticCurveTo(mw / 2, -md / 2, mw / 2, -md / 2 + mr); ms.lineTo(mw / 2, md / 2 - mr);
+    ms.quadraticCurveTo(mw / 2, md / 2, mw / 2 - mr, md / 2); ms.lineTo(-mw / 2 + mr, md / 2); ms.quadraticCurveTo(-mw / 2, md / 2, -mw / 2, md / 2 - mr); ms.lineTo(-mw / 2, -md / 2 + mr); ms.quadraticCurveTo(-mw / 2, -md / 2, -mw / 2 + mr, -md / 2);
+    const mat3 = new T.Mesh(new T.ExtrudeGeometry(ms, { depth: 0.014, bevelEnabled: false }), new T.MeshStandardMaterial({ color: LOOK.mat, roughness: 0.92, metalness: 0 }));
+    mat3.rotation.x = -Math.PI / 2; mat3.receiveShadow = true; const matRig = new T.Group(); matRig.add(mat3); mat3.position.y = -0.014; scene.add(matRig);
     const props = new T.Group(); scene.add(props);
 
     // --- the model: find its bones and skinned meshes, face it toward +Z, give it our own materials
@@ -76,9 +82,9 @@
     model.updateMatrixWorld(true);
     if (wp('RightToeBase').z < wp('RightFoot').z) { model.rotation.y = Math.PI; model.updateMatrixWorld(true); }
     meshes.forEach(m => {
-      const src = m.material, name = src.name || '', own = /^(Body|Shirt|Shorts|Shoes)$/.test(name), joints = /joint/i.test(name || m.name);
+      const src = m.material, name = src.name || '', own = /^(Body|Shorts)$/.test(name), joints = /joint/i.test(name || m.name);
       m.userData.base = own ? src.color.clone() : new T.Color(joints ? LOOK.joints : LOOK.body);   // the athlete brings its own colours; the fallback mannequin gets ours
-      m.userData.tint = own ? name !== 'Shoes' : true;                                             // working muscles light up through the clothes; shoes stay as they are
+      m.userData.tint = own ? name === 'Body' : true;                                              // working muscles glow on the body; the shorts stay black
       m.material = new T.MeshStandardMaterial({ vertexColors: true, roughness: own ? src.roughness : joints ? 0.45 : 0.62, metalness: own ? src.metalness : joints ? 0.3 : 0.02,
         emissive: own && src.emissive ? src.emissive.clone() : new T.Color(0), emissiveIntensity: own ? (src.emissiveIntensity || 1) : 1, envMapIntensity: 1.0 });
       m.geometry.setAttribute('color', new T.BufferAttribute(new Float32Array(m.geometry.attributes.position.count * 3), 3));
@@ -243,7 +249,8 @@
         for (let i = 0; i < col.count; i++) {
           let w = 0; for (let k = 0; k < 4; k++) if (isHot[idx.getComponent(i, k)]) w += wt.getComponent(i, k);
           w = m.userData.tint ? Math.min(1, w * 1.15) * 0.85 : 0;
-          col.setXYZ(i, base.r + (lime.r - base.r) * w, base.g + (lime.g - base.g) * w, base.b + (lime.b - base.b) * w);
+          const g = 1 + 0.9 * w;   // above 1 = brighter than a lit surface, so the working muscle reads as glowing
+          col.setXYZ(i, (base.r + (lime.r - base.r) * w) * g, (base.g + (lime.g - base.g) * w) * g, (base.b + (lime.b - base.b) * w) * g);
         }
         col.needsUpdate = true;
       });
@@ -263,6 +270,18 @@
     canvas.addEventListener('pointermove', e => { if (drag === null) return; az -= (e.clientX - drag) * 0.012; drag = e.clientX; aimCamera(); if (cur && cur.still) renderer.render(scene, camera); });
     ['pointerup', 'pointercancel'].forEach(t => canvas.addEventListener(t, () => { drag = null; }));
 
+    // --- ready-made clips: some moves come with an animation saved inside the model file (made in Blender tooling, see tools/motion).
+    // Those are played back as recorded instead of being worked out from the 2D figure. The 2D engine still keeps the time, so reps stay in step.
+    const restPose = Object.values(B).map(b => ({ b, p: b.position.clone(), q: b.quaternion.clone() }));
+    const mixer = new T.AnimationMixer(model), clips = {}; (anims || []).forEach(c => { clips[c.name] = c; });
+    let action = null;
+    function frameClip(clip) {   // point the camera at the middle of everything the body passes through during the clip
+      const box = new T.Box3();
+      [0, 0.25, 0.5, 0.75].forEach(k => { mixer.setTime(k * clip.duration); rig.updateMatrixWorld(true); Object.values(B).forEach(b => box.expandByPoint(b.getWorldPosition(V()))); });
+      const ball = box.getBoundingSphere(new T.Sphere());
+      target = ball.center.clone(); dist = (ball.radius + 0.12) / Math.sin(rad(fov / 2)) * 0.82; az = rad(-62); tilt = rad(16);
+    }
+
     function mount(el, fig, name) {
       const v = (fig.view || '0 0 240 212').split(' ').map(Number), front = !!fig.front;
       mode = MODE[name] || null; const flat = mode && mode !== 'side';
@@ -270,23 +289,33 @@
       P = flat ? p => V((p[0] - 120) * s, HIP_H[mode], (p[1] - 108) * s) : front ? p => V((p[0] - 120) * s, (floorY - p[1]) * s, 0) : p => V(0, (floorY - p[1]) * s, (p[0] - 120) * s);
       plane = flat ? V(0, 1, 0) : front ? V(0, 0, 1) : V(1, 0, 0);
       target = P([v[0] + v[2] / 2, v[1] + v[3] / 2]); if (flat) target.y = 0.25;
-      dist = (v[3] * s / 2) / Math.tan(rad(fov / 2)) * (flat ? 0.98 : 1.06); az = flat ? rad(18) : front ? rad(22) : rad(-58); tilt = rad(flat ? 40 : 10);
+      dist = (v[3] * s / 2) / Math.tan(rad(fov / 2)) * (flat ? 0.98 : 1.06); az = flat ? rad(18) : front ? rad(22) : rad(-58); tilt = rad(flat ? 40 : 14);
       floor.position.set(target.x, 0, target.z);
+      matRig.position.set(target.x, 0, target.z); matRig.rotation.y = front || flat ? 0 : Math.PI / 2; matRig.visible = !flat || true;   // the mat runs along the body
       const half = dist * Math.tan(rad(fov / 2)) * v[2] / v[3]; floor.scale.setScalar(half * (flat ? 0.8 : 0.98) / 2.6); shade.scale.setScalar(1 / floor.scale.x);   // the pool of light fades out just inside the picture
       camera.aspect = v[2] / v[3]; camera.updateProjectionMatrix(); aimCamera();
       const w = Math.max(120, el.clientWidth || 300); renderer.setSize(w, Math.round(w * v[3] / v[2]), false);
-      prevN = {}; paint(fig.hot); cur = { fig, live: buildProps(fig), still: false, grip: GRIP.includes(name) };
+      if (action) { action.stop(); action = null; }
+      restPose.forEach(r => { r.b.position.copy(r.p); r.b.quaternion.copy(r.q); });
+      const clip = clips[name] || null;
+      prevN = {}; paint(fig.hot); cur = { fig, clip, live: buildProps(clip ? {} : fig), still: false, grip: GRIP.includes(name) };
+      if (clip) {
+        rig.position.set(0, 0, 0); action = mixer.clipAction(clip); action.play(); frameClip(clip);
+        floor.position.set(target.x, 0, target.z); matRig.position.set(target.x, 0, target.z); matRig.rotation.y = Math.PI / 2; aimCamera();
+      }
       el.insertBefore(canvas, el.firstChild); return canvas;
     }
-    function draw(fig, p, still) {
+    function draw(fig, p, still, k) {
       if (!cur || cur.fig !== fig) return;
-      cur.still = !!still; pose(fig, root.figJoints(fig, p), !!still); moveProps(cur.live); renderer.render(scene, camera);
+      cur.still = !!still;
+      if (cur.clip) mixer.setTime((k || 0) * cur.clip.duration); else { pose(fig, root.figJoints(fig, p), !!still); moveProps(cur.live); }
+      renderer.render(scene, camera);
     }
     function unmount() { cur = null; if (canvas.parentNode) canvas.parentNode.removeChild(canvas); }
     return { mount, draw, unmount, bones: B, T, scene, camera, renderer };
   }
 
   root.fig3dModes = MODE;
-  root.fig3d = { load, ready: () => !!S, mount: (el, fig, name) => S.mount(el, fig, name), draw: (fig, p, still) => S.draw(fig, p, still), unmount: () => S && S.unmount(), state: () => S };
+  root.fig3d = { load, ready: () => !!S, mount: (el, fig, name) => S.mount(el, fig, name), draw: (fig, p, still, k) => S.draw(fig, p, still, k), unmount: () => S && S.unmount(), state: () => S };
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>

@@ -353,7 +353,7 @@
     const to2d = () => { in3d = false; svg.style.display = ''; };
     const draw = t => {
       const p = poseAt(fig, t); last = t;
-      if (in3d) { try { d3.draw(fig, p, still); } catch (e) { to2d(); } }
+      if (in3d) { try { d3.draw(fig, p, still, (t % dur) / dur); } catch (e) { to2d(); } }
       if (!in3d) svg.innerHTML = frame(fig, p).svg;
       if (say.textContent !== p.say) say.textContent = p.say;
     };

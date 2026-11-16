@@ -1,7 +1,7 @@
 # Build the Health OS athlete.
 # Source body: Blender Studio "Human Base Meshes" v1.4.1, realistic male body (CC0, https://www.blender.org/download/demo-files/).
 # Steps: import -> bake sculpt detail -> thin the mesh for phones -> find joints from the body's shape -> build a skeleton
-#        -> automatic skin weights -> muscle shaping -> friendly mannequin look (blank head, matte body, T-shirt, shorts, trainers) -> previews -> export GLB.
+#        -> automatic skin weights -> muscle shaping -> sculpted-mannequin look (smooth featureless head, matte ivory body, black shorts, bare feet) -> previews -> export GLB.
 # Run it with start-builder.bat (Blender without a window) or through run.py in Blender's Text Editor. Everything printed ends up in log.txt.
 import bpy, bmesh, os, glob, math
 import numpy as np
@@ -9,8 +9,8 @@ from mathutils import Vector, Matrix
 
 BLEND = glob.glob(os.path.join(HERE, "assets", "**", "human_base_meshes_bundle.blend"), recursive=True)[0]
 OUT = HERE
-BODY, SHIRT, SHORTS, SHOES = (0.36, 0.38, 0.42, 1), (0.05, 0.20, 0.62, 1), (0.02, 0.03, 0.07, 1), (0.80, 0.80, 0.78, 1)   # linear colour values, all matte
-HEM, WAIST, COLLAR, SHOE_TOP, SLEEVE = 0.365, 0.585, 0.862, 0.062, 0.15   # clothing edges: shares of body height, and sleeve length in metres
+BODY, SHORTS = (0.78, 0.75, 0.70, 1), (0.012, 0.012, 0.014, 1)   # linear colour values: matte ivory, black
+HEM, WAIST = 0.405, 0.575   # shorts: bottom edge and waistband, as shares of body height
 
 
 def reset():   # clear the scene without reloading the file (reloading would close the script that is running)
@@ -84,24 +84,27 @@ body.modifiers.clear(); body.data = baked; body.name = "Athlete"; baked.name = "
 bm = bmesh.new(); bm.from_mesh(baked); zc = min(v.co.z for v in bm.verts if abs(v.co.x) < 0.008); ymid = sum(v.co.y for v in bm.verts if abs(v.co.z - zc - 0.1) < 0.02) / max(1, sum(1 for v in bm.verts if abs(v.co.z - zc - 0.1) < 0.02))
 patch = [v for v in bm.verts if abs(v.co.x) < 0.085 and zc - 0.005 < v.co.z < zc + 0.16 and v.co.y < ymid]
 for _ in range(40): bmesh.ops.smooth_vert(bm, verts=patch, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
-# a blank head: move every point of the head onto a smooth egg shape, blending in from the chin, so no face or ears remain
-Ht = max(v.co.z for v in bm.verts); head = [v for v in bm.verts if v.co.z > 0.858 * Ht]
-hy = sum(v.co.y for v in head) / len(head); cz, rx, ry, rz = 0.940 * Ht, 0.076, 0.096, 0.106
-for v in head:
-    d = Vector((v.co.x / rx, (v.co.y - hy) / ry, (v.co.z - cz) / rz)); L = d.length or 1.0
-    k = 0.95 if L < 0.88 else 1.0   # the inside of the mouth and the eye sockets: tuck them just under the surface so they cannot show
-    egg = Vector((d.x / L * rx * k, d.y / L * ry * k + hy, d.z / L * rz * k + cz))
-    b = min(1.0, max(0.0, (v.co.z - 0.862 * Ht) / (0.018 * Ht))); b = b * b * (3 - 2 * b)
-    v.co = v.co.lerp(egg, b)
-for _ in range(20): bmesh.ops.smooth_vert(bm, verts=head, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
-jaw = [v for v in bm.verts if 0.835 * Ht < v.co.z < 0.905 * Ht and abs(v.co.x) < 0.09 and v.co.y < hy + 0.03]   # melt what is left of the chin into the neck
-for _ in range(70): bmesh.ops.smooth_vert(bm, verts=jaw, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
-# trainers: blur the toes together so the feet read as shoes
-feet = [v for v in bm.verts if v.co.z < SHOE_TOP * Ht]
-for _ in range(22): bmesh.ops.smooth_vert(bm, verts=[v for v in feet if v.co.z > 0.004], factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+# a mannequin head. Reshaping the scanned face always left traces of a mouth and chin, so the face is not reshaped at all:
+# 1) cut the old head off along a sloping line (low under the chin, higher at the back of the skull);
+# 2) build a new, clean head from a sphere: an egg that narrows to a chin which sits forward and low, like a shop mannequin;
+# 3) the top of the neck ends up inside the new head, so there is no seam to see. Later the whole new head is tied to the Head bone.
+Ht = max(v.co.z for v in bm.verts)
+head = [v for v in bm.verts if v.co.z > 0.858 * Ht]; hy = sum(v.co.y for v in head) / len(head)
+CUT_P = Vector((0, hy - 0.09, 0.866 * Ht)); CUT_N = Vector((0, -0.021 * Ht, 0.18)).normalized()   # front of the body is -Y
+old = [v for v in bm.verts if (v.co - CUT_P).dot(CUT_N) > 0]
+bmesh.ops.delete(bm, geom=old, context='VERTS')
+rim = [v for v in bm.verts if -0.03 < (v.co - CUT_P).dot(CUT_N) <= 0]          # the top of the neck: draw it in a little so none of it pokes out of the new head
+rc = sum((v.co for v in rim), Vector()) / max(1, len(rim))
+for v in rim:
+    k = 0.14 * (1 + (v.co - CUT_P).dot(CUT_N) / 0.03); v.co.x += (rc.x - v.co.x) * k; v.co.y += (rc.y - v.co.y) * k
+for _ in range(6): bmesh.ops.smooth_vert(bm, verts=rim, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+filled = {'faces': bmesh.ops.triangle_fill(bm, edges=[e for e in bm.edges if e.is_boundary], use_beauty=True)['geom']}; filled['faces'] = [f for f in filled['faces'] if isinstance(f, bmesh.types.BMFace)]   # close the top of the neck so the body is one sealed surface
+bmesh.ops.triangulate(bm, faces=filled["faces"]); inner = old
 # heavy smoothing can squash faces flat, and the automatic skin weights refuse a mesh with flat faces: clean those up
 bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=0.0006)
 bmesh.ops.dissolve_degenerate(bm, edges=bm.edges[:], dist=0.0002)
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+print("head: removed inner verts", len(inner), "closed openings with", len(filled["faces"]), "faces")
 bm.to_mesh(baked); bm.free(); baked.validate(); baked.update(); print("pelvis patch verts", len(patch), "head verts", len(head))
 for p in baked.polygons: p.use_smooth = True
 print("mesh after bake: verts", len(baked.vertices), "polys", len(baked.polygons), "tris", sum(len(p.vertices) - 2 for p in baked.polygons))
@@ -139,9 +142,7 @@ for k, v in list(J.items()) + list(C.items()): print("  joint", k, np.round(v, 3
 
 # ---------------------------------------------------------------- 3b. clothing edges: cut the surface along hems so colour boundaries are clean lines
 def unit(v): return v / np.linalg.norm(v)
-arm_axis = unit(J["ForeArm"] - J["Arm"])
-CUTS = [((0, 0, f * H), (0, 0, 1)) for f in (HEM, WAIST, COLLAR, SHOE_TOP)]
-CUTS += [(tuple(np.array([J["Arm"][0] * sx, J["Arm"][1], J["Arm"][2]]) + np.array([arm_axis[0] * sx, arm_axis[1], arm_axis[2]]) * SLEEVE), (arm_axis[0] * sx, arm_axis[1], arm_axis[2])) for sx in (1, -1)]
+CUTS = [((0, 0, f * H), (0, 0, 1)) for f in (HEM, WAIST)]
 bm = bmesh.new(); bm.from_mesh(baked)
 for pco, pno in CUTS:
     bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=pco, plane_no=pno, dist=0.0003)
@@ -181,6 +182,12 @@ for v in baked.vertices:
     for g in v.groups: W[gi[g.group]][v.index] = g.weight
 unweighted = int((sum(W.values()) < 1e-4).sum()) if W else n
 print("unweighted verts:", unweighted)
+if 0 < unweighted <= n * 0.02:   # a few stray points the solver skipped: tie each to the bone it sits on, so it cannot be left behind when the body moves
+    total = sum(W.values())
+    for v in baked.vertices:
+        if total[v.index] < 1e-4:
+            name = "Head" if v.co.z > 0.86 * H else "Hips"
+            body.vertex_groups[name].add([v.index], 1.0, 'REPLACE'); W[name][v.index] = 1.0
 if unweighted > n * 0.02: raise RuntimeError("automatic skin weights failed: the model would not move with its skeleton")
 def w(*names): return sum(W.get(s + k, 0) for k in names for s in ("", "Left", "Right") if (s + k) in W)
 
@@ -193,31 +200,37 @@ co2 = co + nrm * amt[:, None]
 wide = np.clip((Z - 1.24) / 0.10, 0, 1) * np.clip((1.47 - Z) / 0.05, 0, 1)   # a touch more shoulder width
 co2[:, 0] *= 1 + 0.05 * wide
 armw = w("Arm", "ForeArm", "Hand")
-def sleeve_t(P3):   # how far along the upper arm a point is, measured from the shoulder (either side)
-    q = np.array(P3, dtype=float).reshape(-1, 3).copy(); q[:, 0] = np.abs(q[:, 0]); return (q - J["Arm"]) @ arm_axis
-st = sleeve_t(co)
-is_arm = armw > 0.5
-shirt_v = (Z > WAIST * H) & (Z < COLLAR * H) & (~is_arm | (st < SLEEVE))
-shorts_v = (Z > HEM * H) & (Z < WAIST * H) & ~is_arm
-co2 += nrm * ((shirt_v * 0.004 + shorts_v * 0.005) * 1.0)[:, None]   # cloth stands a few millimetres off the body
-shoe_v = Z < SHOE_TOP * H
-co2[shoe_v] += nrm[shoe_v] * 0.009
+shorts_v = (Z > HEM * H + 1e-3) & (Z < WAIST * H - 1e-3) & (armw < 0.5)   # the cut edges move too, so hem and waistband stay straight lines
+co2 += nrm * (shorts_v * 0.008)[:, None]   # the shorts stand off the body like cloth
 baked.vertices.foreach_set("co", co2.ravel()); baked.update()
 
-# ---------------------------------------------------------------- 7. look: a matte mannequin in workout clothes
-mats = [material("Body", BODY, 0.75), material("Shirt", SHIRT, 0.9), material("Shorts", SHORTS, 0.9), material("Shoes", SHOES, 0.6)]
+# ---------------------------------------------------------------- 7. look: a matte ivory mannequin in black shorts
+mats = [material("Body", BODY, 0.55), material("Shorts", SHORTS, 0.85)]
 for m in mats: baked.materials.append(m)
-count = [0, 0, 0, 0]
+count = [0, 0]
 for p in baked.polygons:
-    c = p.center; vi = list(p.vertices); arm = armw[vi].mean() > 0.5
-    if c.z < SHOE_TOP * H: k = 3
-    elif HEM * H < c.z < WAIST * H and not arm: k = 2
-    elif WAIST * H < c.z < COLLAR * H and (not arm or sleeve_t([c.x, c.y, c.z])[0] < SLEEVE): k = 1
-    else: k = 0
+    c = p.center; k = 1 if (HEM * H < c.z < WAIST * H and armw[list(p.vertices)].mean() < 0.5) else 0
     p.material_index = k; count[k] += 1
-print("faces: body, shirt, shorts, shoes", count)
-for e in eyes: bpy.data.objects.remove(e, do_unlink=True)   # a blank head has no eyes
+print("faces: body, shorts", count)
+for e in eyes: bpy.data.objects.remove(e, do_unlink=True)   # a mannequin head has no eyes
 eyes = []
+
+# ---------------------------------------------------------------- 7b. the new head, made on its own and then joined on
+# It is added only now, after the skin weights: the automatic weights work on one sealed body and get confused by a second loose piece.
+rx, ry, rz = 0.077, 0.096, 0.112; cz = Ht - rz - 0.020
+bm = bmesh.new(); ball = bmesh.ops.create_uvsphere(bm, u_segments=48, v_segments=32, radius=1.0)["verts"]
+for v in ball:
+    d = v.co.normalized(); lo = max(0.0, -d.z)
+    taper = 1.0 - 0.17 * lo ** 1.5 - 0.04 * max(0.0, d.z)                 # narrower toward the chin
+    front = 1.0 - 0.05 * max(0.0, -d.y) * (1.0 - abs(d.z))                # a slightly flatter front plane
+    v.co = Vector((d.x * rx * taper, hy + d.y * ry * taper * front - 0.030 * lo * lo, cz + d.z * (rz + 0.018 * lo)))
+hm = bpy.data.meshes.new("HeadMesh"); bm.to_mesh(hm); bm.free(); hm.materials.append(mats[0])
+for p in hm.polygons: p.use_smooth = True
+ho = bpy.data.objects.new("HeadPiece", hm); bpy.context.scene.collection.objects.link(ho)
+ho.vertex_groups.new(name="Head").add(list(range(len(hm.vertices))), 1.0, 'REPLACE')   # one rigid piece that follows the Head bone
+for o in bpy.context.scene.objects: o.select_set(o in (ho, body))
+bpy.context.view_layer.objects.active = body; bpy.ops.object.join(); baked = body.data
+print("head joined: verts now", len(baked.vertices), "materials", [m.name for m in baked.materials])
 
 # ---------------------------------------------------------------- 8. previews
 marks = []
