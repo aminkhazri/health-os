@@ -112,25 +112,65 @@
   // ---------- Drawing: one frame as SVG markup ----------
   const n1 = v => v.toFixed(1);
   const seg = (a, b, w, cls) => `<line class="${cls}" x1="${n1(a[0])}" y1="${n1(a[1])}" x2="${n1(b[0])}" y2="${n1(b[1])}" stroke-width="${w}"/>`;
+  // The character: a soccer player. Each body part is drawn in layers (skin, then kit on top), and every limb tapers
+  // from the joint nearer the body to the one further out. Colours live in CSS (--fg-skin, --fg-kit, ...), so the look can be re-skinned without touching this file.
+  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const dot = (c, r, cls) => `<circle class="${cls}" cx="${n1(c[0])}" cy="${n1(c[1])}" r="${n1(r)}"/>`;
+  const poly = (pts, cls) => `<polygon class="${cls}" points="${pts.map(q => n1(q[0]) + ',' + n1(q[1])).join(' ')}"/>`;
+  /** A limb section from a (width w1) to b (width w2) with rounded ends. */
+  function taper(a, b, w1, w2, cls) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], m = Math.hypot(dx, dy);
+    if (m < 0.5) return dot(a, w1 / 2, cls);
+    const nx = -dy / m, ny = dx / m, h1 = w1 / 2, h2 = w2 / 2;
+    return poly([[a[0] + nx * h1, a[1] + ny * h1], [b[0] + nx * h2, b[1] + ny * h2], [b[0] - nx * h2, b[1] - ny * h2], [a[0] - nx * h1, a[1] - ny * h1]], cls) + dot(a, h1, cls) + dot(b, h2, cls);
+  }
+  /** A flat-ended stripe across a limb (sleeve cuff, sock top). */
+  function stripe(a, b, w, cls) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], m = Math.hypot(dx, dy) || 1, nx = -dy / m * w / 2, ny = dx / m * w / 2;
+    return poly([[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny]], cls);
+  }
+  /** Head with hair and a face. up = unit vector from neck to crown; face = the way the nose points (side view) or screen-right (front view). */
+  function headMarkup(c, sh, front, hot) {
+    const d = [c[0] - sh[0], c[1] - sh[1]], m = Math.hypot(d[0], d[1]) || 1, up = [d[0] / m, d[1] / m], face = [-up[1], up[0]], r = LEN.head;
+    const at = (deg, rr) => [c[0] + rr * (Math.cos(rad(deg)) * face[0] + Math.sin(rad(deg)) * up[0]), c[1] + rr * (Math.cos(rad(deg)) * face[1] + Math.sin(rad(deg)) * up[1])];
+    const arc = (a0, a1, rr) => { const pts = []; for (let a = a0; a <= a1; a += 15) pts.push(at(a, rr)); return pts; };
+    const off = (f, u) => [c[0] + face[0] * f + up[0] * u, c[1] + face[1] * f + up[1] * u];
+    let o = taper(sh, mix(sh, c, 0.6), 8, 7, hot ? 'fg-glow' : 'fg-skin');                                   // neck (lit up for neck moves)
+    if (hot) o += dot(c, r + 2.5, 'fg-glow');
+    o += dot(c, r, 'fg-head fg-skin');
+    if (front) o += poly(arc(15, 165, r + 1).concat([off(-6, 5), off(0, 6.5), off(6, 5)]), 'fg-hair') + dot(off(-3.8, -0.5), 1.4, 'fg-eye') + dot(off(3.8, -0.5), 1.4, 'fg-eye')
+      + `<path class="fg-mouth" d="M${n1(off(-2.6, -5)[0])},${n1(off(-2.6, -5)[1])} Q${n1(off(0, -6.6)[0])},${n1(off(0, -6.6)[1])} ${n1(off(2.6, -5)[0])},${n1(off(2.6, -5)[1])}"/>`;
+    else o += poly(arc(50, 215, r + 1).concat([off(-5, 1), off(2, 5.5)]), 'fg-hair') + dot(off(-1.5, -1), 2.2, 'fg-ear') + dot(off(6, 0.5), 1.4, 'fg-eye') + dot(off(r + 0.6, -2), 1.6, 'fg-skin');   // ear, eye, nose
+    return o;
+  }
   function frame(fig, p) {
     const j = joints(fig, p), hot = fig.hot || [], out = [];
-    const c = (part, far) => 'fg-l' + (far ? ' fg-far' : '') + (!far && hot.includes(part) ? ' fg-hot' : '');
+    const glow = (part, a, b, w) => hot.includes(part) ? taper(a, b, w + 7, w + 7, 'fg-glow') : '';   // working muscles get a bright outline, drawn first so the body sits on top
     (fig.props || []).forEach(q => {
       if (q[0] === 'rect') out.push(`<rect class="fg-block" x="${q[1]}" y="${q[2]}" width="${q[3]}" height="${q[4]}" rx="4"/>`);
       if (q[0] === 'line') out.push(`<line class="fg-wall" x1="${q[1]}" y1="${q[2]}" x2="${q[3]}" y2="${q[4]}"/>`);
     });
     if (!fig.noGround) out.push('<line class="fg-ground" x1="8" y1="201.5" x2="232" y2="201.5"/>');
-    const limbLeg = (l, hip, far) => seg(hip, l.knee, WID.thigh, c('thigh', far)) + seg(l.knee, l.ank, WID.shin, c('shin', far)) + seg(l.ank, l.toe, WID.foot, c('foot', far));
-    const limbArm = (l, sh, far) => seg(sh, l.el, WID.armU, c('armU', far)) + seg(l.el, l.hand, WID.armL, c('armL', far));
-    const head = `<circle class="fg-head${hot.includes('head') ? ' fg-hot' : ''}" cx="${n1(j.head[0])}" cy="${n1(j.head[1])}" r="${LEN.head}"/>`;
+    const limbLeg = (l, hip) => glow('thigh', hip, l.knee, WID.thigh) + glow('shin', l.knee, l.ank, WID.shin) + glow('foot', l.ank, l.toe, WID.foot)
+      + taper(l.knee, l.ank, WID.shin, 8, 'fg-sock') + stripe(mix(l.knee, l.ank, 0.12), mix(l.knee, l.ank, 0.26), WID.shin + 0.2, 'fg-trim')   // long sock with a coloured top
+      + taper(hip, l.knee, WID.thigh + 1, WID.shin, 'fg-skin') + taper(hip, mix(hip, l.knee, 0.56), WID.thigh + 3, WID.thigh + 2.5, 'fg-shorts')
+      + taper(l.ank, l.toe, WID.foot, 7, 'fg-boot');
+    const limbArm = (l, sh) => glow('armU', sh, l.el, WID.armU) + glow('armL', l.el, l.hand, WID.armL)
+      + taper(sh, l.el, WID.armU, WID.armL, 'fg-skin') + taper(sh, mix(sh, l.el, 0.5), WID.armU + 2, WID.armU + 1.5, 'fg-kit') + stripe(mix(sh, l.el, 0.42), mix(sh, l.el, 0.52), WID.armU + 1.8, 'fg-trim')
+      + taper(l.el, l.hand, WID.armL, 6.5, 'fg-skin') + dot(l.hand, 4.4, 'fg-skin');
+    const far = m => '<g class="fg-far">' + m + '</g>';
     if (j.front) {
-      out.push(limbLeg(j.near, j.near.hipJ, false), limbLeg(j.far, j.far.hipJ, false));
-      out.push(`<polygon class="fg-chest${hot.includes('torso') ? ' fg-hot' : ''}" points="${[j.near.shJ, j.far.shJ, j.far.hipJ, j.near.hipJ].map(q => n1(q[0]) + ',' + n1(q[1])).join(' ')}"/>`);
-      out.push(head, limbArm(j.near, j.near.shJ, false), limbArm(j.far, j.far.shJ, false));
+      const quad = [j.near.shJ, j.far.shJ, j.far.hipJ, j.near.hipJ], waist = [mix(j.near.hipJ, j.near.shJ, 0.2), mix(j.far.hipJ, j.far.shJ, 0.2), j.far.hipJ, j.near.hipJ];
+      out.push(limbLeg(j.near, j.near.hipJ), limbLeg(j.far, j.far.hipJ));
+      if (hot.includes('torso')) out.push(poly(quad, 'fg-chest fg-glowline'));
+      out.push(poly(quad, 'fg-chest fg-kit'), poly(waist, 'fg-chest fg-shorts'));
+      out.push(headMarkup(j.head, mix(j.near.shJ, j.far.shJ, 0.5), true, hot.includes('head')), limbArm(j.near, j.near.shJ), limbArm(j.far, j.far.shJ));
     } else {
-      out.push(limbArm(j.far, j.sh, true), limbLeg(j.far, j.hip, true));
-      out.push(`<path class="${c('torso', false)}" stroke-width="${WID.torso}" d="M${n1(j.hip[0])},${n1(j.hip[1])} Q${n1(j.mid[0])},${n1(j.mid[1])} ${n1(j.sh[0])},${n1(j.sh[1])}"/>`);
-      out.push(head, limbLeg(j.near, j.hip, false), limbArm(j.near, j.sh, false));
+      const curve = `d="M${n1(j.hip[0])},${n1(j.hip[1])} Q${n1(j.mid[0])},${n1(j.mid[1])} ${n1(j.sh[0])},${n1(j.sh[1])}"`;
+      out.push(far(limbArm(j.far, j.sh) + limbLeg(j.far, j.hip)));
+      if (hot.includes('torso')) out.push(`<path class="fg-l fg-glowline" stroke-width="${WID.torso + 7}" ${curve}/>`);
+      out.push(`<path class="fg-l fg-kitline" stroke-width="${WID.torso}" ${curve}/>`, taper(j.hip, mix(j.hip, j.mid, 0.42), WID.torso, WID.torso, 'fg-shorts'));
+      out.push(headMarkup(j.head, j.sh, false, hot.includes('head')), limbLeg(j.near, j.hip), limbArm(j.near, j.sh));
     }
     const pt = k => Array.isArray(k) ? k : k === 'hand2' ? j.far.hand : k === 'knee' ? j.near.knee : k === 'foot' ? j.near.ank : j.near.hand;
     (fig.props || []).forEach(q => {
