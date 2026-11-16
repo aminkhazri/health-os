@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700;1,800&display=swap" rel="stylesheet">
 <?!= include('Parser'); ?>
 <?!= include('Recovery'); ?>
+<?!= include('Figure'); ?>
 <style>
   /* Theme: "Matchday" — floodlit-night slate, pitch-lime accent, condensed scoreboard type. One look in light and dark. */
   :root {
@@ -252,6 +253,26 @@
   .s-cue { color: var(--text-secondary); font-size: 16px; line-height: 1.45; text-align: center; max-width: 34ch; padding: 0 20px; }
   .s-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .hold-tag { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--teal); border: 1px solid var(--teal); border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: 2px; }
+  /* Animated demo figure */
+  .fig svg { display: block; width: 100%; height: auto; }
+  .fg-body, .fg-far { fill: none; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+  .fg-body { stroke: var(--text-primary); }
+  .fg-far { stroke: #55606e; }
+  .fg-head { fill: var(--text-primary); }
+  .fg-ground { stroke: var(--border); stroke-width: 2; stroke-linecap: round; }
+  .fg-prop { stroke: var(--lime); stroke-width: 8; stroke-linecap: round; }
+  .fg-say { min-height: 2.8em; margin-top: 6px; text-align: center; font-size: 15px; line-height: 1.4; color: var(--teal); }
+  .vid-frame.fig { aspect-ratio: auto; background: var(--surface-1); border: 1px solid var(--border); padding: 10px 10px 4px; }
+  .s-fig { width: min(300px, 74vw); }
+  .s-fig .fg-say { display: none; }
+  .breath:has(.s-fig:not([hidden])) { gap: 10px; }
+  .breath:has(.s-fig:not([hidden])) .s-count { font-size: 64px; }
+  .v-timer { display: flex; align-items: center; gap: 12px; }
+  .v-timer .n { font-family: var(--display); font-weight: 800; font-size: 52px; line-height: 1; color: var(--lime); font-variant-numeric: tabular-nums; min-width: 1.6em; text-align: center; }
+  .v-timer .n.prep { color: var(--text-secondary); }
+  .v-timer .n.last { color: var(--warn); }
+  .v-timer .l { color: var(--text-secondary); font-size: 15px; }
+  .v-timer .btn2 { margin-top: 0; flex: 1; }
   /* Projects: add-on sessions for specific goals */
   .proj-l { margin: 14px 0 6px; font-size: 13px; color: var(--text-muted); }
   #projSeg button { font-size: 14px; }
@@ -493,6 +514,7 @@
 </div>
 <div class="breath" id="str" hidden>
   <div class="b-left" id="sStep"></div>
+  <div class="s-fig fig" id="sFig" hidden></div>
   <div class="s-name" id="sName"></div>
   <div class="s-side" id="sSide"></div>
   <div class="s-count" id="sCount"></div>
@@ -507,6 +529,7 @@
   <div class="vid-title" id="vTitle"></div>
   <div class="vid-frame" id="vFrame"></div>
   <div class="muted" id="vCue"></div>
+  <div class="v-timer" id="vTimer" hidden></div>
   <div class="vid-row"><a class="btn2" id="vOpen" target="_blank" rel="noopener">Open in YouTube</a><button class="btn2" onclick="closeDemo()">Close</button></div>
 </div>
 <div class="toast" id="toast"></div>
@@ -775,17 +798,21 @@ function tone(freq, dur, delay) {
     o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
   } catch (e) {}
 }
+// Call from inside a tap: creates the sound engine and plays one tone, which is what lets iPhone play the later ones.
+function ensureAudio() {
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}   // iPhone: play even with the silent switch on
+  tone(520, 0.15);
+}
 function startStretch(id) {
   const r = D.routines.find(x => x.id === id); if (!r) return;
   sQ = []; r.steps.forEach(([n, s, both]) => both ? sQ.push([n, s, 'Left side'], [n, s, 'Right side']) : sQ.push([n, s, '']));
   sTotal = sQ.reduce((a, x) => a + x[1], 0); sI = 0; sDone = 0; sPaused = false; $('sPause').textContent = 'Pause';
-  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
-  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}   // iPhone: play even with the silent switch on
-  tone(520, 0.15);   // a sound inside the tap itself is what lets iPhone play the later ones
+  ensureAudio();
   $('str').hidden = false; keepAwake(true); stepStretch();
   clearInterval(sTick); sTick = setInterval(tickStretch, 1000);
 }
-function stepStretch() { sLeft = sQ[sI][1]; sPrep = 5; paintStretch(); }
+function stepStretch() { sLeft = sQ[sI][1]; sPrep = 5; $('sFig').hidden = !mountFigure($('sFig'), sQ[sI][0]); paintStretch(); }
 function paintStretch() {
   const [n, s, side] = sQ[sI];
   $('sStep').textContent = `Stretch ${sI + 1} of ${sQ.length}`;
@@ -813,7 +840,7 @@ function strPause() { sPaused = !sPaused; $('sPause').textContent = sPaused ? 'R
 function strSkip() { sI++; if (sI >= sQ.length) return stopStretch(false); stepStretch(); }
 function strDemo() { if (!sPaused) strPause(); demo(sQ[sI][0]); }
 function stopStretch(done) {
-  clearInterval(sTick); $('str').hidden = true; keepAwake(false);
+  clearInterval(sTick); $('str').hidden = true; keepAwake(false); stopFigure(); $('sFig').hidden = true;
   const mins = done ? Math.round(sTotal / 60) : Math.floor(sDone / 60);   // finishing early still counts the full minutes held
   if (mins < 1) return toast('Stopped');
   D.entry = D.entry || {}; D.entry.stretch = (D.entry.stretch || 0) + mins;
@@ -831,18 +858,49 @@ function undoStretch() {
 
 // ---------- Demo videos: the player is only created when you tap Demo, so videos cost nothing until then. ----------
 function demo(name) {
-  const id = (D.videos || {})[name];
+  const id = (D.videos || {})[name], yt = id ? 'https://www.youtube.com/watch?v=' + id : 'https://www.youtube.com/results?search_query=' + encodeURIComponent('how to ' + name);
   $('vTitle').textContent = name; $('vCue').textContent = (D.stretches || {})[name] || '';
-  // Note: no "//" inside a backtick string here. Apps Script's template step treats it as a comment and cuts the line.
-  const src = 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&playsinline=1';
-  $('vFrame').innerHTML = id
-    ? '<iframe src="' + src + '" title="' + esc(name) + ' demo" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>'
-    : '<div class="muted" style="padding:20px">No video saved for this one yet.</div>';
-  $('vOpen').href = id ? 'https://www.youtube.com/watch?v=' + id : 'https://www.youtube.com/results?search_query=' + encodeURIComponent('how to ' + name);
-  $('vOpen').textContent = id ? 'Open in YouTube' : 'Search YouTube';
+  const frame = $('vFrame'), hasFig = !!(window.FIGS && FIGS[name]);
+  frame.classList.toggle('fig', hasFig);
+  if (hasFig) mountFigure(frame, name);
+  else {
+    // Note: no "//" inside a backtick string here. Apps Script's template step treats it as a comment and cuts the line.
+    const src = 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&playsinline=1';
+    frame.innerHTML = id
+      ? '<iframe src="' + src + '" title="' + esc(name) + ' demo" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>'
+      : '<div class="muted" style="padding:20px">No video saved for this one yet.</div>';
+  }
+  $('vOpen').href = yt;
+  $('vOpen').textContent = hasFig ? 'Watch a video instead' : id ? 'Open in YouTube' : 'Search YouTube';
+  // Holds get their own timer: 5 s to get set, a tone to start, ticks on 3-2-1 and a chime at the end.
+  const tg = String(((D.workoutInfo || {}).targets || {})[name] || Object.values(D.projects || {}).map(p => p.targets[name]).find(Boolean) || '');
+  const secs = Number((tg.match(/×\s*(\d+)(?:–\d+)?\s*s\b/) || [])[1]);
+  holdReset(isHold(name) && secs ? secs : 0);
   $('vid').hidden = false;
 }
-function closeDemo() { $('vFrame').innerHTML = ''; $('vid').hidden = true; }
+let hTick = null, hSecs = 0;
+function holdReset(secs) {
+  clearInterval(hTick); hSecs = secs; $('vTimer').hidden = !secs;
+  if (secs) $('vTimer').innerHTML = `<button class="btn2" onclick="holdStart()">⏱️ Start ${secs} s hold timer</button>`;
+}
+function holdStart() {
+  ensureAudio();
+  let prep = 5, left = hSecs;
+  const paint = () => { $('vTimer').innerHTML = `<div class="n ${prep > 0 ? 'prep' : left <= 3 ? 'last' : ''}">${prep > 0 ? prep : left}</div><div class="l">${prep > 0 ? 'Get into position' : 'Hold still and keep breathing'}</div><button class="btn2" style="flex:0 0 auto" onclick="holdReset(hSecs)">Stop</button>`; };
+  paint(); clearInterval(hTick);
+  hTick = setInterval(() => {
+    if (prep > 0) { prep--; if (prep === 0) tone(520, 0.25); }
+    else { left--; if (left >= 1 && left <= 3) tone(700, 0.12); }
+    if (left <= 0) {
+      clearInterval(hTick); tone(784, 0.2); tone(988, 0.2, 0.2); tone(1175, 0.5, 0.4);
+      $('vTimer').innerHTML = `<div class="l" style="flex:1"><b style="color:var(--good)">Done ✓</b> Rest, then go again or switch sides.</div><button class="btn2" style="flex:0 0 auto" onclick="holdStart()">Again</button>`;
+      return;
+    }
+    paint();
+  }, 1000);
+}
+function closeDemo() { stopFigure(); clearInterval(hTick); $('vFrame').innerHTML = ''; $('vFrame').classList.remove('fig'); $('vid').hidden = true;
+  if (!$('str').hidden && sQ[sI]) $('sFig').hidden = !mountFigure($('sFig'), sQ[sI][0]); }   // back in a routine: restart its figure
 
 // ---------- Collapsible Today cards. Open/closed is remembered on this phone; all start closed. ----------
 const FOLD_KEY = 'healthos-folds';

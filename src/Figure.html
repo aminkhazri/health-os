@@ -1,0 +1,115 @@
+<script>
+/**
+ * Animated demo figure, drawn in code (no video, no images, no libraries).
+ *
+ * How it works: the figure is a side-view skeleton. A "pose" is a set of angles in degrees, one per body segment.
+ * A move is a list of keyframes (time in seconds + pose). Every frame we blend between the two nearest keyframes
+ * ("interpolation", with ease-in-out so it accelerates and slows like a real limb), turn the angles into joint
+ * positions ("forward kinematics": start at the hip and walk outward segment by segment), and move the SVG lines.
+ *
+ * Angle conventions: limbs: 0 = pointing straight down, 90 = forward, -90 = back. Torso: 0 = upright, 90 = flat, facing right.
+ * head is relative to the torso. arch bends the spine (+ rounds up, - sags). A "2" suffix is the far-side limb;
+ * leave it out and it copies the near side.
+ * anchor: [x, y] pins the near ankle to that spot, so feet stay planted and the hips move (squats, push-ups).
+ * Without anchor the pose gives the hip position as x, y (floor moves).
+ * hands: [x, y] pins both hands to that spot (push-ups); the elbows are then worked out automatically.
+ *
+ * poseAt() and joints() are pure functions, unit-tested in tests/figure.test.js.
+ */
+(function (root) {
+  const LEN = { torso: 52, neck: 6, head: 11, armU: 30, armL: 28, legU: 44, legL: 42, foot: 16 };
+  const KEYS = ['x', 'y', 'torso', 'arch', 'head', 'armU', 'armL', 'armU2', 'armL2', 'legU', 'legL', 'foot', 'legU2', 'legL2', 'foot2'];
+  const rad = d => d * Math.PI / 180;
+  const down = (p, len, a) => [p[0] + len * Math.sin(rad(a)), p[1] + len * Math.cos(rad(a))];
+  const up = (p, len, a) => [p[0] + len * Math.sin(rad(a)), p[1] - len * Math.cos(rad(a))];
+  const ease = t => 0.5 - 0.5 * Math.cos(Math.PI * t);
+  const val = (p, k) => p[k] !== undefined ? p[k] : (k.endsWith('2') && p[k.slice(0, -1)] !== undefined ? p[k.slice(0, -1)] : 0);
+
+  /** Pose at time t (seconds). Loops forever. `say` is the cue for the current part of the move. */
+  function poseAt(fig, t) {
+    const K = fig.keys, dur = K[K.length - 1].at, tt = ((t % dur) + dur) % dur;
+    let i = 0; while (i < K.length - 2 && tt >= K[i + 1].at) i++;
+    const a = K[i], b = K[i + 1], f = ease((tt - a.at) / (b.at - a.at)), out = { say: a.say || '' };
+    KEYS.forEach(k => { const va = val(a.p, k), vb = val(b.p, k); out[k] = va + (vb - va) * f; });
+    return out;
+  }
+
+  /** Joint positions for a pose. */
+  function joints(fig, p) {
+    let hip = [p.x, p.y];
+    if (fig.anchor) { const ank = down(down([0, 0], LEN.legU, p.legU), LEN.legL, p.legL); hip = [fig.anchor[0] - ank[0], fig.anchor[1] - ank[1]]; }
+    const sh = up(hip, LEN.torso, p.torso);
+    const leg = (u, l, f) => { const knee = down(hip, LEN.legU, u), ank = down(knee, LEN.legL, l); return { knee, ank, toe: down(ank, LEN.foot, f) }; };
+    // Planted hands ("inverse kinematics"): the hand is fixed, so work backwards to where the elbow must be.
+    // The elbow lies where two circles cross: one around the shoulder (upper-arm length), one around the hand (forearm length).
+    const pinned = () => {
+      const h = fig.hands, dx = h[0] - sh[0], dy = h[1] - sh[1], d = Math.min(Math.hypot(dx, dy), LEN.armU + LEN.armL - 0.01) || 0.01;
+      const a = (LEN.armU * LEN.armU - LEN.armL * LEN.armL + d * d) / (2 * d), hgt = Math.sqrt(Math.max(0, LEN.armU * LEN.armU - a * a));
+      const ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy);
+      return { el: [sh[0] + ux * a - uy * hgt * (fig.elbow || -1) * -1, sh[1] + uy * a + ux * hgt * (fig.elbow || -1) * -1], hand: h };
+    };
+    const arm = (u, l) => { if (fig.hands) return pinned(); const el = down(sh, LEN.armU, u); return { el, hand: down(el, LEN.armL, l) }; };
+    const n = [-Math.cos(rad(p.torso)), -Math.sin(rad(p.torso))];   // direction the back faces
+    const mid = [(hip[0] + sh[0]) / 2 + n[0] * p.arch * 2, (hip[1] + sh[1]) / 2 + n[1] * p.arch * 2];
+    return { hip, sh, mid, head: up(sh, LEN.neck + LEN.head, p.torso + p.head),
+      near: Object.assign(leg(p.legU, p.legL, p.foot), arm(p.armU, p.armL)), far: Object.assign(leg(p.legU2, p.legL2, p.foot2), arm(p.armU2, p.armL2)) };
+  }
+
+  // ---------- The moves. First three; more are added here, one entry each. ----------
+  const stand = { torso: 4, head: -4, armU: 15, armL: 165, legU: 0, legL: 0, foot: 90 };
+  const squat = { torso: 28, head: -22, armU: 22, armL: 150, legU: 75, legL: -28, foot: 90 };
+  const cow = { x: 80, y: 151, torso: 74.4, arch: -9, head: -32, armU: 0, armL: 0, legU: 0, legL: -90, foot: -90 };
+  const cat = { x: 80, y: 151, torso: 74.4, arch: 13, head: 38, armU: 0, armL: 0, legU: 0, legL: -90, foot: -90 };
+  const plankTop = { torso: 71.4, head: -12, armU: 0, armL: 0, legU: -71.4, legL: -71.4, foot: 20 };
+  const plankLow = { torso: 88.8, head: -16, armU: -80, armL: 65, legU: -88.8, legL: -88.8, foot: 20 };
+  const FIGS = {
+    'Goblet squat': { anchor: [120, 195], prop: 'dumbbell', still: 2.5, keys: [
+      { at: 0, p: stand, say: 'Sit back and down: 2 seconds' }, { at: 2.2, p: squat, say: 'Pause. Chest up, knees over toes' },
+      { at: 2.9, p: squat, say: 'Drive up through your whole foot' }, { at: 4.3, p: stand, say: 'Stand tall' }, { at: 5, p: stand }] },
+    'Cat-cow': { still: 3, keys: [
+      { at: 0, p: cow, say: 'Breathe out: round your back up, chin to chest' }, { at: 2.6, p: cat, say: 'Pause at the top' },
+      { at: 3.4, p: cat, say: 'Breathe in: let your belly sink, look ahead' }, { at: 6, p: cow, say: 'Pause' }, { at: 6.8, p: cow }] },
+    'Push-up bottom hold': { anchor: [38, 181], hands: [170, 195], still: 4, keys: [
+      { at: 0, p: plankTop, say: 'Lower slowly' }, { at: 2.2, p: plankLow, say: 'Hold. Body in one line, elbows in, keep breathing' },
+      { at: 8, p: plankLow, say: 'Press back up' }, { at: 9.4, p: plankTop, say: 'Reset' }, { at: 10.2, p: plankTop }] },
+  };
+
+  // ---------- Drawing ----------
+  const pts = a => a.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  let stopCurrent = null;
+  /** Draw `name` into element `el` and animate it. Returns false if there is no figure for that move. */
+  function mountFigure(el, name) {
+    stopFigure();
+    const fig = FIGS[name]; if (!fig) return false;
+    el.innerHTML = '<svg viewBox="0 0 240 212" role="img" aria-label="Animated figure showing ' + name.replace(/"/g, '') + '">'
+      + '<line class="fg-ground" x1="8" y1="201" x2="232" y2="201"/>'
+      + '<polyline class="fg-far" data-k="farArm"/><polyline class="fg-far" data-k="farLeg"/>'
+      + '<path class="fg-body" data-k="torso"/><circle class="fg-head" data-k="head" r="' + LEN.head + '"/>'
+      + '<polyline class="fg-body" data-k="nearLeg"/><polyline class="fg-body" data-k="nearArm"/>'
+      + '<line class="fg-prop" data-k="prop" visibility="hidden"/></svg><div class="fg-say" aria-live="off"></div>';
+    const q = k => el.querySelector('[data-k="' + k + '"]'), say = el.querySelector('.fg-say');
+    const draw = t => {
+      const p = poseAt(fig, t), j = joints(fig, p);
+      q('farArm').setAttribute('points', pts([j.sh, j.far.el, j.far.hand]));
+      q('farLeg').setAttribute('points', pts([j.hip, j.far.knee, j.far.ank, j.far.toe]));
+      q('nearArm').setAttribute('points', pts([j.sh, j.near.el, j.near.hand]));
+      q('nearLeg').setAttribute('points', pts([j.hip, j.near.knee, j.near.ank, j.near.toe]));
+      q('torso').setAttribute('d', 'M' + pts([j.hip]) + ' Q' + pts([j.mid]) + ' ' + pts([j.sh]));
+      q('head').setAttribute('cx', j.head[0].toFixed(1)); q('head').setAttribute('cy', j.head[1].toFixed(1));
+      if (fig.prop === 'dumbbell') { const h = j.near.hand, pr = q('prop'); pr.setAttribute('visibility', 'visible');
+        pr.setAttribute('x1', h[0] + 3); pr.setAttribute('x2', h[0] + 3); pr.setAttribute('y1', h[1] - 10); pr.setAttribute('y2', h[1] + 10); }
+      if (say.textContent !== p.say) say.textContent = p.say;
+    };
+    const still = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (still || !root.requestAnimationFrame) { draw(fig.still || 0); return true; }
+    let raf = 0; const t0 = performance.now();
+    const loop = now => { draw((now - t0) / 1000); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    stopCurrent = () => cancelAnimationFrame(raf);
+    return true;
+  }
+  function stopFigure() { if (stopCurrent) { stopCurrent(); stopCurrent = null; } }
+
+  root.FIGS = FIGS; root.mountFigure = mountFigure; root.stopFigure = stopFigure; root.figPoseAt = poseAt; root.figJoints = joints;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
