@@ -169,7 +169,8 @@
       aim('Hips', dHip, latHip, wq); aim('Spine2', dChest, latChest, wq); aim('Neck', dNeck, latChest, wq);
       // the 2D "hip" is the hip joint, so put the midpoint of the two 3D hip joints exactly there (not the pelvis bone, which sits higher)
       rig.position.set(0, 0, 0); rig.updateMatrixWorld(true);
-      rig.position.copy(P(hip)).sub(wp('LeftUpLeg').add(wp('RightUpLeg')).multiplyScalar(0.5));
+      const joints = wp('LeftUpLeg').add(wp('RightUpLeg')).multiplyScalar(0.5);   // measured first: reading a bone's position refreshes the rig, so it must not have moved yet
+      rig.position.copy(P(hip)).sub(joints);
       rig.updateMatrixWorld(true);   // the torso is placed; now the limbs reach out from where it put the hips and shoulders
       // each limb stays in its own slice of space, parallel to the 2D drawing (so legs sit hip-width apart instead of on top of each other)
       const target = (rootBone, root2, end2, lift) => { const t = P(end2); return lift ? t.addScaledVector(plane, wp(rootBone).sub(P(root2)).dot(plane) * lift) : t; };
