@@ -96,7 +96,12 @@
     Object.keys(CH).forEach(n => { rest[n] = { q: B[n].getWorldQuaternion(Q()), d: wp(CH[n]).sub(wp(n)).normalize(), n: V(1, 0, 0) }; });
     // elbows hinge at right angles to the arm and to straight ahead, whatever angle the arms rest at (T-pose or A-pose)
     ['Right', 'Left'].forEach(s => { const n = V().crossVectors(rest[s + 'Arm'].d, V(0, 0, 1)).normalize(); rest[s + 'Arm'].n = n; rest[s + 'ForeArm'].n = n.clone(); });
-    const legLen = wp('RightUpLeg').distanceTo(wp('RightLeg')) + wp('RightLeg').distanceTo(wp('RightFoot'));
+    const len = {};
+    ['Right', 'Left'].forEach(s => {
+      [['UpLeg', 'Leg'], ['Leg', 'Foot'], ['Arm', 'ForeArm'], ['ForeArm', 'Hand']].forEach(([a, b]) => { len[s + a] = wp(s + a).distanceTo(wp(s + b)); });
+      rest[s + 'Hand'] = { q: B[s + 'Hand'].getWorldQuaternion(Q()), d: rest[s + 'ForeArm'].d.clone(), n: V(0, 1, 0), local: B[s + 'Hand'].quaternion.clone() };   // palm faces down when the hand is aimed
+    });
+    const legLen = len.RightUpLeg + len.RightLeg;
     const s = legLen / 86, floorY = 195 + wp('RightFoot').y / s, hips0 = wp('Hips'), footPitch = Math.asin(-rest.RightFoot.d.y);
     const rootQ = B.Hips.parent.getWorldQuaternion(Q());
 
@@ -116,15 +121,37 @@
       B[name].quaternion.copy(worldQ(B[name].parent, wq).clone().invert().multiply(q)); wq.set(B[name], q);
     }
     /** Hinge axis for a two-bone limb: the bend itself when it is bent, sliding to a natural default when it is straight. */
-    function hinge(name, d1, d2, body, wq) {
+    /**
+     * Hinge axis for a two-bone limb: the bend itself when it is bent, sliding to a natural default when it is straight.
+     * Knees only bend one way, so a "backwards" bend in the 2D drawing is ignored. The axis is also eased from frame to frame,
+     * so a limb passing through straight never snaps round.
+     */
+    let prevN = {};
+    function hinge(name, d1, d2, body, wq, leg, still) {
       const r = rest[name], turn = wq.get(B[body]).clone().multiply(rest[body].q.clone().invert());   // how far the torso has turned from its rest pose
       const local = d1.clone().applyQuaternion(turn.clone().invert());
       const fb = r.n.clone().applyQuaternion(Q().setFromUnitVectors(r.d, local)).applyQuaternion(turn);
-      return V().crossVectors(d1, d2).addScaledVector(fb, 0.2).normalize();
+      const c = V().crossVectors(d1, d2); if (leg && c.dot(fb) < 0) c.set(0, 0, 0);
+      const n = c.addScaledVector(fb, 0.2).normalize(), was = prevN[name];
+      if (was && !still) n.multiplyScalar(0.35).addScaledVector(was, 0.65).normalize();
+      prevN[name] = n.clone(); return n;
+    }
+    /**
+     * Two-bone reach ("inverse kinematics"): put the limb's end exactly on target T, bending around hinge n.
+     * The 2D drawing says where a foot or hand should be; this makes the 3D limb actually arrive there, so planted feet stay planted.
+     */
+    function reach(upper, lower, T, n, wq) {
+      const a = wp(upper), L1 = len[upper], L2 = len[lower], d = T.clone().sub(a);
+      const dist = Math.min(Math.max(d.length(), Math.abs(L1 - L2) * 1.02 + 1e-4), (L1 + L2) * 0.999), u = d.normalize();
+      const k = (L1 * L1 - L2 * L2 + dist * dist) / (2 * dist), h = Math.sqrt(Math.max(0, L1 * L1 - k * k));
+      const nn = n.clone().addScaledVector(u, -n.dot(u)); if (nn.lengthSq() < 1e-6) nn.copy(n); nn.normalize();
+      const mid = a.clone().addScaledVector(u, k).addScaledVector(V().crossVectors(u, nn), h), end = a.clone().addScaledVector(u, dist);
+      aim(upper, mid.clone().sub(a), nn, wq); aim(lower, end.clone().sub(mid), nn, wq);
+      return end;
     }
 
     let P = null, plane = null, cur = null, mode = null;   // 2D point -> 3D point for the current move; the axis sticking out of the 2D drawing
-    function pose(fig, j) {
+    function pose(fig, j, still) {
       const D = (a, b) => P(b).sub(P(a)).normalize(), wq = new Map(), front = !!j.front, flat = mode === 'up' || mode === 'down' || mode === 'sit';
       const hip = j.hip, sh = front ? j.chest : j.sh, mid = front ? [(hip[0] + sh[0]) / 2, (hip[1] + sh[1]) / 2] : j.mid;
       let near = 'Right', far = 'Left', dHip = D(hip, mid), dChest = D(mid, sh), dNeck = D(sh, j.head), latHip, latChest;
@@ -135,14 +162,22 @@
         if (mode === 'side' || latChest.dot(D(j.near.shJ, j.far.shJ)) < 0) { near = 'Left'; far = 'Right'; }
       } else { latChest = front ? D(j.near.shJ, j.far.shJ) : V(1, 0, 0); latHip = front ? D(j.near.hipJ, j.far.hipJ) : latChest; }
       aim('Hips', dHip, latHip, wq); aim('Spine2', dChest, latChest, wq); aim('Neck', dNeck, latChest, wq);
-      const droop = d => mode === 'sit' ? d.add(V(0, -1, 0)).normalize() : d;   // seated, seen from above: arms hang down toward the floor
-      [[near, j.near], [far, j.far]].forEach(([side, l]) => {
-        const t = D(front ? l.hipJ : hip, l.knee), c = D(l.knee, l.ank), n = hinge(side + 'UpLeg', t, c, 'Hips', wq);
-        aim(side + 'UpLeg', t, n, wq); aim(side + 'Leg', c, n, wq); aim(side + 'Foot', (flat ? c.clone() : D(l.ank, l.toe)).applyAxisAngle(n, footPitch), n, wq);
-        const u = droop(D(front ? l.shJ : sh, l.el)), f = droop(D(l.el, l.hand)), m = hinge(side + 'Arm', u, f, 'Spine2', wq);
-        aim(side + 'Arm', u, m, wq); aim(side + 'ForeArm', f, m, wq);
-      });
       rig.position.copy(P(hip)).sub(hips0);
+      rig.updateMatrixWorld(true);   // the torso is placed; now the limbs reach out from where it put the hips and shoulders
+      // each limb stays in its own slice of space, parallel to the 2D drawing (so legs sit hip-width apart instead of on top of each other)
+      const target = (rootBone, root2, end2, lift) => { const t = P(end2); return lift ? t.addScaledVector(plane, wp(rootBone).sub(P(root2)).dot(plane)) : t; };
+      [[near, j.near], [far, j.far]].forEach(([side, l]) => {
+        const hip2 = front ? l.hipJ : hip, sh2 = front ? l.shJ : sh;
+        const n = hinge(side + 'UpLeg', D(hip2, l.knee), D(l.knee, l.ank), 'Hips', wq, true, still);
+        reach(side + 'UpLeg', side + 'Leg', target(side + 'UpLeg', hip2, l.ank, true), n, wq);
+        aim(side + 'Foot', (flat ? D(l.knee, l.ank) : D(l.ank, l.toe)).applyAxisAngle(n, footPitch), n, wq);
+        const m = hinge(side + 'Arm', D(sh2, l.el), D(l.el, l.hand), 'Spine2', wq, false, still);
+        const hand = reach(side + 'Arm', side + 'ForeArm', target(side + 'Arm', sh2, l.hand, mode !== 'sit'), m, wq);
+        // a hand resting on the floor lies flat, fingers pointing the way the head points; otherwise it simply follows the forearm
+        const H = B[side + 'Hand'], flatDir = dChest.clone().setY(0);
+        if (!flat && !fig.noGround && hand.y < 0.13 && flatDir.lengthSq() > 0.08) aim(side + 'Hand', flatDir.normalize(), V(0, 1, 0), wq);
+        else H.quaternion.copy(rest[side + 'Hand'].local);
+      });
       rig.updateMatrixWorld(true);
     }
 
@@ -231,12 +266,12 @@
       const half = dist * Math.tan(rad(fov / 2)) * v[2] / v[3]; floor.scale.setScalar(half * (flat ? 0.8 : 0.98) / 2.6); shade.scale.setScalar(1 / floor.scale.x);   // the pool of light fades out just inside the picture
       camera.aspect = v[2] / v[3]; camera.updateProjectionMatrix(); aimCamera();
       const w = Math.max(120, el.clientWidth || 300); renderer.setSize(w, Math.round(w * v[3] / v[2]), false);
-      paint(fig.hot); cur = { fig, live: buildProps(fig), still: false };
+      prevN = {}; paint(fig.hot); cur = { fig, live: buildProps(fig), still: false };
       el.insertBefore(canvas, el.firstChild); return canvas;
     }
     function draw(fig, p, still) {
       if (!cur || cur.fig !== fig) return;
-      cur.still = !!still; pose(fig, root.figJoints(fig, p)); moveProps(cur.live); renderer.render(scene, camera);
+      cur.still = !!still; pose(fig, root.figJoints(fig, p), !!still); moveProps(cur.live); renderer.render(scene, camera);
     }
     function unmount() { cur = null; if (canvas.parentNode) canvas.parentNode.removeChild(canvas); }
     return { mount, draw, unmount, bones: B, T, scene, camera, renderer };
