@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-title" content="Health OS">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700;1,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700;1,800&family=Barlow:wght@500;600&display=swap" rel="stylesheet">
 <?!= include('Parser'); ?>
 <?!= include('Recovery'); ?>
 <?!= include('Figure'); ?>
@@ -151,20 +151,33 @@
 
   /* ---------- Matchday theme ---------- */
   body { background: radial-gradient(90% 40% at 50% -5%, #1c2a33 0%, rgba(28,42,51,0) 70%), var(--bg); background-attachment: fixed; min-height: 100vh; }
-  header { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; align-items: center; }
-  header .greet, header .bigdate { grid-column: 1; }
+  /* Header: a calm greeting in plain sentence case, the date underneath, the score to the side, then one quiet line of status and the day's quote. */
+  header { display: grid; grid-template-columns: 1fr auto; column-gap: 14px; align-items: center; padding: calc(28px + env(safe-area-inset-top)) 18px 10px; }
+  header .greet, header .bigdate, header .sub, header .quote { font-family: "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-style: normal; text-transform: none; letter-spacing: 0; }
+  header .greet { grid-column: 1; grid-row: 1; font-weight: 600; font-size: 27px; line-height: 1.15; letter-spacing: -.01em; color: var(--text-primary); }
+  header .bigdate { grid-column: 1; grid-row: 2; margin: 5px 0 0; font-weight: 500; font-size: 16px; line-height: 1.3; color: var(--text-secondary); }
   header .ovr { grid-column: 2; grid-row: 1 / span 2; }
-  header .quote, header .sub { grid-column: 1 / -1; }
-  header .greet { font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: .1em; text-transform: uppercase; color: var(--lime); }
-  header .bigdate { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 38px; line-height: 1; letter-spacing: .01em; text-transform: uppercase; margin: 2px 0 12px; }
-  header .quote { border-left: 3px solid var(--lime); border-radius: 0 8px 8px 0; background: var(--surface-1); font-style: normal; color: var(--text-secondary); font-size: 15px; }
-  header .sub { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  header .sub span { font-family: var(--display); font-weight: 600; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; border-radius: 4px; padding: 2px 8px; background: var(--surface-2); color: var(--text-secondary); }
-  header .sub span.streak { background: var(--lime); color: var(--lime-ink); }
-  .ovr { width: 68px; height: 68px; border-radius: 14px; border: 0; padding: 0; background: linear-gradient(160deg, #d6ff6b, var(--lime) 55%, #7fbf1e); color: var(--lime-ink);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(184,242,62,.25); font-family: var(--display); }
+  header .sub { grid-column: 1 / -1; grid-row: 3; display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 18px; }
+  header .sub span { font-weight: 500; font-size: 14px; color: var(--text-muted); background: none; padding: 0; border-radius: 0; }
+  header .sub span.streak { color: var(--lime); background: none; }
+  header .quote { grid-column: 1 / -1; grid-row: 4; margin: 10px 0 0; padding: 0; border: 0; border-radius: 0; background: none; font-size: 14px; line-height: 1.5; color: var(--text-muted); }
+  .ovr { width: 58px; height: 58px; border-radius: 16px; border: 0; padding: 0; background: linear-gradient(160deg, #d6ff6b, var(--lime) 55%, #7fbf1e); color: var(--lime-ink);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(184,242,62,.18); font-family: var(--display); }
   .ovr[hidden] { display: none; }
-  .ovr b { font-size: 34px; line-height: .9; font-weight: 800; font-style: italic; } .ovr i { font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: .14em; }
+  .ovr b { font-size: 28px; line-height: .9; font-weight: 800; font-style: italic; } .ovr i { font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+  /* Weekly quest */
+  .q-top { display: flex; align-items: center; gap: 12px; margin: -2px 0 8px; }
+  .q-bar { flex: 1; height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+  .q-bar i { display: block; height: 100%; width: 0; background: var(--lime); border-radius: 4px; transition: width .4s cubic-bezier(.2,.8,.2,1); }
+  .q-count { font-family: var(--display); font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+  .q-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+  .q-name { flex: 1; min-width: 0; font-size: 16px; }
+  .q-name small { display: block; font-size: 13px; color: var(--text-muted); }
+  .q-row.done .q-name > span { color: var(--text-muted); text-decoration: line-through; }
+  .q-del { font: inherit; font-size: 20px; line-height: 1; width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: none; color: var(--text-muted); }
+  .q-add { display: flex; gap: 8px; margin-top: 10px; } .q-add input { flex: 1; min-width: 0; } .q-add button { flex: 0 0 auto; }
+  .q-foot { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 10px; font-size: 13px; color: var(--text-muted); }
+  .q-foot button { font: inherit; font-weight: 600; color: var(--lime); background: none; border: 0; padding: 4px 0; flex: 0 0 auto; }
   .card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); margin: 12px 0; padding: 14px; }
   .card h2 { font-family: var(--display); font-size: 17px; font-weight: 700; letter-spacing: .08em; color: var(--text-primary); display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .card h2::before { content: ''; width: 4px; height: 16px; border-radius: 2px; background: var(--lime); transform: skewX(-12deg); }
@@ -431,6 +444,15 @@
       </div>
       </div></div>
     </div>
+    <div class="card fold" data-fold="chores">
+      <h2 class="fold-h"><button class="fold-head" type="button" aria-expanded="false" aria-controls="fb-chores" onclick="toggleFold('chores')"><span class="fold-t">Weekly quest</span><span class="fold-sum" id="sum-chores"></span><i class="fold-chev" aria-hidden="true"></i></button></h2>
+      <div class="fold-body" id="fb-chores"><div class="fold-inner">
+      <div class="q-top"><div class="q-bar"><i id="qBar"></i></div><div class="q-count" id="qCount"></div></div>
+      <div id="qList"></div>
+      <div class="q-add" id="qAdd" hidden><input id="qNew" type="text" maxlength="60" placeholder="New chore, e.g. Vacuum" onkeydown="if (event.key === 'Enter') choreEdit(this.value, true)"><button class="btn2" type="button" onclick="choreEdit($('qNew').value, true)">Add</button></div>
+      <div class="q-foot"><span id="qHist"></span><button type="button" id="qEdit" onclick="choreEditMode()">Edit list</button></div>
+      </div></div>
+    </div>
     <div class="card fold" data-fold="notes">
       <h2 class="fold-h"><button class="fold-head" type="button" aria-expanded="false" aria-controls="fb-notes" onclick="toggleFold('notes')"><span class="fold-t">Notes</span><span class="fold-sum" id="sum-notes"></span><i class="fold-chev" aria-hidden="true"></i></button></h2>
       <div class="fold-body" id="fb-notes"><div class="fold-inner">
@@ -581,7 +603,7 @@ function render() {
   if (!document.querySelector('.tab.on')) $('t-today').classList.add('on');
   $('hdr').innerHTML = (D.targets.phase ? `<span>${D.targets.phase}</span>` : '') + streakBadge();
   renderHeader();
-  renderToday(); renderWorkout(); renderStretch(); renderOvr();
+  renderToday(); renderWorkout(); renderStretch(); renderOvr(); renderChores();
   if ($('t-prog').classList.contains('on')) renderProgress();
 }
 
@@ -952,6 +974,38 @@ function guideEndWork() {
 function guideNextSet() { clearInterval(gTick); G.set++; G.side = 1; guidePrep(); }
 function closeDemo() { guideReset(null); $('vFrame').innerHTML = ''; $('vid').hidden = true; }
 
+// ---------- Weekly quest: chores to tick off once a week. The list starts fresh every Monday; past weeks stay on record. ----------
+let choreEditing = false;
+function renderChores() {
+  const C = D && D.chores; if (!C) { $('sum-chores').textContent = ''; return; }
+  const total = C.list.length, n = C.list.filter(c => C.done[c]).length, all = total > 0 && n === total;
+  $('qBar').style.width = (total ? n / total * 100 : 0) + '%'; $('qCount').textContent = n + ' / ' + total;
+  $('sum-chores').textContent = !total ? 'No chores yet · tap to add some' : all ? 'Quest complete ✓ · all ' + total + ' done this week' : n + ' of ' + total + ' done · left: ' + C.list.filter(c => !C.done[c]).join(', ');
+  const day = k => new Date(k + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  $('qList').innerHTML = C.list.map((c, i) => `<div class="q-row${C.done[c] ? ' done' : ''}"><button class="check${C.done[c] ? ' on' : ''}" type="button" aria-pressed="${!!C.done[c]}" aria-label="${esc(c)}" onclick="choreTick(${i})">${C.done[c] ? '✓' : ''}</button>` +
+    `<div class="q-name"><span>${esc(c)}</span>${C.done[c] ? '<small>Done ' + day(C.done[c]) + '</small>' : ''}</div>` +
+    (choreEditing ? `<button class="q-del" type="button" aria-label="Remove ${esc(c)}" onclick="choreEdit(D.chores.list[${i}], false)">×</button>` : '') + '</div>').join('') ||
+    '<p class="muted" style="margin:6px 0">Nothing on the list yet. Tap “Edit list” to add your weekly chores.</p>';
+  $('qHist').textContent = C.history.length ? 'Past weeks: ' + C.history.map(h => new Date(h.wk + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + h.done + '/' + (h.of || h.done)).join(' · ') : 'New list every Monday';
+  $('qAdd').hidden = !choreEditing; $('qEdit').textContent = choreEditing ? 'Done editing' : 'Edit list';
+}
+function choreEditMode() { choreEditing = !choreEditing; renderChores(); if (choreEditing) $('qNew').focus(); }
+function choreTick(i) {
+  const C = D.chores, name = C.list[i], on = !C.done[name];
+  if (on) C.done[name] = D.today; else delete C.done[name];
+  renderChores();
+  if (on) { reward('+1 quest'); if (C.list.every(c => C.done[c])) celebrate('Weekly quest complete'); }
+  begin(); google.script.run.withSuccessHandler(settle).withFailureHandler(opFail).toggleChore(name, on, curDate);
+}
+function choreEdit(name, add) {
+  name = String(name || '').replace(/\s+/g, ' ').trim(); if (!name) return;
+  const C = D.chores, at = C.list.findIndex(c => c.toLowerCase() === name.toLowerCase());
+  if (add && at >= 0) return toast('That one is already on the list');
+  if (add) { C.list.push(name); $('qNew').value = ''; } else if (at >= 0) { C.list.splice(at, 1); delete C.done[name]; }
+  renderChores();
+  begin(); google.script.run.withSuccessHandler(settle).withFailureHandler(opFail).editChore(name, add, curDate);
+}
+
 // ---------- Collapsible Today cards. Open/closed is remembered on this phone; all start closed. ----------
 const FOLD_KEY = 'healthos-folds';
 function foldState() { try { return JSON.parse(localStorage.getItem(FOLD_KEY)) || {}; } catch (e) { return {}; } }
@@ -1212,7 +1266,7 @@ function settle(d) {
 }
 function applyFresh(d) {
   if (inflight > 0 || !d || d.dateKey !== curDate) return;
-  D = d; saveCache(); renderFood(); syncChecklist(); renderOvr(); renderProgressIfOpen();
+  D = d; saveCache(); renderFood(); syncChecklist(); renderOvr(); renderChores(); renderProgressIfOpen();
 }
 function opFail(e) { inflight = 0; burst = 0; toast('⚠️ Not saved: ' + (e && e.message ? e.message : e)); load(curDate); }
 function recalcTotals() {
@@ -1355,7 +1409,7 @@ function renderHeader() {
   const now = new Date(), h = now.getHours();
   const hi = h < 4 ? 'Good evening' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
   const name = D && D.name ? D.name : '';
-  $('greet').textContent = hi + (name ? ', ' + name : '') + (h < 12 && h >= 4 ? ' ☀️' : h >= 17 || h < 4 ? ' 🌙' : ' 👋');
+  $('greet').textContent = hi + (name ? ', ' + name : '');
   $('bigdate').textContent = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   const dayNum = Math.floor((now - now.getTimezoneOffset() * 60000) / 86400000);
   $('quote').textContent = '“' + QUOTES[dayNum % QUOTES.length] + '”';

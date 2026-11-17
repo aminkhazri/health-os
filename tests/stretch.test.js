@@ -30,3 +30,12 @@ test('every project exercise has a target, and projects never share a letter wit
     p.ex.forEach(ex => assert.ok(p.targets[ex], ex));
   });
 });
+
+test('weekOf_ returns the Monday of the week, for any day and across a clock change', () => {
+  const { weekOf_ } = require('../src/WebApp.js');
+  assert.equal(weekOf_('2026-11-17'), '2026-11-16');   // a Tuesday
+  assert.equal(weekOf_('2026-11-16'), '2026-11-16');   // a Monday is its own week start
+  assert.equal(weekOf_('2026-11-22'), '2026-11-16');   // Sunday still belongs to the week that began on Monday
+  assert.equal(weekOf_('2026-11-01'), '2026-10-26');   // the Sunday the clocks go back, and across a month boundary
+  assert.equal(weekOf_('2027-01-01'), '2026-12-28');   // across a year boundary
+});

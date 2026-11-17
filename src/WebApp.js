@@ -116,8 +116,9 @@ function getAppData(dateKey) {
   const cal = weekly.filter(w => w.cal).pop() || null;
   const food = getFoodData_(ss, dateKey, tz);
   const activity = getActivityData_(ss, dateKey, tz);
+  const chores = getChores_(ss, today);
   return { today, dateKey, entry, series: series.slice(-120), weekly, targets, last,
-    next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, lastSession, workouts: WORKOUTS, projects: PROJECTS, calCheck: cal, food, activity, stretches: STRETCHES, routines: STRETCH_ROUTINES, videos: VIDEOS, name: CONFIG.NAME || '' };
+    next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, lastSession, workouts: WORKOUTS, projects: PROJECTS, calCheck: cal, food, activity, chores, stretches: STRETCHES, routines: STRETCH_ROUTINES, videos: VIDEOS, name: CONFIG.NAME || '' };
 }
 
 /** Write one Daily Log row (finds the row by date). */
@@ -206,4 +207,65 @@ function maintenance() {
   console.log('Sheet time zone: ' + ss.getSpreadsheetTimeZone());
 }
 
-if (typeof module !== 'undefined') module.exports = { nextWorkout_, WORKOUTS, WORKOUT_INFO, PROJECTS }; // Node tests only
+// ---------- Weekly quest: household chores, ticked off once a week ----------
+// Two tabs in the tracker Sheet hold it. "Chores" is the list (one chore per row; edit it there or in the app).
+// "Chore Log" is the record: one row each time a chore is ticked, tagged with the Monday of its week. A week runs Monday to Sunday,
+// so the list starts fresh every Monday and the weekend is the last chance to finish it.
+const CHORE_SEED = ['Clean the bathrooms', "Kibby's litter"];
+
+/** The Monday of the week a date falls in. Works on 'yyyy-MM-dd' text only, so time zones and clock changes can't shift it. */
+function weekOf_(dateKey) {
+  const [y, m, d] = dateKey.split('-').map(Number), noon = new Date(Date.UTC(y, m - 1, d, 12));
+  return new Date(noon.getTime() - ((noon.getUTCDay() + 6) % 7) * 86400000).toISOString().slice(0, 10);
+}
+function choreSheets_(ss) {
+  let list = ss.getSheetByName('Chores'), log = ss.getSheetByName('Chore Log');
+  if (!list) {
+    list = ss.insertSheet('Chores'); list.getRange(1, 1).setValue('Chore').setFontWeight('bold'); list.setFrozenRows(1);
+    list.getRange(2, 1, CHORE_SEED.length, 1).setValues(CHORE_SEED.map(c => [c])); list.setColumnWidth(1, 260);
+  }
+  if (!log) {
+    log = ss.insertSheet('Chore Log'); log.getRange('A:C').setNumberFormat('@');   // keep dates as plain text so they read back exactly as written
+    log.getRange(1, 1, 1, 4).setValues([['Week of (Monday)', 'Chore', 'Done on', 'Out of']]).setFontWeight('bold'); log.setFrozenRows(1);
+  }
+  return { list, log };
+}
+function choreRows_(sh, cols) { const n = sh.getLastRow() - 1; return n > 0 ? sh.getRange(2, 1, n, cols).getValues() : []; }
+function getChores_(ss, today) {
+  const { list, log } = choreSheets_(ss), week = weekOf_(today);
+  const names = choreRows_(list, 1).map(r => String(r[0]).trim()).filter(Boolean), done = {}, past = {};
+  choreRows_(log, 4).forEach(r => {
+    const wk = String(r[0]), name = String(r[1]);
+    if (wk === week) { if (names.includes(name)) done[name] = String(r[2]); return; }
+    const h = past[wk] = past[wk] || { wk, done: 0, of: 0 }; h.done++; h.of = Math.max(h.of, Number(r[3]) || 0);
+  });
+  const history = Object.values(past).filter(h => h.wk < week).sort((a, b) => a.wk < b.wk ? 1 : -1).slice(0, 4);
+  return { week, list: names, done, history };
+}
+/** Tick or untick one chore for the current week. */
+function toggleChore(name, on, dateKey) {
+  const ss = ss_(), tz = ss.getSpreadsheetTimeZone(), today = key_(new Date(), tz), week = weekOf_(today);
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const { list, log } = choreSheets_(ss), rows = choreRows_(log, 2), at = rows.findIndex(r => String(r[0]) === week && String(r[1]) === name);
+    if (on && at < 0) log.appendRow([week, name, today, choreRows_(list, 1).filter(r => String(r[0]).trim()).length]);
+    if (!on && at >= 0) log.deleteRow(at + 2);
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+  return getAppData(dateKey);
+}
+/** Add a chore to the list, or remove one. Removing it keeps its past weeks in the log. */
+function editChore(name, add, dateKey) {
+  name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  if (!name) throw new Error('Type a name for the chore first.');
+  const ss = ss_(), lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const { list } = choreSheets_(ss), rows = choreRows_(list, 1), at = rows.findIndex(r => String(r[0]).trim().toLowerCase() === name.toLowerCase());
+    if (add && at < 0) list.appendRow([name]);
+    if (!add && at >= 0) list.deleteRow(at + 2);
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+  return getAppData(dateKey);
+}
+
+if (typeof module !== 'undefined') module.exports = { nextWorkout_, WORKOUTS, WORKOUT_INFO, PROJECTS, weekOf_ }; // Node tests only
