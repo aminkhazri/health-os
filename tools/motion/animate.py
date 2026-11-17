@@ -117,6 +117,8 @@ def goblet_squat(B):
             'elbow': lambda S, sx, q: q.apply([sx * 0.18, -1.0, -0.25]),          # elbows tucked in and pointing down, inside the knees at the bottom
             'palm': lambda S, sx, q: (q.apply([sx * 0.25, 0.9, 0.3]), q.apply([-sx, 0.25, 0.1])),    # palms cup the head from below and the sides, like holding a goblet
             'grip': (28, 38, 24, 18),                                             # fingers and thumbs wrapped round the curve of the head
+            # how hard the legs are working: building on the way down, hardest through the pause and the first half of the drive, easing off as you stand
+            'effort': 0.18 + (0.62 * s if t < 2.2 else 0.62 + 0.2 * min(1.0, (t - 2.2) / 0.7) if t < 2.9 else 0.82 * s ** 0.7),
         }
     return 5.0, frame
 
@@ -126,13 +128,14 @@ def main(src, out, names):
     j, b = glbio.load(src); B = Body(j)
     for name in names or MOVES:
         dur, frame = MOVES[name](B); times = np.arange(0, dur + 1e-6, 1 / 30)
-        rot = {x: [] for x in BONES}; hp = []
+        rot = {x: [] for x in BONES}; hp = []; eff = []
         for t in times:
-            local, hips = B.solve(frame(min(t, dur - 1e-6)))
+            P = frame(min(t, dur - 1e-6)); local, hips = B.solve(P); eff.append(P.get('effort', 0.5))
             for x in BONES: rot[x].append(local[x])
             hp.append(hips)
         par = B.T.world(B.parent['Hips'])
         glbio.add_clip(j, b, {x: B.T.idx[x] for x in BONES}, times, rot, [par[1].inv().apply(p - par[0]) for p in hp], name)
+        glbio.add_effort(j, b, name, times, eff)
         print('clip', name, 'frames', len(times), 'seconds', dur)
     glbio.save(out, j, b); print('wrote', out)
 

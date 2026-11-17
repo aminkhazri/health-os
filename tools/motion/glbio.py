@@ -35,3 +35,21 @@ def add_clip(j, bin_, node_of, times, rot, hips_pos, name):
     samplers.append({'input': t_in, 'output': add(hips_pos, 'VEC3'), 'interpolation': 'LINEAR'})
     channels.append({'sampler': len(samplers) - 1, 'target': {'node': node_of['Hips'], 'path': 'translation'}})
     j['animations'] = [a for a in j.get('animations', []) if a['name'] != name] + [{'name': name, 'samplers': samplers, 'channels': channels}]
+
+def add_effort(j, bin_, clip, times, effort):
+    """Give a clip an effort curve (0 = relaxed, 1 = working hardest). glTF has no slot for a bare number, so it rides on a helper node
+    called "Effort": the node's x position is the effort. The app reads it each frame to colour and swell the working muscles."""
+    idx = next((i for i, n in enumerate(j['nodes']) if n.get('name') == 'Effort'), None)
+    if idx is None:
+        j['nodes'].append({'name': 'Effort'}); idx = len(j['nodes']) - 1
+        root = j['scenes'][j.get('scene', 0)]['nodes'][0]; j['nodes'][root].setdefault('children', []).append(idx)
+    def add(arr, typ, minmax=False):
+        arr = np.asarray(arr, np.float32)
+        while len(bin_) % 4: bin_.append(0)
+        off = len(bin_); bin_.extend(arr.tobytes()); j['bufferViews'].append({'buffer': 0, 'byteOffset': off, 'byteLength': arr.nbytes})
+        a = {'bufferView': len(j['bufferViews']) - 1, 'componentType': 5126, 'count': len(arr), 'type': typ}
+        if minmax: a['min'] = [float(arr.min())]; a['max'] = [float(arr.max())]
+        j['accessors'].append(a); return len(j['accessors']) - 1
+    an = next(a for a in j['animations'] if a['name'] == clip)
+    an['samplers'].append({'input': add(times, 'SCALAR', True), 'output': add(np.c_[effort, np.zeros(len(effort)), np.zeros(len(effort))], 'VEC3'), 'interpolation': 'LINEAR'})
+    an['channels'].append({'sampler': len(an['samplers']) - 1, 'target': {'node': idx, 'path': 'translation'}})

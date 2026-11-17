@@ -86,6 +86,10 @@ def main(src, out, pairs):
             samplers.append({'input': seen[s['input']], 'output': put(o, oa), 'interpolation': s.get('interpolation', 'LINEAR')})
             channels.append({'sampler': len(samplers) - 1, 'target': c['target']})
         nj['animations'].append({'name': app_name, 'samplers': samplers, 'channels': channels})
+        # effort curve for a ready-made clip: these are floor moves, so the lower the hips, the harder the muscles are working
+        hc = next(c for c in an['channels'] if c['target']['node'] == hips and c['target']['path'] == 'translation'); hs = an['samplers'][hc['sampler']]
+        ht = raw(j, b, hs['input'])[0][:, 0]; hy = turn.apply(raw(j, b, hs['output'])[0])[:, 1]; span = float(hy.max() - hy.min()) or 1.0
+        glbio.add_effort(nj, nb, app_name, ht, 0.22 + 0.78 * (hy.max() - hy) / span)
     glbio.save(out, nj, nb); print('wrote', out, len(nb) // 1024, 'KB', 'scale', round(float(k), 3), 'clips', [a['name'] for a in nj['animations']])
 
 if __name__ == '__main__': main(sys.argv[1], sys.argv[2], sys.argv[3:])

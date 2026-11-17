@@ -22,7 +22,36 @@
   const MODEL_REV = '4c687677928ac9a4b062fa067d48ec6ccd75a309', MODEL = CDN + 'gh/aminkhazri/health-os@' + MODEL_REV + '/models/athlete.glb';
   const FALLBACK = CDN + 'gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb';   // "X Bot" sample character, used if the athlete cannot load
   const HOT = { thigh: ['UpLeg'], shin: ['Leg'], foot: ['Foot', 'ToeBase'], armU: ['Arm', 'Shoulder'], armL: ['ForeArm'], torso: ['Spine', 'Spine1', 'Spine2'], head: ['Neck'] };
-  const LOOK = { body: 0xdfe5ec, joints: 0x4a5666, hot: 0xff4a2a, mat: 0x1d232c, block: 0x2b3542, steel: 0x8a929d, band: 0xf0c33c };   // hot = working muscles, glowing warm red
+  // Which muscles each move works: [main muscles], [helpers]. Main muscles light up fully, helpers at about half strength.
+  // Stretches use the same lists (the muscles being lengthened) and are shown in a cool colour instead of a hot one.
+  const WORK = {
+    'Goblet squat': [['quads', 'glutes'], ['adductors', 'abs', 'lowerback']], 'Heel-raised goblet squat': [['quads'], ['glutes', 'abs']],
+    'Deep squat hold': [['quads', 'glutes', 'adductors'], []], 'Cossack squat': [['adductors', 'quads', 'glutes'], []],
+    'Bulgarian split squat': [['quads', 'glutes'], ['hamstrings']], 'Split squat bottom hold': [['quads', 'glutes'], []],
+    'Dumbbell floor press': [['chest', 'triceps'], ['delts']], 'Incline dumbbell press': [['chest', 'delts'], ['triceps']],
+    'Push-up': [['chest', 'triceps'], ['delts', 'abs']], 'Push-up bottom hold': [['chest', 'triceps'], ['delts', 'abs']],
+    'One-arm dumbbell row': [['lats', 'upperback'], ['biceps', 'delts']], 'Band row': [['lats', 'upperback'], ['biceps']], 'Band pull-apart': [['upperback', 'delts'], ['traps']],
+    'Dumbbell Romanian deadlift': [['hamstrings', 'glutes'], ['lowerback']], 'Single-leg Romanian deadlift': [['hamstrings', 'glutes'], ['lowerback']],
+    'Dumbbell hip thrust': [['glutes'], ['hamstrings']], 'Single-leg glute bridge hold': [['glutes'], ['hamstrings', 'abs']],
+    'Dumbbell shoulder press': [['delts'], ['triceps', 'traps']], 'Dumbbell lateral raise': [['delts'], ['traps']], 'Dumbbell curl': [['biceps'], ['forearms']],
+    'Overhead triceps extension': [['triceps'], []], "Dumbbell farmer's hold": [['forearms', 'traps'], ['abs', 'obliques']], 'Dumbbell shrug': [['traps'], ['forearms']],
+    'Copenhagen plank': [['adductors', 'obliques'], ['abs']], 'Side plank': [['obliques'], ['abs', 'glutes']], 'Dead bug': [['abs'], ['obliques']],
+    'Standing calf raise': [['calves'], []], 'Single-leg deficit calf raise': [['calves'], []], 'Seated dumbbell calf raise': [['calves'], []], 'Single-leg calf raise hold': [['calves'], []],
+    'Tibialis raise': [['shins'], []], 'Supine chin tuck': [['neck'], []], 'Neck isometric hold': [['neck'], []], 'Prone neck extension': [['neck'], ['traps']], 'Side-lying neck raise': [['neck'], []],
+    'Cat-cow': [['lowerback'], ['abs']], "Child's pose": [['lowerback', 'lats'], []], "World's greatest stretch": [['quads', 'adductors'], ['obliques', 'glutes']],
+    'Downward dog': [['hamstrings', 'calves'], ['lats', 'delts']], 'Thread the needle': [['upperback', 'obliques'], []], 'Half-kneeling hip flexor stretch': [['quads'], []],
+    'Lying hamstring stretch': [['hamstrings'], []], 'Figure-four stretch': [['glutes'], []], 'Standing calf stretch': [['calves'], []], 'Butterfly stretch': [['adductors'], []],
+    'Doorway chest stretch': [['chest'], ['delts']], 'Supine spinal twist': [['obliques', 'lowerback'], ['glutes']], '90/90 hip switch': [['glutes', 'adductors'], []],
+    'Hip CARs': [['glutes'], ['adductors']], 'Pigeon pose': [['glutes'], []], 'Frog stretch': [['adductors'], []]
+  };
+  const STRETCH = ['Cat-cow', "Child's pose", "World's greatest stretch", 'Downward dog', 'Thread the needle', 'Half-kneeling hip flexor stretch', 'Lying hamstring stretch', 'Figure-four stretch',
+    'Standing calf stretch', 'Butterfly stretch', 'Doorway chest stretch', 'Supine spinal twist', '90/90 hip switch', 'Hip CARs', 'Pigeon pose', 'Frog stretch'];
+  const AREA = { thigh: ['quads', 'hamstrings', 'glutes'], shin: ['calves'], armU: ['delts', 'biceps', 'triceps'], armL: ['forearms'], torso: ['abs', 'obliques', 'lowerback', 'chest', 'lats', 'upperback'], head: ['neck'], foot: [] };
+  // which way each muscle's stripes repeat (x = across the body, y = up, z = front to back) and how wide one stripe is, in metres
+  const FIBRE = { quads: [1, 0, 0, 0.011], hamstrings: [1, 0, 0, 0.011], glutes: [0.7, 0.7, 0, 0.012], adductors: [0, 0, 1, 0.011], calves: [1, 0, 0, 0.009], shins: [1, 0, 0, 0.009],
+    abs: [0, 1, 0, 0.055], obliques: [0.7, 0.7, 0, 0.012], lowerback: [1, 0, 0, 0.012], chest: [0, 1, 0, 0.011], lats: [0.6, 0.8, 0, 0.012], upperback: [0, 1, 0, 0.011], traps: [0.7, 0.7, 0, 0.011],
+    delts: [0, 0.7, 0.7, 0.010], biceps: [0, 1, 0, 0.009], triceps: [0, 1, 0, 0.009], forearms: [0, 1, 0, 0.008], neck: [1, 0, 0, 0.009] };
+  const LOOK = { body: 0xdfe5ec, joints: 0x4a5666, hot: 0xff7a3d, peak: 0xff2a18, cool: 0x2ec4b6, coolPeak: 0x8ff5e4, mat: 0x1d232c, block: 0x2b3542, steel: 0x8a929d, band: 0xf0c33c };   // hot = working muscles, glowing warm red
   // A few moves are drawn in 2D from an unusual angle. This says how to stand them up in 3D:
   //   side = lying on one side, chest toward the viewer · up / down = lying face up / face down, drawn from above · sit = sitting, drawn from above
   const MODE = { 'Copenhagen plank': 'side', 'Side plank': 'side', 'Side-lying neck raise': 'side', 'Supine spinal twist': 'up', 'Frog stretch': 'down', '90/90 hip switch': 'sit' };
@@ -73,6 +102,7 @@
 
     // --- the model: find its bones and skinned meshes, face it toward +Z, give it our own materials
     const rig = new T.Group(); rig.add(model); scene.add(rig);
+    const layer = { uEffort: { value: 0 }, uHot: { value: new T.Color(LOOK.hot) }, uPeak: { value: new T.Color(LOOK.peak) } };
     const B = {}, meshes = [];
     model.traverse(o => {
       if (o.isBone) B[o.name.replace(/^mixamorig:?/, '')] = o;
@@ -88,6 +118,20 @@
       m.material = new T.MeshStandardMaterial({ vertexColors: true, roughness: own ? src.roughness : joints ? 0.45 : 0.62, metalness: own ? src.metalness : joints ? 0.3 : 0.02,
         emissive: own && src.emissive ? src.emissive.clone() : new T.Color(0), emissiveIntensity: own ? (src.emissiveIntensity || 1) : 1, envMapIntensity: 1.0 });
       m.geometry.setAttribute('color', new T.BufferAttribute(new Float32Array(m.geometry.attributes.position.count * 3), 3));
+      // The muscle layer. Two extra numbers per point of the surface: aMus = how much it belongs to a working muscle, aFib = where it sits across that
+      // muscle's fibres. The shader then (1) blends the working muscle toward a hot colour that deepens with effort, (2) draws fibre stripes that sharpen
+      // as the muscle contracts, (3) makes it glow, and (4) swells it outward by a few millimetres at peak effort.
+      const count = m.geometry.attributes.position.count;
+      m.geometry.setAttribute('aMus', new T.BufferAttribute(new Float32Array(count), 1)); m.geometry.setAttribute('aFib', new T.BufferAttribute(new Float32Array(count), 1));
+      m.material.onBeforeCompile = sh => {
+        Object.assign(sh.uniforms, layer);
+        sh.vertexShader = 'attribute float aMus; attribute float aFib; uniform float uEffort; varying float vMus; varying float vFib;\n' +
+          sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMus = aMus; vFib = aFib; transformed += objectNormal * aMus * uEffort * 0.005;');
+        sh.fragmentShader = 'uniform float uEffort; uniform vec3 uHot; uniform vec3 uPeak; varying float vMus; varying float vFib;\n' +
+          sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n float act = clamp(vMus * (0.42 + 0.58 * uEffort), 0.0, 1.0); float fib = 0.5 + 0.5 * sin(vFib);' +
+            ' vec3 hotc = mix(uHot, uPeak, uEffort); diffuseColor.rgb = mix(diffuseColor.rgb, hotc, act * 0.92) * mix(1.0, 0.68 + 0.32 * fib, vMus * (0.15 + 0.85 * uEffort));')
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += hotc * act * (0.08 + 0.42 * uEffort) * (0.5 + 0.5 * fib);');
+      };
     });
 
     // relax the hands: the model's rest pose has flat, spread fingers, so curl each finger joint toward the palm once
@@ -244,19 +288,53 @@
       });
     }
 
-    /** Tint the parts of the body surface that belong to the working bones. */
-    function paint(hot) {
-      const names = [].concat(...(hot || []).map(h => HOT[h] || [])), lime = new T.Color(LOOK.hot);
+    /** Map the body into muscles, once. For every point of the surface: which bones carry it, where it is, and which way it faces decide how much it belongs to each muscle. */
+    const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    function mapMuscles() {
+      const hipY = wp('LeftUpLeg').y, shY = wp('LeftArm').y, shX = Math.abs(wp('LeftArm').x), armL = wp('LeftArm').distanceTo(wp('LeftForeArm')) || 0.3;
       meshes.forEach(m => {
-        const idx = m.geometry.attributes.skinIndex, wt = m.geometry.attributes.skinWeight, col = m.geometry.attributes.color, base = m.userData.base;
-        const isHot = m.skeleton.bones.map(b => names.includes(b.name.replace(/^(mixamorig:?)?(Left|Right)?/, '')));
-        for (let i = 0; i < col.count; i++) {
-          let w = 0; for (let k = 0; k < 4; k++) if (isHot[idx.getComponent(i, k)]) w += wt.getComponent(i, k);
-          w = m.userData.tint ? Math.min(1, w * 1.15) * 0.85 : 0;
-          const g = 1 + 0.9 * w;   // above 1 = brighter than a lit surface, so the working muscle reads as glowing
-          col.setXYZ(i, (base.r + (lime.r - base.r) * w) * g, (base.g + (lime.g - base.g) * w) * g, (base.b + (lime.b - base.b) * w) * g);
+        const g = m.geometry, pos = g.attributes.position, nor = g.attributes.normal, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, N = pos.count;
+        const names = m.skeleton.bones.map(b => b.name.replace(/^(mixamorig:?)?(Left|Right)?/, '')), M = {}; Object.keys(FIBRE).forEach(k => { M[k] = new Float32Array(N); });
+        for (let i = 0; i < N; i++) {
+          const w = {}; for (let k = 0; k < 4; k++) { const nm = names[si.getComponent(i, k)]; w[nm] = (w[nm] || 0) + sw.getComponent(i, k); }
+          const W = n => w[n] || 0, x = pos.getX(i), y = pos.getY(i), ax = Math.abs(x), sgn = x >= 0 ? 1 : -1, nx = nor.getX(i) * sgn, ny = nor.getY(i), nz = nor.getZ(i);
+          const front = sm(-0.15, 0.45, nz), back = sm(-0.15, 0.45, -nz), outer = sm(0.1, 0.6, nx), inner = sm(0.1, 0.6, -nx), top = sm(0.2, 0.7, ny);
+          const leg = W('UpLeg'), shin = W('Leg'), trunk = W('Spine') + W('Spine1'), chest = W('Spine2'), arm = W('Arm'), along = (ax - shX) / armL;
+          M.quads[i] = leg * Math.max(front, outer * 0.7) * (1 - inner * 0.6);
+          M.hamstrings[i] = leg * back * (1 - sm(hipY - 0.16, hipY - 0.10, y));
+          M.glutes[i] = (W('Hips') + leg) * back * sm(hipY - 0.15, hipY - 0.09, y) * (1 - sm(hipY + 0.09, hipY + 0.15, y));
+          M.adductors[i] = leg * inner * sm(hipY - 0.34, hipY - 0.26, y);
+          M.calves[i] = shin * back; M.shins[i] = shin * front * (1 - inner * 0.5);
+          M.abs[i] = (trunk + W('Hips') * sm(hipY + 0.02, hipY + 0.08, y)) * front * (1 - sm(0.07, 0.11, ax));
+          M.obliques[i] = trunk * sm(0.07, 0.11, ax) * (1 - back); M.lowerback[i] = trunk * back;
+          M.chest[i] = (chest + W('Shoulder') * 0.6) * front * (1 - sm(shY - 0.01, shY + 0.03, y));
+          M.lats[i] = chest * Math.min(1, back * 0.9 + outer * 0.5) * (1 - sm(shY - 0.14, shY - 0.08, y));
+          M.upperback[i] = chest * back * sm(shY - 0.16, shY - 0.10, y);
+          M.traps[i] = W('Neck') * back + W('Shoulder') * top + chest * back * sm(shY - 0.04, shY + 0.02, y) * 0.6;
+          M.delts[i] = W('Shoulder') * sm(shX - 0.07, shX - 0.02, ax) + arm * (1 - sm(0.28, 0.45, along));
+          M.biceps[i] = arm * front * sm(0.28, 0.45, along); M.triceps[i] = arm * back * sm(0.2, 0.4, along);
+          M.forearms[i] = W('ForeArm'); M.neck[i] = W('Neck');
         }
-        col.needsUpdate = true;
+        m.userData.muscles = M;
+      });
+    }
+    /** Light up the muscles a move works. */
+    function paint(hot, name) {
+      const set = WORK[name] || [[].concat(...(hot || []).map(h => AREA[h] || [])), []], cool = STRETCH.includes(name);
+      layer.uHot.value.set(cool ? LOOK.cool : LOOK.hot); layer.uPeak.value.set(cool ? LOOK.coolPeak : LOOK.peak);
+      meshes.forEach(m => {
+        if (!m.userData.muscles) mapMuscles();
+        const g = m.geometry, col = g.attributes.color, base = m.userData.base, mus = g.attributes.aMus, fib = g.attributes.aFib, pos = g.attributes.position, M = m.userData.muscles;
+        for (let i = 0; i < col.count; i++) {
+          col.setXYZ(i, base.r, base.g, base.b);
+          let best = 0, which = null;
+          set[0].forEach(k => { const v = M[k][i]; if (v > best) { best = v; which = k; } });
+          set[1].forEach(k => { const v = M[k][i] * 0.45; if (v > best) { best = v; which = k; } });
+          const f = which ? FIBRE[which] : null, ax = Math.abs(pos.getX(i));
+          mus.setX(i, m.userData.tint ? Math.min(1, best * 1.1) : 0);
+          fib.setX(i, f ? (ax * f[0] + pos.getY(i) * f[1] + pos.getZ(i) * f[2]) * 6.2832 / f[3] : 0);
+        }
+        col.needsUpdate = mus.needsUpdate = fib.needsUpdate = true;
       });
     }
 
@@ -304,17 +382,20 @@
       if (action) { action.stop(); action = null; }
       restPose.forEach(r => { r.b.position.copy(r.p); r.b.quaternion.copy(r.q); });
       const clip = clips[name] || null;
-      prevN = {}; paint(fig.hot); cur = { fig, clip, live: buildProps(clip ? { props: (fig.props || []).filter(q => q[0] === 'db') } : fig), still: false, grip: GRIP.includes(name) };
+      prevN = {}; paint(fig.hot, name); cur = { fig, clip, live: buildProps(clip ? { props: (fig.props || []).filter(q => q[0] === 'db') } : fig), still: false, grip: GRIP.includes(name) };
       if (clip) {
         rig.position.set(0, 0, 0); action = mixer.clipAction(clip); action.play(); frameClip(clip);
         floor.position.set(target.x, 0, target.z); matRig.position.set(target.x, 0, target.z); matRig.rotation.y = Math.PI / 2; aimCamera();
       }
       el.insertBefore(canvas, el.firstChild); return canvas;
     }
+    const effortNode = model.getObjectByName('Effort');   // clips carry their own effort curve: how hard the working muscles are pulling at each moment
     function draw(fig, p, still, k) {
       if (!cur || cur.fig !== fig) return;
       cur.still = !!still;
       if (cur.clip) { mixer.setTime((k || 0) * cur.clip.duration); rig.updateMatrixWorld(true); moveProps(cur.live); } else { pose(fig, root.figJoints(fig, p), !!still); moveProps(cur.live); }
+      const track = cur.clip && effortNode && cur.clip.tracks.some(t => t.name.indexOf('Effort') === 0);
+      layer.uEffort.value = still ? 0.7 : track ? Math.min(1, Math.max(0, effortNode.position.x)) : 0.5 - 0.5 * Math.cos(6.2832 * (k || 0));   // no curve of its own: one smooth swell per rep
       renderer.render(scene, camera);
     }
     function unmount() { cur = null; if (canvas.parentNode) canvas.parentNode.removeChild(canvas); }
