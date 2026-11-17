@@ -107,7 +107,7 @@ Rules: ease in until you feel a pull, never pain. Keep breathing. Don't bounce.
 
 ## Animated demos and guided sets
 
-Every exercise and stretch has a **▶ Demo** button. It opens a 3D figure, an ivory, faceless mannequin with an athlete's build, that performs the move on a loop: the working muscles are lit in green, dumbbells in teal, bands in yellow, and a one-line cue changes as the move goes. Drag sideways on the figure to look at the move from another angle. The 3D model and the Three.js library load from a free public CDN the first time you open a demo; if they cannot load, a simpler drawn figure shows instead.
+Every exercise and stretch has a **▶ Demo** button. It opens a 3D figure, a faceless, jointed mannequin, that performs the move on a loop: the working muscles are lit in green, dumbbells in teal, bands in yellow, and a one-line cue changes as the move goes. Drag sideways on the figure to look at the move from another angle. The 3D model and the Three.js library load from a free public CDN the first time you open a demo; if they cannot load, a simpler drawn figure shows instead.
 
 Below the figure, **Start guided set** runs the set for you:
 

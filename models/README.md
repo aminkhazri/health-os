@@ -1,9 +1,15 @@
-# Models
+# Model
 
-`athlete.glb` is the 3D figure the app's exercise demos animate.
+`athlete.glb` is the figure the app's demos use, with the finished animation clips saved inside it.
 
-- **Source body:** Blender Studio "Human Base Meshes" v1.4.1, realistic male body. License: CC0 (public domain). https://www.blender.org/download/demo-files/
-- **Built by:** `tools/blender/build_body.py`, run in Blender 5.3. It bakes sculpt detail, thins the mesh to about 55,000 triangles, replaces the head with a blank egg shape, finds the joints from the body's shape, cuts clean clothing edges into the surface, builds a 22-bone skeleton, computes skin weights, adds muscle, and assigns four matte materials: body, T-shirt, shorts and trainers.
-- **Bone names** match what `src/Figure3D.html` steers: Hips, Spine, Spine1, Spine2, Neck, Head, and Left/Right Shoulder, Arm, ForeArm, Hand, UpLeg, Leg, Foot, ToeBase.
+- **Figure:** the Mesh2Motion human mannequin (https://mesh2motion.org), released under CC0 (public domain). It is a drawing-mannequin style
+  figure with separate segments at each joint, so it keeps its shape however far a joint bends.
+- **Push-up clip:** from the same Mesh2Motion library (CC0), used as authored.
+- **Goblet squat clip:** built by `tools/motion/animate.py`.
 
-To rebuild: put the unzipped base-mesh bundle under `assets/` next to the scripts, set `HERE` in `run.py` to that folder, and run `blender -b -P run.py`.
+Rebuild it with:
+
+    python3 tools/motion/mannequin.py human-addon-animations.glb step1.glb Pushup=Push-up
+    python3 tools/motion/animate.py step1.glb models/athlete.glb
+
+`tools/blender/` holds the earlier approach (a sculpted body rigged in Blender). It is kept for reference and is no longer used by the app.
