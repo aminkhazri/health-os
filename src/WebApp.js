@@ -230,7 +230,8 @@ function choreSheets_(ss) {
   }
   return { list, log };
 }
-function choreRows_(sh, cols) { const n = sh.getLastRow() - 1; return n > 0 ? sh.getRange(2, 1, n, cols).getValues() : []; }
+/** Rows as text. getDisplayValues reads what the cell shows, so a date Sheets converted on its own still comes back as 'yyyy-MM-dd'. */
+function choreRows_(sh, cols) { const n = sh.getLastRow() - 1; return n > 0 ? sh.getRange(2, 1, n, cols).getDisplayValues() : []; }
 function getChores_(ss, today) {
   const { list, log } = choreSheets_(ss), week = weekOf_(today);
   const names = choreRows_(list, 1).map(r => String(r[0]).trim()).filter(Boolean), done = {}, past = {};
@@ -247,9 +248,14 @@ function toggleChore(name, on, dateKey) {
   const ss = ss_(), tz = ss.getSpreadsheetTimeZone(), today = key_(new Date(), tz), week = weekOf_(today);
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
-    const { list, log } = choreSheets_(ss), rows = choreRows_(log, 2), at = rows.findIndex(r => String(r[0]) === week && String(r[1]) === name);
-    if (on && at < 0) log.appendRow([week, name, today, choreRows_(list, 1).filter(r => String(r[0]).trim()).length]);
-    if (!on && at >= 0) log.deleteRow(at + 2);
+    const { list, log } = choreSheets_(ss), rows = choreRows_(log, 2);
+    const hits = rows.map((r, i) => String(r[0]) === week && String(r[1]) === name ? i + 2 : 0).filter(Boolean);
+    if (on && !hits.length) {
+      const row = log.getLastRow() + 1, cells = log.getRange(row, 1, 1, 4);
+      log.getRange(row, 1, 1, 3).setNumberFormat('@');   // text first, then the values, so the dates are stored exactly as written
+      cells.setValues([[week, name, today, choreRows_(list, 1).filter(r => String(r[0]).trim()).length]]);
+    }
+    if (!on) hits.reverse().forEach(r => log.deleteRow(r));   // bottom-up so row numbers stay valid
     SpreadsheetApp.flush();
   } finally { lock.releaseLock(); }
   return getAppData(dateKey);
