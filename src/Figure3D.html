@@ -278,8 +278,9 @@
     function frameClip(clip) {   // point the camera at the middle of everything the body passes through during the clip
       const box = new T.Box3();
       [0, 0.25, 0.5, 0.75].forEach(k => { mixer.setTime(k * clip.duration); rig.updateMatrixWorld(true); Object.values(B).forEach(b => box.expandByPoint(b.getWorldPosition(V()))); });
-      const ball = box.getBoundingSphere(new T.Sphere());
-      target = ball.center.clone(); dist = (ball.radius + 0.12) / Math.sin(rad(fov / 2)) * 0.68; az = rad(-68); tilt = rad(13);
+      const size = box.getSize(V()), tan = Math.tan(rad(fov / 2)), wide = Math.hypot(size.x, size.z) / 2 + 0.2, tall = size.y / 2 + 0.2;   // bones sit inside the body: leave room for the surface
+      target = box.getCenter(V()); target.y += 0.05; az = rad(-68); tilt = rad(12);
+      dist = Math.max(tall / tan, wide / (tan * camera.aspect)) * 1.04;
     }
 
     function mount(el, fig, name) {

@@ -87,9 +87,9 @@ def goblet_squat(B, heel=0.0):
             'neck': -8 * s, 'head': -10 * s,                                      # eyes stay on the horizon
             'foot': lambda S, sx: ankle[S],
             'knee': lambda S, sx: np.array([sx * 0.55, 0.0, 1.0]),                # knees track out over the toes
-            'hand': lambda S, sx, c, q: c + q.apply([sx * 0.062, 0.05, 0.2]),  # both hands cup the weight at the chest
+            'hand': lambda S, sx, c, q: c + q.apply([sx * 0.085, 0.05, 0.2]),  # both hands cup the weight at the chest
             'elbow': lambda S, sx, q: q.apply([sx * 0.25, -1.0, -0.15]),          # elbows tucked, pointing down
-            'palm': lambda S, sx, q: (q.apply([-sx * 0.25, 0.75, 0.6]), np.array([-sx, 0.0, 0.0])),
+            'palm': lambda S, sx, q: (q.apply([-sx * 0.1, 0.85, 0.5]), np.array([-sx, 0.0, 0.0])),
         }
     return 5.0, frame
 
