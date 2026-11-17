@@ -874,7 +874,7 @@ function demo(name, mode) {
   const id = (D.videos || {})[name], yt = id ? 'https://www.youtube.com/watch?v=' + id : 'https://www.youtube.com/results?search_query=' + encodeURIComponent('how to ' + name);
   $('vTitle').textContent = name; $('vCue').textContent = (D.stretches || {})[name] || '';
   // Two ways to show a move: a real video from YouTube (the default), or the animated guide that counts reps with you.
-  const frame = $('vFrame'), figOK = !!(window.FIGS && FIGS[name]), hasFig = figOK && (mode === 'fig' || !id);
+  const frame = $('vFrame'), figOK = !!(window.FIGS && FIGS[name]), hasFig = figOK && (mode === 'fig' || !id || (mode !== 'video' && (window.fig3dClips || []).includes(name)));
   stopFigure(); frame.innerHTML = '';
   frame.classList.toggle('fig', hasFig); frame.classList.toggle('tall', !hasFig && (D.tallVideos || []).includes(name));
   if (hasFig) mountFigure(frame, name, { onLoop: guideRep });

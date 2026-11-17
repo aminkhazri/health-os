@@ -316,6 +316,7 @@
     return { mount, draw, unmount, bones: B, T, scene, camera, renderer };
   }
 
+  root.fig3dClips = ['Goblet squat', 'Push-up'];   // moves whose animation is saved in the model file: the app opens these in 3D first
   root.fig3dModes = MODE;
   root.fig3d = { load, ready: () => !!S, mount: (el, fig, name) => S.mount(el, fig, name), draw: (fig, p, still, k) => S.draw(fig, p, still, k), unmount: () => S && S.unmount(), state: () => S };
 })(typeof window !== 'undefined' ? window : globalThis);
