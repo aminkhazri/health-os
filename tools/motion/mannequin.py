@@ -7,11 +7,14 @@ the app needs only the figure and the push-up. This script:
   1. keeps the mesh, the skeleton and the skin, and drops the texture and every animation except the ones asked for;
   2. renames the bones to the names the app's viewer uses (pelvis -> Hips, upperarm_l -> LeftArm, ...);
   3. scales everything to 1.70 m, the height the app's scene is laid out for;
-  4. writes a compact .glb.
+  4. straightens the skeleton's root: the download carries a quarter turn on its "root" bone (a leftover of Blender's Z-up world). That turn
+     is folded into the hips, so the hips sit directly under an unrotated root, which is what the app's own pose solver expects;
+  5. writes a compact .glb.
 
 Usage: python3 mannequin.py <human-addon-animations.glb> <out.glb> [SourceClip=AppName ...]
 """
 import sys, json, numpy as np
+from scipy.spatial.transform import Rotation as R
 import glbio
 
 HEIGHT = 1.70
@@ -46,11 +49,16 @@ def main(src, out, pairs):
         if minmax: a['min'] = [float(x) for x in arr.min(axis=0)]; a['max'] = [float(x) for x in arr.max(axis=0)]
         nj['accessors'].append(a); return len(nj['accessors']) - 1
     # nodes: renamed, bone offsets scaled
+    root = next(i for i, n in enumerate(N) if n.get('name') == 'root'); hips = next(i for i, n in enumerate(N) if n.get('name') == 'pelvis')
+    turn = R.from_quat(N[root].get('rotation', [0, 0, 0, 1]))
     nj['nodes'] = []
     for n in N:
         m = dict(n); m['name'] = NAMES.get(n.get('name'), n.get('name'))
         if 'translation' in m: m['translation'] = [x * k for x in m['translation']]
         nj['nodes'].append(m)
+    nj['nodes'][root].pop('rotation', None)
+    nj['nodes'][hips]['translation'] = [float(x) for x in turn.apply(nj['nodes'][hips]['translation'])]
+    nj['nodes'][hips]['rotation'] = [float(x) for x in (turn * R.from_quat(N[hips]['rotation'])).as_quat()]
     # mesh: positions scaled; no texture coordinates, the app paints the figure itself
     p = j['meshes'][0]['primitives'][0]; at = p['attributes']; prim = {'attributes': {}, 'mode': 4, 'material': 0}
     for name in ('POSITION', 'NORMAL', 'JOINTS_0', 'WEIGHTS_0'):
@@ -68,11 +76,13 @@ def main(src, out, pairs):
         src_name, app_name = pair.split('=')
         an = next(x for x in j['animations'] if x['name'] == src_name); samplers, channels, seen = [], [], {}
         for c in an['channels']:
-            if c['target']['path'] == 'scale': continue
+            if c['target']['path'] == 'scale' or c['target']['node'] == root: continue   # the root stays still in these clips
             s = an['samplers'][c['sampler']]
             if s['input'] not in seen: t, ta = raw(j, b, s['input']); seen[s['input']] = put(t, ta, None, True)
             o, oa = raw(j, b, s['output'])
             if c['target']['path'] == 'translation': o = (o * k).astype(np.float32)
+            if c['target']['node'] == hips:
+                o = (turn.apply(o) if c['target']['path'] == 'translation' else (turn * R.from_quat(o)).as_quat()).astype(np.float32)
             samplers.append({'input': seen[s['input']], 'output': put(o, oa), 'interpolation': s.get('interpolation', 'LINEAR')})
             channels.append({'sampler': len(samplers) - 1, 'target': c['target']})
         nj['animations'].append({'name': app_name, 'samplers': samplers, 'channels': channels})
