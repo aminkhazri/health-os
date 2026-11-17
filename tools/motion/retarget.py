@@ -83,23 +83,7 @@ def main(src_path, clip, tgt_path, out_path, out_name, hands_down=False):
             out_pos[f] = toe + tilt.apply(out_pos[f] - toe); out_rot['Hips'][f] = (tilt * R.from_quat(out_rot['Hips'][f])).as_quat()
     report = [(round(float(times[f]), 2), np.round(fk(f, 'LeftHand'), 3), np.round(fk(f, 'LeftToeBase'), 3), np.round(fk(f, 'Hips'), 3), np.round(fk(f, 'Head'), 3)) for f in (0, F // 4, F // 2, 3 * F // 4, F - 1)]
     for r in report: print(' t', r[0], 'hand', r[1], 'toe', r[2], 'hips', r[3], 'head', r[4])
-    # write the clip into the model file
-    def add(arr, typ, minmax=False):
-        arr = np.asarray(arr, np.float32); off = len(tb); tb.extend(arr.tobytes())
-        tj['bufferViews'].append({'buffer': 0, 'byteOffset': off, 'byteLength': arr.nbytes})
-        a = {'bufferView': len(tj['bufferViews']) - 1, 'componentType': 5126, 'count': len(arr), 'type': typ}
-        if minmax: a['min'] = [float(arr.min())]; a['max'] = [float(arr.max())]
-        tj['accessors'].append(a); return len(tj['accessors']) - 1
-    t_in = add(times - times[0], 'SCALAR', True); samplers, channels = [], []
-    for b in MAP:
-        q = out_rot[b].copy()
-        for f in range(1, F):                                     # keep neighbouring frames on the same side, so blending never takes the long way round
-            if q[f] @ q[f - 1] < 0: q[f] = -q[f]
-        samplers.append({'input': t_in, 'output': add(q, 'VEC4'), 'interpolation': 'LINEAR'})
-        channels.append({'sampler': len(samplers) - 1, 'target': {'node': T.idx[b], 'path': 'rotation'}})
-    samplers.append({'input': t_in, 'output': add(out_pos, 'VEC3'), 'interpolation': 'LINEAR'})
-    channels.append({'sampler': len(samplers) - 1, 'target': {'node': T.idx['Hips'], 'path': 'translation'}})
-    tj['animations'] = [a for a in tj.get('animations', []) if a['name'] != out_name] + [{'name': out_name, 'samplers': samplers, 'channels': channels}]
+    glbio.add_clip(tj, tb, {b: T.idx[b] for b in MAP}, times - times[0], out_rot, out_pos, out_name)
     glbio.save(out_path, tj, tb); print('wrote', out_path, 'clip', out_name, 'frames', F, 'seconds', round(float(times[-1] - times[0]), 2), 'scale', round(float(scale), 3))
 
 def depth(T, b):

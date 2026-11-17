@@ -15,3 +15,23 @@ def save(path, j, bin_):
     while len(js) % 4: js += b' '
     out = struct.pack('<III', 0x46546C67, 2, 12+8+len(js)+8+len(bin_)) + struct.pack('<II', len(js), 0x4E4F534A) + js + struct.pack('<II', len(bin_), 0x004E4942) + bytes(bin_)
     open(path,'wb').write(out)
+
+def add_clip(j, bin_, node_of, times, rot, hips_pos, name):
+    """Store an animation in the model: one rotation track per bone (rot[bone] = frames x 4, xyzw) plus the hips' path."""
+    def add(arr, typ, minmax=False):
+        arr = np.asarray(arr, np.float32); off = len(bin_); bin_.extend(arr.tobytes())
+        j['bufferViews'].append({'buffer': 0, 'byteOffset': off, 'byteLength': arr.nbytes})
+        a = {'bufferView': len(j['bufferViews']) - 1, 'componentType': 5126, 'count': len(arr), 'type': typ}
+        if minmax: a['min'] = [float(arr.min())]; a['max'] = [float(arr.max())]
+        j['accessors'].append(a); return len(j['accessors']) - 1
+    while len(bin_) % 4: bin_ += b'\0'
+    t_in = add(times, 'SCALAR', True); samplers, channels = [], []
+    for b, node in node_of.items():
+        q = np.array(rot[b], float)
+        for f in range(1, len(q)):          # keep neighbouring frames on the same side, so blending never takes the long way round
+            if q[f] @ q[f - 1] < 0: q[f] = -q[f]
+        samplers.append({'input': t_in, 'output': add(q, 'VEC4'), 'interpolation': 'LINEAR'})
+        channels.append({'sampler': len(samplers) - 1, 'target': {'node': node, 'path': 'rotation'}})
+    samplers.append({'input': t_in, 'output': add(hips_pos, 'VEC3'), 'interpolation': 'LINEAR'})
+    channels.append({'sampler': len(samplers) - 1, 'target': {'node': node_of['Hips'], 'path': 'translation'}})
+    j['animations'] = [a for a in j.get('animations', []) if a['name'] != name] + [{'name': name, 'samplers': samplers, 'channels': channels}]

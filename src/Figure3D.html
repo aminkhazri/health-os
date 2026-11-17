@@ -298,7 +298,7 @@
       if (action) { action.stop(); action = null; }
       restPose.forEach(r => { r.b.position.copy(r.p); r.b.quaternion.copy(r.q); });
       const clip = clips[name] || null;
-      prevN = {}; paint(fig.hot); cur = { fig, clip, live: buildProps(clip ? {} : fig), still: false, grip: GRIP.includes(name) };
+      prevN = {}; paint(fig.hot); cur = { fig, clip, live: buildProps(clip ? { props: (fig.props || []).filter(q => q[0] === 'db') } : fig), still: false, grip: GRIP.includes(name) };
       if (clip) {
         rig.position.set(0, 0, 0); action = mixer.clipAction(clip); action.play(); frameClip(clip);
         floor.position.set(target.x, 0, target.z); matRig.position.set(target.x, 0, target.z); matRig.rotation.y = Math.PI / 2; aimCamera();
@@ -308,7 +308,7 @@
     function draw(fig, p, still, k) {
       if (!cur || cur.fig !== fig) return;
       cur.still = !!still;
-      if (cur.clip) mixer.setTime((k || 0) * cur.clip.duration); else { pose(fig, root.figJoints(fig, p), !!still); moveProps(cur.live); }
+      if (cur.clip) { mixer.setTime((k || 0) * cur.clip.duration); rig.updateMatrixWorld(true); moveProps(cur.live); } else { pose(fig, root.figJoints(fig, p), !!still); moveProps(cur.live); }
       renderer.render(scene, camera);
     }
     function unmount() { cur = null; if (canvas.parentNode) canvas.parentNode.removeChild(canvas); }

@@ -111,7 +111,7 @@ print("mesh after bake: verts", len(baked.vertices), "polys", len(baked.polygons
 
 # ---------------------------------------------------------------- 3. joints from the body's shape
 n = len(baked.vertices); co = np.empty(n * 3); baked.vertices.foreach_get("co", co); co = co.reshape(n, 3)
-X, Y, Z = co[:, 0], co[:, 1], co[:, 2]; H = Z.max(); print("height", round(H, 3))
+X, Y, Z = co[:, 0], co[:, 1], co[:, 2]; H = Ht; print("height", round(H, 3))   # full standing height, measured before the old head came off (joint heights are fractions of it)
 def cen(mask, fallback=None):
     return co[mask].mean(axis=0) if mask.sum() > 3 else np.array(fallback)
 def torso_y(z): return cen((abs(X) < 0.10) & (abs(Z - z) < 0.02), (0, 0, z))[1]
