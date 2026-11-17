@@ -5,7 +5,7 @@
 # Run it with start-builder.bat (Blender without a window) or through run.py in Blender's Text Editor. Everything printed ends up in log.txt.
 import bpy, bmesh, os, glob, math
 import numpy as np
-from mathutils import Vector, Matrix
+from mathutils import Vector, Quaternion, Matrix
 
 BLEND = glob.glob(os.path.join(HERE, "assets", "**", "human_base_meshes_bundle.blend"), recursive=True)[0]
 OUT = HERE
@@ -110,6 +110,7 @@ for p in baked.polygons: p.use_smooth = True
 print("mesh after bake: verts", len(baked.vertices), "polys", len(baked.polygons), "tris", sum(len(p.vertices) - 2 for p in baked.polygons))
 
 # ---------------------------------------------------------------- 3. joints from the body's shape
+def unit0(v): return v / (np.linalg.norm(v) or 1.0)
 n = len(baked.vertices); co = np.empty(n * 3); baked.vertices.foreach_get("co", co); co = co.reshape(n, 3)
 X, Y, Z = co[:, 0], co[:, 1], co[:, 2]; H = Ht; print("height", round(H, 3))   # full standing height, measured before the old head came off (joint heights are fractions of it)
 def cen(mask, fallback=None):
@@ -132,6 +133,17 @@ def arm_at(d): return cen(armv & (abs(t - d) < 0.018) & (r < 0.10), S0 + axis * 
 wrist_d = L - 0.108 * H; el_d = wrist_d * 0.555
 J["Arm"] = S0; J["ForeArm"] = arm_at(el_d); J["Hand"] = arm_at(wrist_d); J["HandEnd"] = arm_at(wrist_d + 0.085)
 J["Shoulder"] = np.array([0.03, S0[1] - 0.02, S0[2] + 0.03])
+# hand: the four fingers share one chain of three bones (they close together round a handle), the thumb has two bones of its own
+Lh = L - wrist_d; fwd = np.array([0.0, -1.0, 0.0]); fwd = unit0(fwd - (fwd @ axis) * axis)          # "forward" across the palm: pinky ... index ... thumb
+handv = armv & (t > wrist_d + 0.01); fc = (co - J["Hand"]) @ fwd
+def slab(d): m = handv & (abs(t - d) < 0.008) & (fc < np.percentile(fc[handv], 80)); return np.median(co[m], axis=0) if m.sum() > 3 else S0 + axis * d
+J["F2"] = slab(wrist_d + 0.76 * Lh); J["F3"] = slab(wrist_d + 0.89 * Lh); J["FEnd"] = slab(wrist_d + 0.975 * Lh)
+J["F1"] = J["F2"] - unit0(J["F3"] - J["F2"]) * 0.24 * Lh
+J["FEnd"] = J["F3"] + unit0(J["F3"] - J["F2"]) * 0.11 * Lh
+ttip = co[handv][np.argmax(fc[handv])]; tbase = J["Hand"] + axis * 0.16 * Lh + fwd * 0.022
+def near(p): m = handv & (np.linalg.norm(co - p, axis=1) < 0.016); return np.median(co[m], axis=0) if m.sum() > 3 else p
+J["T1"] = near(tbase); J["T2"] = near(tbase + (ttip - tbase) * 0.58); J["TEnd"] = tbase + (ttip - tbase) * 0.95
+print("hand length", round(Lh, 3), "thumb tip", np.round(ttip, 3))
 print("arm length", round(L, 3), "tip", np.round(tip, 3))
 spine = {"Hips": 0.555, "Spine": 0.61, "Spine1": 0.67, "Spine2": 0.735, "Neck": 0.858, "Head": 0.912}
 C = {k: np.array([0, torso_y(f * H) + (0.02 if k in ("Neck", "Head") else 0.012), f * H]) for k, f in spine.items()}
@@ -164,6 +176,7 @@ for side, sx in (("Left", 1), ("Right", -1)):
     m = lambda v: (v[0] * sx, v[1], v[2])
     bone(side + "Shoulder", m(J["Shoulder"]), m(J["Arm"]), "Spine2"); bone(side + "Arm", m(J["Arm"]), m(J["ForeArm"]), side + "Shoulder")
     bone(side + "ForeArm", m(J["ForeArm"]), m(J["Hand"]), side + "Arm"); bone(side + "Hand", m(J["Hand"]), m(J["HandEnd"]), side + "ForeArm")
+    bone(side + "Fingers1", m(J["F1"]), m(J["F2"]), side + "Hand"); bone(side + "Fingers2", m(J["F2"]), m(J["F3"]), side + "Fingers1"); bone(side + "Fingers3", m(J["F3"]), m(J["FEnd"]), side + "Fingers2")
     bone(side + "UpLeg", m(J["UpLeg"]), m(J["Leg"]), "Hips"); bone(side + "Leg", m(J["Leg"]), m(J["Foot"]), side + "UpLeg")
     bone(side + "Foot", m(J["Foot"]), m(J["ToeBase"]), side + "Leg"); bone(side + "ToeBase", m(J["ToeBase"]), m(J["ToeEnd"]), side + "Foot")
 bpy.ops.object.mode_set(mode='OBJECT')
@@ -189,6 +202,55 @@ if 0 < unweighted <= n * 0.02:   # a few stray points the solver skipped: tie ea
             name = "Head" if v.co.z > 0.86 * H else "Hips"
             body.vertex_groups[name].add([v.index], 1.0, 'REPLACE'); W[name][v.index] = 1.0
 if unweighted > n * 0.02: raise RuntimeError("automatic skin weights failed: the model would not move with its skeleton")
+# fingers: the automatic weights only catch the fingers a bone runs through, so the four fingers are weighted by rule instead.
+# Finding them: past the knuckle line each finger is its own separate island of the surface. The four islands that reach furthest
+# are the fingers (the thumb is shorter and is left as part of the hand). Each finger point then follows the finger bone for its
+# stretch of the finger, blending over a few millimetres at each joint.
+fu = unit0(J["F3"] - J["F1"]); cm = co.copy(); cm[:, 0] = np.abs(cm[:, 0]); tm = (cm - S0) @ axis
+sf = (cm - J["F1"]) @ fu; hand_m = ((cm[:, 0] > 0.22) & (cm[:, 2] > 0.40 * H)) & (tm > wrist_d + 0.01)
+k2, k3 = float((J["F2"] - J["F1"]) @ fu), float((J["F3"] - J["F1"]) @ fu); blend = lambda x: np.clip(x / 0.012 + 0.5, 0, 1)
+ev = np.empty(len(baked.edges) * 2, dtype=np.int64); baked.edges.foreach_get("vertices", ev); ev = ev.reshape(-1, 2)
+nbr = {}
+for a_, b_ in ev[hand_m[ev[:, 0]] & hand_m[ev[:, 1]]]: nbr.setdefault(int(a_), []).append(int(b_)); nbr.setdefault(int(b_), []).append(int(a_))
+for side, sgn in (("Left", 1), ("Right", -1)):
+    region = hand_m & (co[:, 0] * sgn > 0) & (sf > -0.006); core = region & (sf > 0.016)
+    label = {}; comps = []
+    for v0 in np.nonzero(core)[0]:
+        v0 = int(v0)
+        if v0 in label: continue
+        k = len(comps); label[v0] = k; todo = [v0]; members = []
+        while todo:
+            v = todo.pop(); members.append(v)
+            for u in nbr.get(v, ()):
+                if core[u] and u not in label: label[u] = k; todo.append(u)
+        comps.append(members)
+    reach = sorted(range(len(comps)), key=lambda k: -max(sf[comps[k]]))[:4]; print("  islands past the knuckles:", [(len(c), round(float(max(sf[c])), 3)) for c in comps], "fingers:", reach)
+    front = [v for v in label]                                   # grow every island back toward the knuckles; a point joins whichever island reaches it first
+    while front:
+        nxt = []
+        for v in front:
+            for u in nbr.get(v, ()):
+                if region[u] and u not in label: label[u] = label[v]; nxt.append(u)
+        front = nxt
+    m = np.zeros(n, bool); m[[v for v, k in label.items() if k in reach]] = True
+    b1, b2, b3 = blend(sf), blend(sf - k2), blend(sf - k3)
+    new = {side + "Hand": 1 - b1, side + "Fingers1": b1 - b2, side + "Fingers2": b2 - b3, side + "Fingers3": b3}
+    rest_m = (co[:, 0] * sgn > 0) & ~m                           # everything else on this side must not move with the fingers
+    stray = sum(W[side + f] for f in ("Fingers1", "Fingers2", "Fingers3")) * rest_m
+    for name in W:
+        if name in new: W[name][m] = new[name][m]
+        else: W[name][m] = 0.0
+    W[side + "Hand"] = W[side + "Hand"] + stray
+    for f in ("Fingers1", "Fingers2", "Fingers3"): W[side + f][rest_m] = 0.0
+    idx = [int(i) for i in np.nonzero(m)[0]]; sidx = [int(i) for i in np.nonzero(stray > 0)[0]]
+    for g in body.vertex_groups:
+        if g.name in new:
+            for i in idx: g.add([i], float(new[g.name][i]), 'REPLACE')
+            if g.name == side + "Hand":
+                for i in sidx: g.add([i], float(W[g.name][i]), 'REPLACE')
+            elif sidx: g.remove(sidx)
+        else: g.remove(idx)
+    print("finger verts", side, len(idx), "moved back to the hand", len(sidx))
 def w(*names): return sum(W.get(s + k, 0) for k in names for s in ("", "Left", "Right") if (s + k) in W)
 
 # ---------------------------------------------------------------- 6. athletic shaping: push muscle groups out along the surface normal, draw the waist in
@@ -199,7 +261,7 @@ amt = (w("Arm") * 0.010 + w("ForeArm") * 0.006 + w("Shoulder") * 0.010 + w("Spin
 co2 = co + nrm * amt[:, None]
 wide = np.clip((Z - 1.24) / 0.10, 0, 1) * np.clip((1.47 - Z) / 0.05, 0, 1)   # a touch more shoulder width
 co2[:, 0] *= 1 + 0.05 * wide
-armw = w("Arm", "ForeArm", "Hand")
+armw = w("Arm", "ForeArm", "Hand", "Fingers1", "Fingers2", "Fingers3")
 shorts_v = (Z > HEM * H + 1e-3) & (Z < WAIST * H - 1e-3) & (armw < 0.5)   # the cut edges move too, so hem and waistband stay straight lines
 co2 += nrm * (shorts_v * 0.008)[:, None]   # the shorts stand off the body like cloth
 baked.vertices.foreach_set("co", co2.ravel()); baked.update()
@@ -247,6 +309,19 @@ rig.pose.bones["LeftUpLeg"].rotation_mode = 'XYZ'; rig.pose.bones["LeftUpLeg"].r
 rig.pose.bones["LeftLeg"].rotation_mode = 'XYZ'; rig.pose.bones["LeftLeg"].rotation_euler = (math.radians(80), 0, 0)
 render("posed", [body], views=(("front", (0, -1, 0)), ("three", (-0.75, -0.65, 0.12))))
 for pb in rig.pose.bones: pb.rotation_euler = (0, 0, 0)
+# a closed hand, close up: do the fingers fold toward the palm, and does the thumb come across?
+def curl(name, world_axis, deg):
+    pb = rig.pose.bones[name]; pb.rotation_mode = 'QUATERNION'
+    local = (rig.matrix_world.to_3x3() @ pb.bone.matrix_local.to_3x3()).inverted() @ Vector(world_axis)
+    pb.rotation_quaternion = Quaternion(local.normalized(), math.radians(deg))
+h_ax = Vector(unit0(J["F3"] - J["F1"])); palm = Vector((-1, 0, 0)); palm = (palm - palm.dot(h_ax) * h_ax).normalized(); hinge = h_ax.cross(palm)
+for nm, deg in (("LeftFingers1", 45), ("LeftFingers2", 60), ("LeftFingers3", 35)): curl(nm, hinge, deg)
+box = []
+for p in (Vector(J["Hand"]) + Vector((-0.1, -0.1, 0.04)), Vector(J["FEnd"]) + Vector((0.08, 0.1, -0.04))):
+    o = bpy.data.objects.new("corner", ball); o.scale = (0.01,) * 3; o.location = p; bpy.context.scene.collection.objects.link(o); box.append(o)
+render("hand", box, views=(("front", (0, -1, 0)), ("inner", (-1, -0.2, 0)), ("back", (1, -0.3, 0))))
+for o in box: bpy.data.objects.remove(o)
+for pb in rig.pose.bones: pb.rotation_mode = 'XYZ'; pb.rotation_euler = (0, 0, 0)
 
 # ---------------------------------------------------------------- 9. export
 for o in bpy.context.scene.objects: o.select_set(o in [body, rig] + eyes)

@@ -18,7 +18,8 @@ import glbio
 from retarget import Skel
 
 X, Y, Z = np.eye(3)
-BONES = ['Hips', 'Spine', 'Spine1', 'Spine2', 'Neck', 'Head'] + [s + b for s in ('Left', 'Right') for b in ('Shoulder', 'Arm', 'ForeArm', 'Hand', 'UpLeg', 'Leg', 'Foot', 'ToeBase')]
+FINGERS = ('Fingers1', 'Fingers2', 'Fingers3')   # the four fingers close together; the thumb is part of the hand
+BONES = ['Hips', 'Spine', 'Spine1', 'Spine2', 'Neck', 'Head'] + [s + b for s in ('Left', 'Right') for b in ('Shoulder', 'Arm', 'ForeArm', 'Hand', 'UpLeg', 'Leg', 'Foot', 'ToeBase') + FINGERS]
 def unit(v): v = np.asarray(v, float); return v / (np.linalg.norm(v) or 1.0)
 def pitch(deg): return R.from_rotvec(X * np.radians(deg))     # lean forward (the body faces +Z)
 def basis(d, hinge):
@@ -38,6 +39,13 @@ class Body:
         for s, sx in (('Left', 1), ('Right', -1)):
             for b, hinge in (('UpLeg', -X), ('Leg', -X), ('Arm', -X), ('ForeArm', -X), ('Hand', np.array([-sx, 0, 0]))):
                 q = self.rest[s + b][1]; self.fit[s + b] = (basis(q.apply(Y), hinge).inv() * q)
+            # fingers: each finger bone folds about the knuckle line (across the palm), toward the palm
+            p = lambda b: self.rest[s + b][0]
+            fdir = unit(p('Fingers3') - p('Fingers1')); palm = np.array([-sx, 0.0, 0.0]); palm = unit(palm - (palm @ fdir) * fdir); knuckles = np.cross(fdir, palm)
+            self.restlocal = getattr(self, 'restlocal', {}); self.fold = getattr(self, 'fold', {})
+            for b in FINGERS:
+                par = self.rest[self.parent[s + b]][1]; q = self.rest[s + b][1]
+                self.restlocal[s + b] = par.inv() * q; self.fold[s + b] = q.inv().apply(knuckles)
 
     def limb(self, a, t, l1, l2, pole):
         """Two-bone IK. From joint a to target t with bone lengths l1, l2; the middle joint is pushed toward 'pole'. Returns (middle joint, hinge axis)."""
@@ -62,6 +70,8 @@ class Body:
             W[s + 'Arm'] = basis(el - pos[s + 'Arm'], h) * self.fit[s + 'Arm']; place(s + 'ForeArm')
             W[s + 'ForeArm'] = basis(t - el, h) * self.fit[s + 'ForeArm']; place(s + 'Hand')
             fingers, palm = P['palm'](s, sx, chest); W[s + 'Hand'] = basis(fingers, palm) * self.fit[s + 'Hand']
+            for b, deg in zip(FINGERS, P.get('grip', (0, 0, 0))):          # how far each finger joint is closed, in degrees
+                place(s + b); W[s + b] = W[self.parent[s + b]] * self.restlocal[s + b] * R.from_rotvec(self.fold[s + b] * np.radians(deg))
             place(s + 'UpLeg'); ankle = np.asarray(P['foot'](s, sx), float)
             kn, h = self.limb(pos[s + 'UpLeg'], ankle, self.len[s + 'UpLeg'], self.len[s + 'Leg'], np.asarray(P['knee'](s, sx), float))
             W[s + 'UpLeg'] = basis(kn - pos[s + 'UpLeg'], h) * self.fit[s + 'UpLeg']; place(s + 'Leg')
@@ -71,25 +81,31 @@ class Body:
         return local, pos['Hips']
 
 # ---------------------------------------------------------------------------------------------------- the moves
-def goblet_squat(B, heel=0.0):
-    """Down for 2.2 s, pause, drive up, stand tall: the same timing as the captions in the app (5 s per rep)."""
+def goblet_squat(B):
+    """Goblet squat, coached: shoulder-width stance with the toes turned out, weight held high against the chest with the
+    hands cupping the top bell, elbows tucked under it. Sit down between the heels until the hip crease is level with the
+    knee, knees tracking over the toes, heels planted, trunk leaning only as far as balance needs, spine neutral.
+    Down for 2.2 s, pause, drive up, stand tall: the same timing as the captions in the app (5 s per rep)."""
     hip0 = B.rest['Hips'][0]; ankle = {s: B.rest[s + 'Foot'][0] for s in ('Left', 'Right')}
+    BELL = 0.055                                                                   # radius of the dumbbell's head
     def depth(t):
         if t < 2.2: return ease(t / 2.2)
-        if t < 2.9: return 1.0 + 0.025 * np.sin(np.pi * (t - 2.2) / 0.7)        # settle a touch deeper at the bottom, then come back
+        if t < 2.9: return 1.0 + 0.02 * np.sin(np.pi * (t - 2.2) / 0.7)         # settle a touch deeper at the bottom, then come back
         if t < 4.3: return 1.0 - ease((t - 2.9) / 1.4)
         return 0.0
     def frame(t):
         s = depth(t); breathe = 0.004 * np.sin(2 * np.pi * t / 5.0)
+        bell = lambda c, q: c + q.apply([0.0, 0.075, 0.185])                       # the top bell rests against the upper chest
         return {
-            'hips': hip0 + np.array([0, -0.335 * s + breathe, -0.215 * s]),       # hips travel back and down: sitting between the heels
-            'pelvis': 30 * s, 'spine': 5 * s, 'spine1': -3 * s, 'chest': -6 * s,   # the trunk leans from the hips while the chest stays proud
-            'neck': -8 * s, 'head': -10 * s,                                      # eyes stay on the horizon
-            'foot': lambda S, sx: ankle[S],
-            'knee': lambda S, sx: np.array([sx * 0.55, 0.0, 1.0]),                # knees track out over the toes
-            'hand': lambda S, sx, c, q: c + q.apply([sx * 0.085, 0.05, 0.2]),  # both hands cup the weight at the chest
-            'elbow': lambda S, sx, q: q.apply([sx * 0.25, -1.0, -0.15]),          # elbows tucked, pointing down
-            'palm': lambda S, sx, q: (q.apply([-sx * 0.1, 0.85, 0.5]), np.array([-sx, 0.0, 0.0])),
+            'hips': hip0 + np.array([0, -0.425 * s + breathe, -0.19 * s]),        # hips travel down and a little back: sitting between the heels
+            'pelvis': 27 * s, 'spine': 1 * s, 'spine1': -2 * s, 'chest': -4 * s,   # lean comes from the hips; the back keeps its natural curve
+            'neck': -8 * s, 'head': -9 * s,                                       # eyes stay on a point ahead
+            'foot': lambda S, sx: ankle[S],                                       # whole foot planted for the entire rep
+            'knee': lambda S, sx: np.array([sx * 0.55, 0.0, 1.0]),                # knees travel out over the toes, never caving in
+            'hand': lambda S, sx, c, q: bell(c, q) + q.apply([sx * (BELL + 0.012), -0.075, -0.012]),   # the heel of each hand sits under the bell's edge
+            'elbow': lambda S, sx, q: q.apply([sx * 0.18, -1.0, -0.25]),          # elbows tucked in and pointing down, inside the knees at the bottom
+            'palm': lambda S, sx, q: (q.apply([-sx * 0.12, 0.93, 0.33]), q.apply([-sx, 0.0, 0.1])),   # fingers point up the sides of the bell, palms facing each other
+            'grip': (22, 28, 16),                                                 # fingers wrapped round the curve of the bell
         }
     return 5.0, frame
 

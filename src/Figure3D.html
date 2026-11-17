@@ -198,9 +198,9 @@
     // --- equipment
     const mat = (c, o) => new T.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.6 }, o));
     function dumbbell() {
-      const g = new T.Group(), plate = new T.CylinderGeometry(0.05, 0.05, 0.05, 20), m = mat(LOOK.steel, { metalness: 0.4, roughness: 0.35 });
-      g.add(new T.Mesh(new T.CylinderGeometry(0.014, 0.014, 0.2, 10), m));
-      [-0.085, 0.085].forEach(y => { const p = new T.Mesh(plate, m); p.position.y = y; g.add(p); });
+      const g = new T.Group(), plate = new T.CylinderGeometry(0.055, 0.055, 0.075, 6), m = mat(LOOK.steel, { metalness: 0.4, roughness: 0.35 });   // six-sided heads, like a rubber hex dumbbell
+      g.add(new T.Mesh(new T.CylinderGeometry(0.015, 0.015, 0.14, 12), m));
+      [-0.105, 0.105].forEach(y => { const p = new T.Mesh(plate, m); p.position.y = y; g.add(p); });
       g.traverse(o => { o.castShadow = true; }); return g;
     }
     function buildProps(fig) {
@@ -227,7 +227,11 @@
     }
     function moveProps(live) {
       live.forEach(o => {
-        if (o.db) {
+        if (o.db && cur.clip && cur.grip) {   // goblet hold: the dumbbell stands on end against the chest, its top head cupped between the palms
+          const turn = B.Spine2.getWorldQuaternion(Q()).multiply(chestRest), up = V(0, 1, 0).applyQuaternion(turn), fwd = V(0, 0, 1).applyQuaternion(turn);
+          o.db.position.copy(wp('LeftHand').add(wp('RightHand')).multiplyScalar(0.5)).addScaledVector(up, 0.075 - 0.105).addScaledVector(fwd, 0.012);
+          o.db.quaternion.setFromUnitVectors(UP, up);
+        } else if (o.db) {
           const side = o.at === 'hand2' ? 'Left' : 'Right', fore = wp(side + 'Hand').sub(wp(side + 'ForeArm')).normalize();
           const axis = o.how === 'dot' ? plane.clone() : o.how === 'v' ? UP.clone() : o.how === 'h' ? V().crossVectors(UP, plane) : o.how === 'p' ? V().crossVectors(fore, plane) : fore;
           o.db.position.copy(point(o.at)); if (o.how === 'a') o.db.position.addScaledVector(fore, 0.06);
@@ -273,6 +277,7 @@
     // --- ready-made clips: some moves come with an animation saved inside the model file (made in Blender tooling, see tools/motion).
     // Those are played back as recorded instead of being worked out from the 2D figure. The 2D engine still keeps the time, so reps stay in step.
     const restPose = Object.values(B).map(b => ({ b, p: b.position.clone(), q: b.quaternion.clone() }));
+    const chestRest = B.Spine2 ? B.Spine2.getWorldQuaternion(Q()).invert() : Q();
     const mixer = new T.AnimationMixer(model), clips = {}; (anims || []).forEach(c => { clips[c.name] = c; });
     let action = null;
     function frameClip(clip) {   // point the camera at the middle of everything the body passes through during the clip
