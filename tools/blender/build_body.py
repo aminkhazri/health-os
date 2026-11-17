@@ -76,7 +76,7 @@ body.location = (0, 0, 0); bpy.context.view_layer.update()
 # ---------------------------------------------------------------- 2. bake sculpt detail, then thin the mesh
 mr = body.modifiers["Multires"]; print("multires total levels", mr.total_levels)
 mr.levels = min(2, mr.total_levels)
-dec = body.modifiers.new("Decimate", 'DECIMATE'); dec.ratio = 0.16 if mr.levels == 2 else 0.6
+dec = body.modifiers.new("Decimate", 'DECIMATE'); dec.ratio = 0.35 if mr.levels == 2 else 0.8   # keep more of the sculpt's detail: muscles and joints read as anatomy, not facets
 dg = bpy.context.evaluated_depsgraph_get()
 baked = bpy.data.meshes.new_from_object(body.evaluated_get(dg), depsgraph=dg)
 body.modifiers.clear(); body.data = baked; body.name = "Athlete"; baked.name = "Athlete"
@@ -212,6 +212,7 @@ k2, k3 = float((J["F2"] - J["F1"]) @ fu), float((J["F3"] - J["F1"]) @ fu); blend
 ev = np.empty(len(baked.edges) * 2, dtype=np.int64); baked.edges.foreach_get("vertices", ev); ev = ev.reshape(-1, 2)
 nbr = {}
 for a_, b_ in ev[hand_m[ev[:, 0]] & hand_m[ev[:, 1]]]: nbr.setdefault(int(a_), []).append(int(b_)); nbr.setdefault(int(b_), []).append(int(a_))
+finger_keep = np.zeros(n, bool)
 for side, sgn in (("Left", 1), ("Right", -1)):
     region = hand_m & (co[:, 0] * sgn > 0) & (sf > -0.006); core = region & (sf > 0.016)
     label = {}; comps = []
@@ -232,7 +233,7 @@ for side, sgn in (("Left", 1), ("Right", -1)):
             for u in nbr.get(v, ()):
                 if region[u] and u not in label: label[u] = label[v]; nxt.append(u)
         front = nxt
-    m = np.zeros(n, bool); m[[v for v, k in label.items() if k in reach]] = True
+    m = np.zeros(n, bool); m[[v for v, k in label.items() if k in reach]] = True; finger_keep |= m
     b1, b2, b3 = blend(sf), blend(sf - k2), blend(sf - k3)
     new = {side + "Hand": 1 - b1, side + "Fingers1": b1 - b2, side + "Fingers2": b2 - b3, side + "Fingers3": b3}
     rest_m = (co[:, 0] * sgn > 0) & ~m                           # everything else on this side must not move with the fingers
@@ -251,16 +252,26 @@ for side, sgn in (("Left", 1), ("Right", -1)):
             elif sidx: g.remove(sidx)
         else: g.remove(idx)
     print("finger verts", side, len(idx), "moved back to the hand", len(sidx))
+# soften the joints: the automatic weights change sharply from one bone to the next, which creases the surface when a joint bends far.
+# Averaging each point's weights with its neighbours a few times spreads every bend over a wider band of skin, as on a real body.
+all_e = np.empty(len(baked.edges) * 2, dtype=np.int64); baked.edges.foreach_get("vertices", all_e); all_e = all_e.reshape(-1, 2)
+deg = np.zeros(n); np.add.at(deg, all_e[:, 0], 1); np.add.at(deg, all_e[:, 1], 1); deg[deg == 0] = 1
+for _ in range(8):
+    for name in W:
+        acc = np.zeros(n); np.add.at(acc, all_e[:, 0], W[name][all_e[:, 1]]); np.add.at(acc, all_e[:, 1], W[name][all_e[:, 0]])
+        sm = 0.5 * W[name] + 0.5 * acc / deg; sm[finger_keep] = W[name][finger_keep]; W[name] = sm
+tot = sum(W.values()); tot[tot < 1e-6] = 1
+for name in W: W[name] = W[name] / tot
+for g in body.vertex_groups:
+    wv = W[g.name]; g.remove([int(i) for i in np.nonzero(wv < 0.004)[0]])
+    for i in np.nonzero(wv >= 0.004)[0]: g.add([int(i)], float(wv[i]), 'REPLACE')
+print("weights smoothed")
 def w(*names): return sum(W.get(s + k, 0) for k in names for s in ("", "Left", "Right") if (s + k) in W)
 
-# ---------------------------------------------------------------- 6. athletic shaping: push muscle groups out along the surface normal, draw the waist in
+# ---------------------------------------------------------------- 6. clothing: the shorts stand a little off the body
 nrm = np.empty(n * 3); baked.vertices.foreach_get("normal", nrm); nrm = nrm.reshape(n, 3)
 front = np.clip(-nrm[:, 1], 0, 1); back = np.clip(nrm[:, 1], 0, 1); side_n = np.abs(nrm[:, 0])
-amt = (w("Arm") * 0.010 + w("ForeArm") * 0.006 + w("Shoulder") * 0.010 + w("Spine2") * (0.010 * front + 0.008 * back + 0.006 * side_n)
-       + w("Spine1") * 0.006 * side_n * (Z > 1.10) - w("Spine") * 0.007 * side_n + w("UpLeg") * 0.007 + w("Leg") * 0.008 * back + w("Neck") * 0.006 * (side_n + back))
-co2 = co + nrm * amt[:, None]
-wide = np.clip((Z - 1.24) / 0.10, 0, 1) * np.clip((1.47 - Z) / 0.05, 0, 1)   # a touch more shoulder width
-co2[:, 0] *= 1 + 0.05 * wide
+co2 = co.copy()   # the sculpted anatomy is used exactly as it is: no inflating, widening or pinching
 armw = w("Arm", "ForeArm", "Hand", "Fingers1", "Fingers2", "Fingers3")
 shorts_v = (Z > HEM * H + 1e-3) & (Z < WAIST * H - 1e-3) & (armw < 0.5)   # the cut edges move too, so hem and waistband stay straight lines
 co2 += nrm * (shorts_v * 0.008)[:, None]   # the shorts stand off the body like cloth
@@ -309,6 +320,15 @@ rig.pose.bones["LeftUpLeg"].rotation_mode = 'XYZ'; rig.pose.bones["LeftUpLeg"].r
 rig.pose.bones["LeftLeg"].rotation_mode = 'XYZ'; rig.pose.bones["LeftLeg"].rotation_euler = (math.radians(80), 0, 0)
 render("posed", [body], views=(("front", (0, -1, 0)), ("three", (-0.75, -0.65, 0.12))))
 for pb in rig.pose.bones: pb.rotation_euler = (0, 0, 0)
+# a deep squat with the arms up, to judge how the surface holds its shape at the hips, knees, shoulders and elbows
+def bend(name, world_axis, deg):
+    pb = rig.pose.bones[name]; pb.rotation_mode = 'QUATERNION'
+    local = (rig.matrix_world.to_3x3() @ pb.bone.matrix_local.to_3x3()).inverted() @ Vector(world_axis)
+    pb.rotation_quaternion = Quaternion(local.normalized(), math.radians(deg))
+for sd in ("Left", "Right"):
+    bend(sd + "UpLeg", (-1, 0, 0), 95); bend(sd + "Leg", (1, 0, 0), 105); bend(sd + "Arm", (-1, 0, 0), 55); bend(sd + "ForeArm", (-1, 0, 0), 105)
+render("squat", [body], views=(("front", (0, -1, 0)), ("side", (-1, 0, 0)), ("three", (-0.75, -0.65, 0.12)), ("back", (0.4, 1, 0.15))))
+for pb in rig.pose.bones: pb.rotation_mode = 'XYZ'; pb.rotation_euler = (0, 0, 0)
 # a closed hand, close up: do the fingers fold toward the palm, and does the thumb come across?
 def curl(name, world_axis, deg):
     pb = rig.pose.bones[name]; pb.rotation_mode = 'QUATERNION'
