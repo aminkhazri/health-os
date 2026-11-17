@@ -102,10 +102,10 @@ def goblet_squat(B):
             'neck': -8 * s, 'head': -9 * s,                                       # eyes stay on a point ahead
             'foot': lambda S, sx: ankle[S],                                       # whole foot planted for the entire rep
             'knee': lambda S, sx: np.array([sx * 0.55, 0.0, 1.0]),                # knees travel out over the toes, never caving in
-            'hand': lambda S, sx, c, q: bell(c, q) + q.apply([sx * (BELL + 0.012), -0.075, -0.012]),   # the heel of each hand sits under the bell's edge
+            'hand': lambda S, sx, c, q: bell(c, q) + q.apply([sx * 0.045, -0.07, -0.01]),             # the heel of each hand sits under the edge of the top head
             'elbow': lambda S, sx, q: q.apply([sx * 0.18, -1.0, -0.25]),          # elbows tucked in and pointing down, inside the knees at the bottom
-            'palm': lambda S, sx, q: (q.apply([-sx * 0.12, 0.93, 0.33]), q.apply([-sx, 0.0, 0.1])),   # fingers point up the sides of the bell, palms facing each other
-            'grip': (22, 28, 16),                                                 # fingers wrapped round the curve of the bell
+            'palm': lambda S, sx, q: (q.apply([sx * 0.25, 0.9, 0.3]), q.apply([-sx, 0.25, 0.1])),    # palms cup the head from below and the sides, like holding a goblet
+            'grip': (30, 42, 26),                                                 # fingers wrapped round the curve of the bell
         }
     return 5.0, frame
 
