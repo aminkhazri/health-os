@@ -49,41 +49,38 @@ function routineSeconds_(routine) {
   return routine.steps.reduce((sum, s) => sum + s[1] * (s[2] ? 2 : 1), 0);
 }
 
-// Demo videos: exercise or stretch name -> YouTube video ID (the part after "watch?v=").
-// These are other people's short how-to videos; the app only plays them from YouTube, it doesn't copy them.
-// If one is ever removed, the app still offers "Search YouTube" for that move. To swap one, change its ID here.
+// Demo videos: exercise or stretch name -> YouTube video ID (the part after "watch?v=" or "/shorts/").
+// Every one is a portrait YouTube Short. Where the DEMIC channel (youtube.com/@officialdemic, 3D-animated form clips) covers a move, its clip is used:
+// the dumbbell row, Romanian deadlift, shoulder press, Bulgarian and split squat, hip thrust, heel-raised squat, calf raise, push-up, lateral raise,
+// curl, triceps extension and shrug. DEMIC has nothing for the stretches, neck work, band moves, planks or mobility drills, so those come from other channels.
+// These are other people's videos; the app only plays them from YouTube, it doesn't copy them. To swap one, change its ID here.
 const VIDEOS = {
   // Workout A
-  'Goblet squat': 'gCESNsDsbqk', 'Dumbbell floor press': 'ijKVXhRDJ-U', 'One-arm dumbbell row': 'jyrudAO4Rxc',
-  'Dumbbell Romanian deadlift': 'O2dUYS-YYus', 'Dumbbell shoulder press': '-aVIf0bgMEs', 'Band pull-apart': 'bYsgk9SrJ48',
+  'Goblet squat': 'lRYBbchqxtI', 'Dumbbell floor press': 'UBmpZ7l5Nlk', 'One-arm dumbbell row': 'jyrudAO4Rxc',
+  'Dumbbell Romanian deadlift': 'O2dUYS-YYus', 'Dumbbell shoulder press': '-aVIf0bgMEs', 'Band pull-apart': 'SuvO4TBwSu4',
   // Workout B
-  'Bulgarian split squat': '1bYdM_jK8nE', 'Single-leg Romanian deadlift': 'X2BM5J3UkEo', 'Dumbbell hip thrust': 'c3K1Afir9kk',
-  'Heel-raised goblet squat': 'RUXLuZ_GLrE', 'Standing calf raise': 'nkAh8pFrvEA', 'Dead bug': 'GbSC02oU3To',
+  'Bulgarian split squat': '1bYdM_jK8nE', 'Single-leg Romanian deadlift': 'R_fJ6H3FlVw', 'Dumbbell hip thrust': 'c3K1Afir9kk',
+  'Heel-raised goblet squat': '0xjQPTonAs0', 'Standing calf raise': 'nkAh8pFrvEA', 'Dead bug': 'DqLL45uk2Tk',
   // Workout C
-  'Push-up': 'QCEyV-spfn8', 'Band row': 'LSkyinhmA8k', 'Incline dumbbell press': 'gl8H4QLXKTo',
+  'Push-up': 'QCEyV-spfn8', 'Band row': 'bBpK36TAQww', 'Incline dumbbell press': '8fXfwG4ftaQ',
   'Dumbbell lateral raise': '-_XE4qbV7Yw', 'Dumbbell curl': 'pl3z_AihNzk', 'Overhead triceps extension': 'rFNQv9eae6I',
   // Stretches
-  'Cat-cow': '1Y0YjXS9sKI', "Child's pose": 'LZgABs0IggM', "World's greatest stretch": '-CiWQ2IvY34',
-  'Downward dog': 'sd-Fn6xpyeg', 'Thread the needle': '6roMIB2YV4Y', 'Half-kneeling hip flexor stretch': 'gqoPYLUgP48',
-  'Lying hamstring stretch': '5P3E8Pec_L8', 'Figure-four stretch': '-g0nuyTHMrI', 'Standing calf stretch': 'mafo7o7OnFo',
-  'Butterfly stretch': '4J7kbCmPScQ', 'Doorway chest stretch': 'CEQMx4zFwYs', 'Supine spinal twist': 'mNdJti7ZwKI',
+  'Cat-cow': '2of247Kt0tU', "Child's pose": '0KCP6cIzWoc', "World's greatest stretch": '7XheaZERvBQ',
+  'Downward dog': 'M-3LOTCxLLw', 'Thread the needle': 'h6_v-dZGLjY', 'Half-kneeling hip flexor stretch': 'k9kK6su9F1c',
+  'Lying hamstring stretch': 'U3Y84oBe8fc', 'Figure-four stretch': 'ckHZyA99Das', 'Standing calf stretch': 'tUA4MO1kXV8',
+  'Butterfly stretch': 'kSHtwLxEEHw', 'Doorway chest stretch': 'O8rJw_TmC1Y', 'Supine spinal twist': 'ElKoMMaTPCM',
   // Neck project
-  'Supine chin tuck': '7OgvJ653oxE', 'Neck isometric hold': 'WnKcq1Uh8m4', 'Prone neck extension': 'QrYSctbYQfg',
-  'Side-lying neck raise': 'duOfvQUQfWQ', 'Dumbbell shrug': 'x22AJbViigk',
+  'Supine chin tuck': 'SCR25jcSVnU', 'Neck isometric hold': '-6ImdM-JmUU', 'Prone neck extension': 'G46gkrfa0NU',
+  'Side-lying neck raise': 'QzDNcfVBS3U', 'Dumbbell shrug': 'x22AJbViigk',
   // Calves project
-  'Single-leg deficit calf raise': 'gUEffJQ2IdU', 'Seated dumbbell calf raise': 'fFWpWJy8ybU', 'Tibialis raise': 'VzIcGAgBiaM',
+  'Single-leg deficit calf raise': 'E1mG5L9rpFc', 'Seated dumbbell calf raise': 'ar8nav0jGoE', 'Tibialis raise': 'pQcvW08rnAk',
   // Hip mobility project
-  '90/90 hip switch': 'qq_Z7sAmVrA', 'Hip CARs': 'hRMrq6G81p8', 'Pigeon pose': 'lqCqETr7Q0g', 'Frog stretch': '1wpyPsr0Rx0',
-  'Deep squat hold': 'IHApHfNA2Ag', 'Cossack squat': 'nLNqEQ4B6XI',
+  '90/90 hip switch': 'GC7YJ217uoU', 'Hip CARs': '5hPHUGoVCI4', 'Pigeon pose': 'AI5A1PRYX7E', 'Frog stretch': 'orMZYFWo9P0',
+  'Deep squat hold': 'poKi7JPfuxE', 'Cossack squat': 'MJvazUpmdZU',
   // Isometric holds
-  'Copenhagen plank': 'bU8aazv5voo', 'Side plank': 'iNbH7_edNI8', 'Split squat bottom hold': '9-E7YW2WAlM',
-  'Single-leg glute bridge hold': 'mUEViZ1R7l4', 'Push-up bottom hold': 'mmTAFhFpdY8', "Dumbbell farmer's hold": 'BJByPr07bts',
-  'Single-leg calf raise hold': '7Udb4E3Uks8',
+  'Copenhagen plank': 'IXjQrC45D7s', 'Side plank': 'BFOyHDlY2UE', 'Split squat bottom hold': '-RffMuhmYc4',
+  'Single-leg glute bridge hold': 'n1IZ168x2Bw', 'Push-up bottom hold': 'QCEyV-spfn8', "Dumbbell farmer's hold": 'Ozp9nI_w4xo',
+  'Single-leg calf raise hold': 'nkAh8pFrvEA',
 };
 
-// Moves whose video is a vertical 3D-animated short from the DEMIC channel (youtube.com/@officialdemic). The app shows these in a tall frame.
-// DEMIC has no clip for the stretches, neck, band or mobility moves, so those keep their regular how-to videos.
-const TALL_VIDEOS = ['One-arm dumbbell row', 'Dumbbell floor press', 'Dumbbell Romanian deadlift', 'Dumbbell shoulder press', 'Bulgarian split squat', 'Dumbbell hip thrust',
-  'Standing calf raise', 'Push-up', 'Dumbbell lateral raise', 'Dumbbell curl', 'Overhead triceps extension', 'Dumbbell shrug'];
-
-if (typeof module !== 'undefined') module.exports = { STRETCHES, STRETCH_ROUTINES, VIDEOS, TALL_VIDEOS, routineSeconds_ }; // Node tests only
+if (typeof module !== 'undefined') module.exports = { STRETCHES, STRETCH_ROUTINES, VIDEOS, routineSeconds_ }; // Node tests only

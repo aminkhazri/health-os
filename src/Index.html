@@ -10,7 +10,6 @@
 <?!= include('Parser'); ?>
 <?!= include('Recovery'); ?>
 <?!= include('Figure'); ?>
-<?!= include('Figure3D'); ?>
 <style>
   /* Theme: "Matchday" — floodlit-night slate, pitch-lime accent, condensed scoreboard type. One look in light and dark. */
   :root {
@@ -240,7 +239,11 @@
   .vid[hidden] { display: none; }
   .vid > * { width: 100%; max-width: 640px; margin-left: auto; margin-right: auto; }  /* keeps the player phone-sized on a laptop */
   .vid-title { font-family: var(--display); font-weight: 800; font-size: 24px; }
-  .vid-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 12px; overflow: hidden; }
+  .vid-frame, .s-fig { position: relative; aspect-ratio: 9 / 16; width: auto; align-self: center; background: #000; border-radius: 12px; overflow: hidden; }   /* every demo is a portrait clip */
+  .vid > .vid-frame { width: auto; height: min(56vh, 520px); }
+  .s-fig { height: min(38vh, 330px); }
+  .s-fig iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .vcover { position: absolute; inset: 0; z-index: 2; background: transparent; border: 0; padding: 0; }   /* sits over the player so a tap never brings up YouTube's own buttons */
   .vid-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
   .vid-row { display: flex; gap: 10px; }
   .vid-row > * { flex: 1; text-align: center; text-decoration: none; }
@@ -273,7 +276,6 @@
   .fg-say { min-height: 2.8em; margin-top: 6px; text-align: center; font-size: 15px; line-height: 1.4; color: var(--teal); }
   .vid-frame.tall { aspect-ratio: 9 / 16; width: auto; height: min(62vh, 560px); align-self: center; }   /* vertical clips (YouTube Shorts) */
   .vid-frame.fig { aspect-ratio: auto; background: var(--surface-1); border: 1px solid var(--border); padding: 10px 10px 4px; }
-  .s-fig { width: min(300px, 74vw); }
   .s-fig .fg-say { display: none; }
   .breath:has(.s-fig:not([hidden])) { gap: 10px; }
   .breath:has(.s-fig:not([hidden])) .s-count { font-size: 64px; }
@@ -533,7 +535,7 @@
   <div class="s-prog"><i id="sBar"></i></div>
   <div class="s-cue" id="sCue"></div>
   <div class="s-btns">
-    <button class="btn2" onclick="strDemo()">▶ Demo</button><button class="btn2" id="sPause" onclick="strPause()">Pause</button>
+    <button class="btn2" id="sPause" onclick="strPause()">Pause</button>
     <button class="btn2" onclick="strSkip()">Skip</button><button class="btn2" onclick="stopStretch(false)">Finish</button>
   </div>
 </div>
@@ -542,8 +544,7 @@
   <div class="vid-frame" id="vFrame"></div>
   <div class="muted" id="vCue"></div>
   <div class="v-timer" id="vTimer" hidden></div>
-  <button class="btn2" id="vSwap" hidden></button>
-  <div class="vid-row"><a class="btn2" id="vOpen" target="_blank" rel="noopener">Open in YouTube</a><button class="btn2" onclick="closeDemo()">Close</button></div>
+  <div class="vid-row"><button class="btn2" onclick="closeDemo()">Close</button></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -825,7 +826,7 @@ function startStretch(id) {
   $('str').hidden = false; keepAwake(true); stepStretch();
   clearInterval(sTick); sTick = setInterval(tickStretch, 1000);
 }
-function stepStretch() { sLeft = sQ[sI][1]; sPrep = 5; $('sFig').hidden = !mountFigure($('sFig'), sQ[sI][0]); paintStretch(); }
+function stepStretch() { sLeft = sQ[sI][1]; sPrep = 5; const has = !!(D.videos || {})[sQ[sI][0]]; $('sFig').hidden = !has; $('sFig').innerHTML = has ? clipHTML(sQ[sI][0]) : ''; paintStretch(); }
 function paintStretch() {
   const [n, s, side] = sQ[sI];
   $('sStep').textContent = `Stretch ${sI + 1} of ${sQ.length}`;
@@ -851,9 +852,8 @@ function tickStretch() {
 }
 function strPause() { sPaused = !sPaused; $('sPause').textContent = sPaused ? 'Resume' : 'Pause'; }
 function strSkip() { sI++; if (sI >= sQ.length) return stopStretch(false); stepStretch(); }
-function strDemo() { if (!sPaused) strPause(); demo(sQ[sI][0]); }
 function stopStretch(done) {
-  clearInterval(sTick); $('str').hidden = true; keepAwake(false); stopFigure(); $('sFig').hidden = true;
+  clearInterval(sTick); $('str').hidden = true; keepAwake(false); $('sFig').innerHTML = ''; $('sFig').hidden = true;
   const mins = done ? Math.round(sTotal / 60) : Math.floor(sDone / 60);   // finishing early still counts the full minutes held
   if (mins < 1) return toast('Stopped');
   D.entry = D.entry || {}; D.entry.stretch = (D.entry.stretch || 0) + mins;
@@ -870,38 +870,35 @@ function undoStretch() {
 }
 
 // ---------- Demo videos: the player is only created when you tap Demo, so videos cost nothing until then. ----------
-function demo(name, mode) {
-  const id = (D.videos || {})[name], yt = id ? 'https://www.youtube.com/watch?v=' + id : 'https://www.youtube.com/results?search_query=' + encodeURIComponent('how to ' + name);
+// Every demo is a portrait YouTube Short, played muted on a loop with YouTube's own controls switched off. A clear cover sits over the player,
+// so tapping never opens YouTube's menus; if a phone refuses to start the clip by itself, a tap on it starts it.
+function clipHTML(name) {
+  const id = (D.videos || {})[name];
+  if (!id) return '<div class="muted" style="padding:20px">No video saved for this one yet.</div>';
+  // Note: no "//" inside a backtick string here. Apps Script's template step treats it as a comment and cuts the line.
+  const src = 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&mute=1&loop=1&playlist=' + id + '&controls=0&playsinline=1&rel=0&fs=0&disablekb=1&iv_load_policy=3&enablejsapi=1';
+  return '<iframe src="' + src + '" title="' + esc(name) + ' demo" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe>' +
+    '<button class="vcover" aria-label="Start the video" onclick="clipPlay(this)"></button>';
+}
+function clipPlay(btn) { try { btn.previousElementSibling.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*'); } catch (e) {} }
+function demo(name) {
   $('vTitle').textContent = name; $('vCue').textContent = (D.stretches || {})[name] || '';
-  // Two ways to show a move: a real video from YouTube (the default), or the animated guide that counts reps with you.
-  const frame = $('vFrame'), figOK = !!(window.FIGS && FIGS[name]), hasFig = figOK && (mode === 'fig' || !id || mode !== 'video');   // every move opens on the 3D figure; the video is one tap away
-  stopFigure(); frame.innerHTML = '';
-  frame.classList.toggle('fig', hasFig); frame.classList.toggle('tall', !hasFig && (D.tallVideos || []).includes(name));
-  if (hasFig) mountFigure(frame, name, { onLoop: guideRep });
-  else {
-    // Note: no "//" inside a backtick string here. Apps Script's template step treats it as a comment and cuts the line.
-    const src = 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&playsinline=1&loop=1&playlist=' + id;
-    frame.innerHTML = id
-      ? '<iframe src="' + src + '" title="' + esc(name) + ' demo" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>'
-      : '<div class="muted" style="padding:20px">No video saved for this one yet.</div>';
-  }
-  $('vOpen').href = yt;
-  $('vOpen').textContent = id ? 'Open in YouTube' : 'Search YouTube';
-  const swap = $('vSwap'); swap.hidden = !(figOK && id);
-  swap.textContent = hasFig ? 'Watch the video' : 'Guided set with rep counter';
-  swap.onclick = () => demo(name, hasFig ? 'video' : 'fig');
-  // Guided set: 5 s to get set, a tone to start, reps counted in time with the figure (or a hold countdown), then a rest timer.
+  $('vFrame').innerHTML = clipHTML(name);
+  // Guided set: 5 s to get set, a tone to start, reps counted at a steady tempo (or a hold countdown), then a rest timer.
   const tg = String(((D.workoutInfo || {}).targets || {})[name] || Object.values(D.projects || {}).map(p => p.targets[name]).find(Boolean) || '');
   const step = [].concat(...(D.routines || []).map(r => r.steps)).find(st => st[0] === name);   // stretches have seconds instead of a target
-  const plan = hasFig && (tg || step) ? figPlan(tg, step && step[1]) : null;
+  const plan = window.figPlan && (tg || step) ? figPlan(tg, step && step[1]) : null;
+  if (plan) plan.repMs = Math.round(((window.FIGS && FIGS[name] && figDuration(name)) || 4) * 1000);   // seconds per rep: the tempo written for this move
   if (plan && !tg) { plan.sides = step[2] ? 2 : 1; plan.text = step[1] + ' s' + (step[2] ? ' each side' : ''); } else if (plan) plan.text = tg;
   guideReset(plan);
   $('vid').hidden = false;
 }
 // One small state machine drives the whole guided set. phase: idle → prep → work → (switch side → work) → rest → prep … → done.
-let G = null, gTick = null;
+let G = null, gTick = null, repTick = null;
+/** The rep clock: one rep every G.repMs, so the count keeps a steady, controlled tempo. */
+function repClock(on) { clearInterval(repTick); if (!on) return; let n = 0; repTick = setInterval(() => guideRep(++n), G.repMs || 4000); }
 function guideReset(plan) {
-  clearInterval(gTick); holdFigure(false); if (G && G.phase !== 'idle' && $('str').hidden) keepAwake(false);   // a stretch routine underneath keeps its own screen lock
+  clearInterval(gTick); repClock(false); if (G && G.phase !== 'idle' && $('str').hidden) keepAwake(false);   // a stretch routine underneath keeps its own screen lock
   G = plan ? Object.assign({}, plan, { phase: 'idle', set: 1, side: 1, n: 0, rep: 0 }) : null;
   $('vTimer').hidden = !G;
   if (G) $('vTimer').innerHTML = `<button class="btn2" onclick="guideStart()">▶ Start guided ${G.sets > 1 ? 'sets' : G.hold ? 'hold' : 'set'} · ${esc(G.text)}</button>`;
@@ -921,18 +918,18 @@ function guidePaint() {
 }
 function guideStart() { ensureAudio(); keepAwake(true); G.set = 1; G.side = 1; guidePrep(); }
 function guidePrep() {
-  G.phase = 'prep'; G.n = 5; holdFigure(false); guidePaint(); clearInterval(gTick);
+  G.phase = 'prep'; G.n = 5; repClock(false); guidePaint(); clearInterval(gTick);
   gTick = setInterval(() => {
     G.n--;
-    if (G.phase === 'prep' && G.n <= 0) {              // go: start tone, and line the figure up with rep 1
+    if (G.phase === 'prep' && G.n <= 0) {              // go: start tone, and start the rep clock at rep 1
       tone(520, 0.25); G.phase = 'work'; G.rep = 1; G.n = G.hold || 0;
-      if (G.hold) holdFigure(true); else { restartFigure(); clearInterval(gTick); }   // reps are counted by the figure, not the clock
+      if (!G.hold) { repClock(true); clearInterval(gTick); }   // reps are counted by the rep clock, holds by this one-second tick
     } else if (G.phase === 'work' && G.hold) { if (G.n >= 1 && G.n <= 3) tone(700, 0.12); if (G.n <= 0) return guideEndWork(); }
     else if (G.phase === 'rest') { if (G.n >= 1 && G.n <= 3) tone(700, 0.12); if (G.n <= 0) return guideNextSet(); }
     guidePaint();
   }, 1000);
 }
-/** Called by the figure each time it finishes one repetition of the move. */
+/** Called by the rep clock each time one repetition's worth of time has passed. */
 function guideRep(n) {
   if (!G || G.phase !== 'work' || G.hold) return;
   if (G.hi && n >= G.hi) return guideEndWork();
@@ -941,7 +938,7 @@ function guideRep(n) {
   guidePaint();
 }
 function guideEndWork() {
-  clearInterval(gTick); holdFigure(false);
+  clearInterval(gTick); repClock(false);
   if (G.side < G.sides) { G.side++; tone(660, 0.15); tone(660, 0.15, 0.25); return guidePrep(); }
   if (G.set < G.sets && G.rest) {
     tone(784, 0.2); tone(988, 0.3, 0.2);
@@ -953,8 +950,7 @@ function guideEndWork() {
   $('vTimer').innerHTML = `<div class="l" style="flex:1"><b style="color:var(--good)">${G.sets > 1 ? 'All ' + G.sets + ' sets done ✓' : 'Done ✓'}</b>${G.rest ? 'Close this and log what you did.' : 'Ease out of it slowly.'}</div><button class="btn2" style="flex:0 0 auto" onclick="guideStart()">Again</button>`;
 }
 function guideNextSet() { clearInterval(gTick); G.set++; G.side = 1; guidePrep(); }
-function closeDemo() { stopFigure(); guideReset(null); $('vFrame').innerHTML = ''; $('vFrame').classList.remove('fig'); $('vid').hidden = true;
-  if (!$('str').hidden && sQ[sI]) $('sFig').hidden = !mountFigure($('sFig'), sQ[sI][0]); }   // back in a routine: restart its figure
+function closeDemo() { guideReset(null); $('vFrame').innerHTML = ''; $('vid').hidden = true; }
 
 // ---------- Collapsible Today cards. Open/closed is remembered on this phone; all start closed. ----------
 const FOLD_KEY = 'healthos-folds';

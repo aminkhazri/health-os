@@ -105,19 +105,19 @@ The app's **Stretch** tab has three guided routines. Press Start and a timer wal
 
 Rules: ease in until you feel a pull, never pain. Keep breathing. Don't bounce.
 
-## Animated demos and guided sets
+## Demo videos and guided sets
 
-Every exercise and stretch has a **▶ Demo** button. It opens a 3D figure, a faceless, jointed mannequin, that performs the move on a loop: the working muscles are lit in green, dumbbells in teal, bands in yellow, and a one-line cue changes as the move goes. Drag sideways on the figure to look at the move from another angle. The 3D model and the Three.js library load from a free public CDN the first time you open a demo; if they cannot load, a simpler drawn figure shows instead.
+Every exercise and stretch has a **▶ Demo** button. It opens a short portrait video of the move that plays on a loop, muted, with YouTube's own buttons hidden. Where the DEMIC channel covers a move its 3D-animated clip is used; the rest come from other channels. The video IDs live in one list in `src/Stretch.js`.
 
-Below the figure, **Start guided set** runs the set for you:
+Below the video, **Start guided set** runs the set for you:
 
 - 5 seconds to get into position, then a start tone.
-- Rep moves: the counter goes up each time the figure finishes a rep, with a soft tick. A higher blip means you reached the bottom of the rep range; the set ends at the top of the range, or tap **Set done**.
+- Rep moves: the counter goes up at a steady tempo of about 4 seconds a rep, with a soft tick. A higher blip means you reached the bottom of the rep range; the set ends at the top of the range, or tap **Set done**.
 - Holds: a countdown with ticks on 3, 2, 1 and a chime at the end.
 - Moves done on each side get a "Switch sides" pause.
 - Between sets a rest timer runs (75 s for rep moves, 45 s for holds) with ticks before the next set.
 
-The figure sets a steady tempo of about 4 seconds a rep. That is deliberate: slow reps build more control. **Watch a video instead** opens a real person doing the move on YouTube; the video IDs live in one list in `src/Stretch.js`.
+The slow tempo is deliberate: slow reps build more control. The stretch routines show the same clips above their countdown.
 
 ## Projects (add-on sessions)
 

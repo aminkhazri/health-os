@@ -93,10 +93,3 @@ test('a target line becomes a plan the guided set can follow', () => {
   Object.entries(all).forEach(([n, t]) => { const p = figPlan(t); assert.ok(p.sets >= 2 && (p.hold || p.hi || /as many/.test(t)), n + ': ' + t); });
 });
 
-test('the 3D figure file parses and only names moves that exist', () => {
-  const c3 = { globalThis: {} };
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'Figure3D.html'), 'utf8').replace(/<\/?script>/g, ''), c3);
-  assert.equal(typeof c3.globalThis.fig3d.load, 'function');
-  assert.equal(c3.globalThis.fig3d.ready(), false);
-  Object.keys(c3.globalThis.fig3dModes).forEach(n => assert.ok(FIGS[n], 'unknown move in 3D modes: ' + n));
-});

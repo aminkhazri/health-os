@@ -117,7 +117,7 @@ function getAppData(dateKey) {
   const food = getFoodData_(ss, dateKey, tz);
   const activity = getActivityData_(ss, dateKey, tz);
   return { today, dateKey, entry, series: series.slice(-120), weekly, targets, last,
-    next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, lastSession, workouts: WORKOUTS, projects: PROJECTS, calCheck: cal, food, activity, stretches: STRETCHES, routines: STRETCH_ROUTINES, videos: VIDEOS, tallVideos: TALL_VIDEOS, name: CONFIG.NAME || '' };
+    next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, lastSession, workouts: WORKOUTS, projects: PROJECTS, calCheck: cal, food, activity, stretches: STRETCHES, routines: STRETCH_ROUTINES, videos: VIDEOS, name: CONFIG.NAME || '' };
 }
 
 /** Write one Daily Log row (finds the row by date). */
