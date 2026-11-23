@@ -328,6 +328,8 @@
   .fold.open .fold-inner { opacity: 1; transform: none; transition-delay: .06s; }
   .fold-inner > :first-child { margin-top: 14px; }
   .qbtns.drinks { margin-top: 12px; }
+  .qbtns.drinks { grid-template-columns: 1fr 44px 1fr 44px; }   /* each drink gets its own − to take one back */
+  .qbtns.drinks .minus { color: var(--text-secondary); font-size: 20px; padding: 6px 0; }
   @media (prefers-reduced-motion: reduce) { .fold-body, .fold-inner, .fold-chev { transition: none; } }
   /* Instant feedback and rewards */
   button { transition: transform .08s ease-out, filter .08s; touch-action: manipulation; }
@@ -429,8 +431,10 @@
       </div>
       </div></div>
       <div class="qbtns drinks">
-        <button onclick="quickItem('Water')">+8 oz 💧</button><button onclick="quickItem('Water bottle')">+24 oz 💧</button>
-        <button onclick="quickItem('Coffee, black')">+ Coffee ☕</button><button onclick="quickItem('Celsius energy drink')">+ Celsius ⚡</button>
+        <button onclick="quickItem('Water')">+8 oz 💧</button><button class="minus" onclick="undoDrink('Water')" aria-label="Remove the last 8 oz water">−</button>
+        <button onclick="quickItem('Water bottle')">+24 oz 💧</button><button class="minus" onclick="undoDrink('Water bottle')" aria-label="Remove the last 24 oz water">−</button>
+        <button onclick="quickItem('Coffee, black')">+ Coffee ☕</button><button class="minus" onclick="undoDrink('Coffee, black')" aria-label="Remove the last coffee">−</button>
+        <button onclick="quickItem('Celsius energy drink')">+ Celsius ⚡</button><button class="minus" onclick="undoDrink('Celsius energy drink')" aria-label="Remove the last Celsius">−</button>
       </div>
     </div>
     <div class="card fold" data-fold="goals">
@@ -1350,11 +1354,23 @@ function confirmAsk() {
 function delFood(btn, row) {
   if (!btn.classList.contains('confirm')) { btn.classList.add('confirm'); btn.textContent = 'Delete?'; setTimeout(() => { btn.classList.remove('confirm'); btn.textContent = '✕'; }, 4000); return; }
   if (!row || inflight) return toast('Still saving, try again in a second');
+  dropEntry(row, 'Removed');
+}
+/** Take one entry off the screen right away, then delete its row in the Sheet. */
+function dropEntry(row, msg) {
   D.food.entries = D.food.entries.filter(e => e.row !== row);
   D.food.entries.forEach(e => { if (e.row > row) e.row--; });                       // rows below move up one in the Sheet
-  recalcTotals(); liveRender(); toast('Removed');
+  recalcTotals(); liveRender(); toast(msg);
   begin();
   google.script.run.withSuccessHandler(settle).withFailureHandler(opFail).deleteFood(row, curDate);
+}
+/** The − next to a drink button: removes the most recent one of that drink logged on this day. */
+function undoDrink(name) {
+  const label = name.replace(/,.*$/, '').replace(' energy drink', '').replace('Water bottle', '24 oz water').replace(/^Water$/, '8 oz water');
+  const last = [...D.food.entries].reverse().find(e => e.name === name);
+  if (!last) return toast('No ' + label + ' logged to remove');
+  if (!last.row || inflight) return toast('Still saving, try again in a second');
+  dropEntry(last.row, 'Removed 1 ' + label);
 }
 function syncChecklist() { const e = D.entry || {}, md = e.mealsDetail || '';
   [...$('meals').children].forEach(b => b.classList.toggle('on', md.includes(b.dataset.c)));
