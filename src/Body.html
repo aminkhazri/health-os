@@ -326,7 +326,7 @@ const BD3_COL = { fresh: 0xb4433a, rec: 0xff8a2a, hot: 0xffdf5e, bone: 0xe2d8c3,
 const BD_FACE = { pecs: [0, .25], delt_a: [0, .6], delt_l: [0, 1.35], triceps: [1, .75], serratus: [0, 1.1], lats: [1, .5], traps_mid: [1, 0], traps_up: [1, 0], delt_p: [1, .7], cuff: [1, .35],
   biceps: [0, .45], forearms: [0, .7], neck: [0, .8], quads: [0, .15], adductors: [0, 0], hams: [1, .1], glute_max: [1, .2], glute_med: [1, 1.0], calves: [1, .1], tibialis: [0, .35], abs: [0, 0], obliques: [0, .85], erectors: [1, 0] };
 const BD_UNDER = { glute_med: 1 };
-const BD3_MODEL = 'gh/aminkhazri/health-os@7d6d8a57b27225c98d2f276818524e1720deada1/models/body.glb';
+const BD3_MODEL = 'gh/aminkhazri/health-os@a8291cc2ec89e2a0233791f9d80450b2237bf2da/models/body.glb';
 async function bd3Init() {
   if (BD3.loading || BD3.ready || BD3.failed) return; BD3.loading = true;
   try {
@@ -334,7 +334,7 @@ async function bd3Init() {
     const [T, G] = await Promise.all([import(CDN + 'npm/three@0.160.0/+esm'), import(CDN + 'npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm')]);
     const gltf = await new G.GLTFLoader().loadAsync(CDN + BD3_MODEL);
     const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.98;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.08;
     const FOV = 28, scene = new T.Scene(), cam = new T.PerspectiveCamera(FOV, 1, 0.25, 12), pivot = new T.Group();
     const HOME = new T.Vector3(0, 0.87, 0), HOME_D = 4.15, UP = new T.Vector3(0, 1, 0);
     scene.add(pivot); pivot.add(gltf.scene);
@@ -342,10 +342,12 @@ async function bd3Init() {
     // light from the front, a weak fill and a cool rim light from behind to pick out the outline.
     try { const R = await import(CDN + 'npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js/+esm'); const pm = new T.PMREMGenerator(renderer);
       scene.environment = pm.fromScene(new R.RoomEnvironment(), 0.04).texture; pm.dispose(); } catch (e) { scene.add(new T.HemisphereLight(0xfff1e6, 0x1a1210, 0.7)); }
-    scene.add(new T.HemisphereLight(0xfff1e6, 0x1a1210, 0.22));
-    const key = new T.DirectionalLight(0xfff6ee, 1.7); key.position.set(1.6, 2.6, 3); scene.add(key);
-    const fill = new T.DirectionalLight(0xffe2cf, 0.45); fill.position.set(-2.5, 1, 2); scene.add(fill);
-    const rim = new T.DirectionalLight(0x9fd8ff, 1.5); rim.position.set(-2.2, 1.8, -3); scene.add(rim);
+    scene.add(new T.HemisphereLight(0xfff1e6, 0x1a1210, 0.1));
+    // The key light comes from high and to one side, so it rakes across the body: each muscle is lit on one flank and falls away into
+    // shade on the other. With the shading baked into the model's furrows, that is what makes the muscles look full and not flat.
+    const key = new T.DirectionalLight(0xfff4ea, 2.5); key.position.set(1.9, 3.3, 2.5); key.target.position.set(0, 0.9, 0); scene.add(key, key.target);
+    const fill = new T.DirectionalLight(0xffe2cf, 0.35); fill.position.set(-2.5, 1, 2); scene.add(fill);
+    const rim = new T.DirectionalLight(0x9fd8ff, 1.6); rim.position.set(-2.2, 1.8, -3); scene.add(rim);
     // Muscle surface, drawn by the graphics chip from numbers baked into every point of the model:
     //   fibre number   position round the muscle; becomes ridged fibre bundles in three sizes (the finer ones fade in as you zoom and fade
     //                  out before they would flicker), each bundle a slightly different shade so the surface is not a regular stripe
@@ -376,9 +378,9 @@ async function bd3Init() {
       sh.fragmentShader = 'varying float vOcc;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb *= 0.45 + 0.55 * vOcc;'); };
     const muscles = {}, soft = [], hard = [], all = [], spots = {};
     gltf.scene.traverse(o => { if (!o.isMesh) return; all.push(o); const k = o.name;
-      if (k === 'bone' || k === 'tendon' || k === 'head') { const m = o.material = new T.MeshStandardMaterial({ color: BD3_COL[k], roughness: k === 'head' ? 0.8 : k === 'bone' ? 0.55 : 0.42, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.55 });
+      if (k === 'bone' || k === 'tendon' || k === 'head') { const m = o.material = new T.MeshStandardMaterial({ color: BD3_COL[k], roughness: k === 'head' ? 0.8 : k === 'bone' ? 0.55 : 0.42, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.4 });
         if (k !== 'head' && o.geometry.attributes._ao) { m.onBeforeCompile = shaded; m.customProgramCacheKey = () => 'bdhard1'; } hard.push(o); }
-      else { const m = o.material = new T.MeshStandardMaterial({ color: BD3_COL.deep, roughness: 0.52, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.6 }); m.extensions = { derivatives: true }; m.userData.dim = { value: 1 };
+      else { const m = o.material = new T.MeshStandardMaterial({ color: BD3_COL.deep, roughness: 0.52, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.42 }); m.extensions = { derivatives: true }; m.userData.dim = { value: 1 };
         m.onBeforeCompile = sh => fibres(sh, m); m.customProgramCacheKey = () => 'bdfib4'; soft.push(o); if (BD_MUSCLES[k]) muscles[k] = o; }
     });
     // Where each muscle is, for zooming: its middle, its size and the way it faces, kept per body side (both sides together when they meet at the midline).
