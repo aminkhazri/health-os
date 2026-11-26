@@ -107,6 +107,7 @@ const BD_MUSCLES = {
   traps_mid: { n: 'Mid back', lat: 'Middle trapezius & rhomboids', g: 'pull', does: 'Squeezes the shoulder blades together. Builds posture and balances all the pressing.' },
   traps_up:  { n: 'Upper traps', lat: 'Upper trapezius', g: 'pull', does: 'Shrugs the shoulders up and supports the neck. Trained by shrugs and carries.' },
   delt_p:    { n: 'Rear delts', lat: 'Posterior deltoid', g: 'pull', does: 'Pulls the arm back. Small but key for shoulder balance, trained by rows and pull-aparts.' },
+  cuff:      { n: 'Rotator cuff', lat: 'Infraspinatus & teres', g: 'pull', does: 'Sits on the shoulder blade. Turns the arm outward and holds the shoulder joint steady in every press and row.' },
   biceps:    { n: 'Biceps', lat: 'Biceps brachii & brachialis', g: 'pull', does: 'Bends the elbow and turns the palm up. Helps in every row.' },
   forearms:  { n: 'Forearms', lat: 'Wrist flexors & extensors', g: 'pull', does: 'Grip and wrist control. Trained by carries, rows and anything you hold.' },
   neck:      { n: 'Neck', lat: 'Sternocleidomastoid & neck extensors', g: 'pull', does: 'Moves and steadies the head. A strong neck helps absorb contact and headers.' },
@@ -128,10 +129,10 @@ const BD_COLORS = { push: '#b8f23e', pull: '#2dd4bf', legs: '#f2546b', core: '#a
 const BD_EX = {
   'Goblet squat': { p: ['quads', 'glute_max'], s: ['adductors', 'abs', 'erectors'], k: 'w', ref: .45 },
   'Dumbbell floor press': { p: ['pecs'], s: ['triceps', 'delt_a'], k: 'w', ref: .35 },
-  'One-arm dumbbell row': { p: ['lats', 'traps_mid'], s: ['biceps', 'delt_p', 'forearms'], k: 'w', ref: .45 },
+  'One-arm dumbbell row': { p: ['lats', 'traps_mid'], s: ['biceps', 'delt_p', 'cuff', 'forearms'], k: 'w', ref: .45 },
   'Dumbbell Romanian deadlift': { p: ['hams', 'glute_max'], s: ['erectors', 'forearms', 'adductors'], k: 'w', ref: .4 },
   'Dumbbell shoulder press': { p: ['delt_a'], s: ['delt_l', 'triceps', 'traps_up', 'serratus'], k: 'w', ref: .25 },
-  'Band pull-apart': { p: ['delt_p', 'traps_mid'], s: [], k: 'r', ref: 20 },
+  'Band pull-apart': { p: ['delt_p', 'traps_mid'], s: ['cuff'], k: 'r', ref: 20 },
   'Copenhagen plank': { p: ['adductors', 'obliques'], s: ['abs'], k: 'h', ref: 30 },
   'Side plank': { p: ['obliques'], s: ['glute_med', 'abs'], k: 'h', ref: 60 },
   'Bulgarian split squat': { p: ['quads', 'glute_max'], s: ['glute_med', 'adductors', 'hams'], k: 'w', ref: .3 },
@@ -143,7 +144,7 @@ const BD_EX = {
   'Split squat bottom hold': { p: ['quads'], s: ['glute_max', 'adductors'], k: 'h', ref: 45 },
   'Single-leg glute bridge hold': { p: ['glute_max'], s: ['hams', 'glute_med'], k: 'h', ref: 45 },
   'Push-up': { p: ['pecs'], s: ['triceps', 'delt_a', 'serratus', 'abs'], k: 'r', ref: 25 },
-  'Band row': { p: ['lats', 'traps_mid'], s: ['biceps', 'delt_p'], k: 'r', ref: 15 },
+  'Band row': { p: ['lats', 'traps_mid'], s: ['biceps', 'delt_p', 'cuff'], k: 'r', ref: 15 },
   'Incline dumbbell press': { p: ['pecs', 'delt_a'], s: ['triceps', 'serratus'], k: 'w', ref: .3 },
   'Dumbbell lateral raise': { p: ['delt_l'], s: ['traps_up'], k: 'w', ref: .1 },
   'Dumbbell curl': { p: ['biceps'], s: ['forearms'], k: 'w', ref: .18 },
@@ -336,7 +337,7 @@ async function bd3Init() {
     // Fibre stripes: which way each muscle's stripes repeat (x across the body, y up, z front to back) and the stripe width in metres.
     const FIB = { quads: [1, 0, 0, .013], hams: [1, 0, 0, .013], glute_max: [.7, .7, 0, .014], glute_med: [.7, -.7, 0, .012], adductors: [0, 0, 1, .012], calves: [1, 0, 0, .011], tibialis: [1, 0, 0, .01],
       abs: [0, 1, 0, .055], obliques: [.7, .7, 0, .013], erectors: [1, 0, 0, .013], pecs: [.25, 1, 0, .013], serratus: [.5, 1, 0, .022], lats: [.6, .8, 0, .014], traps_mid: [0, 1, 0, .013], traps_up: [.7, .7, 0, .012],
-      delt_a: [0, 1, 0, .011], delt_l: [0, 0, 1, .011], delt_p: [0, 1, 0, .011], biceps: [0, 1, 0, .01], triceps: [0, 1, 0, .01], forearms: [0, .7, .7, .009], neck: [1, 0, 0, .01] };
+      cuff: [.4, 1, 0, .012], delt_a: [0, 1, 0, .011], delt_l: [0, 0, 1, .011], delt_p: [0, 1, 0, .011], biceps: [0, 1, 0, .01], triceps: [0, 1, 0, .01], forearms: [0, .7, .7, .009], neck: [1, 0, 0, .01] };
     // Assign every surface point to a muscle (done once, in the model's arms-out rest pose).
     const hipY = wp('LeftUpLeg').y, shY = wp('LeftArm').y, shX = Math.abs(wp('LeftArm').x), armL = wp('LeftArm').distanceTo(wp('LeftForeArm')) || 0.3;
     meshes.forEach(m => {
@@ -351,6 +352,9 @@ async function bd3Init() {
         const leg = W('UpLeg'), shin = W('Leg'), trunk = W('Spine') + W('Spine1'), chest = W('Spine2'), arm = W('Arm'), along = (ax - shX) / armL, hips = W('Hips');
         const delt = W('Shoulder') * sm(shX - 0.07, shX - 0.02, ax) + arm * (1 - sm(0.28, 0.45, along));
         const belowPit = 1 - sm(shY - 0.12, shY - 0.06, y);
+        // Back layout, checked against an anatomy atlas: the trapezius is a long diamond that narrows to a point on the spine near the bottom of the ribs;
+        // the rotator cuff sits on the shoulder blade beside it; the lats sweep from under the arm down to the lower back; the erectors run beside the spine.
+        const triW = 0.02 + 0.15 * sm(shY - 0.32, shY - 0.06, y), inTri = 1 - sm(triW - 0.015, triW + 0.015, ax), torso = chest + trunk;
         const v = {
           quads: leg * Math.max(front, outer * 0.7) * (1 - inner * 0.6),
           hams: leg * back * (1 - sm(hipY - 0.16, hipY - 0.10, y)),
@@ -359,12 +363,14 @@ async function bd3Init() {
           adductors: leg * inner * sm(hipY - 0.34, hipY - 0.26, y),
           calves: shin * back, tibialis: shin * front * (1 - inner * 0.5),
           abs: (trunk + hips * sm(hipY + 0.02, hipY + 0.08, y)) * front * (1 - sm(0.07, 0.11, ax)),
-          obliques: trunk * sm(0.07, 0.11, ax) * (1 - back), erectors: trunk * back,
+          obliques: trunk * sm(0.07, 0.11, ax) * (1 - back),
+          erectors: trunk * back * (1 - sm(0.04, 0.06, ax)) * (1 - sm(shY - 0.34, shY - 0.30, y)),
           pecs: (chest + W('Shoulder') * 0.6) * front * (1 - sm(shY - 0.01, shY + 0.03, y)) * sm(shY - 0.2, shY - 0.14, y),
           serratus: chest * outer * (1 - back) * (1 - front * 0.5) * belowPit * 1.2 + chest * front * (1 - sm(shY - 0.2, shY - 0.14, y)) * sm(0.08, 0.13, ax),
-          lats: chest * Math.min(1, back * 0.9 + outer * 0.4) * (1 - sm(shY - 0.14, shY - 0.08, y)),
-          traps_mid: chest * back * sm(shY - 0.16, shY - 0.10, y),
-          traps_up: W('Neck') * back + W('Shoulder') * top + chest * back * sm(shY - 0.04, shY + 0.02, y) * 0.6,
+          lats: torso * Math.min(1, back * 0.9 + outer * 0.4) * (1 - inTri) * (1 - sm(shY - 0.2, shY - 0.15, y)) * sm(0.04, 0.06, ax) * sm(hipY + 0.06, hipY + 0.12, y),
+          traps_mid: torso * back * inTri * sm(shY - 0.34, shY - 0.30, y) * (1 - sm(shY - 0.05, shY - 0.01, y)) * 1.05,
+          cuff: chest * back * (1 - inTri) * sm(shY - 0.2, shY - 0.15, y) * (1 - sm(shY - 0.05, shY - 0.01, y)) * (1 - sm(shX - 0.05, shX, ax)),
+          traps_up: W('Neck') * back + W('Shoulder') * top + chest * back * sm(shY - 0.05, shY - 0.01, y) * inTri,
           delt_a: delt * front, delt_p: delt * back, delt_l: delt * top * 1.15,
           biceps: arm * front * sm(0.28, 0.45, along), triceps: arm * back * sm(0.2, 0.4, along),
           forearms: W('ForeArm'), neck: W('Neck') * (1 - back * 0.7),
