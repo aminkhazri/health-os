@@ -154,10 +154,17 @@ def add(key, pos, idx, fib, ao=None):
 
 
 skin = None
+WRIST_Y, HAND_X, ANKLE_Y = 0.888, 0.17, 0.072       # hands hang below the wrist line, out to the side; feet sit below the ankle line
+inner_pts = []                                       # bone points inside the hands and feet, used to tell the skin's outside from its inside
 for p in atlas['parts']:
     if p['name'] == 'Skin': skin = load(p); continue
     key = classify(p)
     if key == 'skip': continue
+    (x0, y0, z0), (x1, y1, z1) = p['bounds']
+    in_hand = y1 < WRIST_Y - 0.01 and min(abs(x0), abs(x1)) > HAND_X; in_foot = y1 < ANKLE_Y - 0.008
+    if in_hand or in_foot:                           # wholly inside a hand or foot: covered by the plain glove shape made below
+        if key == 'bone': inner_pts.append(load(p)[0])
+        continue
     pos, nor, idx = load(p)
     soft = key not in ('bone', 'tendon')
     fib = fibre(pos) if soft and len(pos) > 3 else np.zeros(len(pos))
@@ -177,11 +184,26 @@ for p in atlas['parts']:
             cf = np.zeros(inv.max() + 1); cn = np.zeros(inv.max() + 1); np.add.at(cf, inv, fib); np.add.at(cn, inv, 1); cf /= cn
             f2 = inv[idx]; f2 = f2[(f2[:, 0] != f2[:, 1]) & (f2[:, 1] != f2[:, 2]) & (f2[:, 0] != f2[:, 2])]
             used = np.unique(f2); fib = cf[used]; pos, idx = cpos, cidx
+    if key == 'pecs':   # the lowest slips of the chest muscle run under the abdominal wall and poke through it as stray specks: trim them
+        tc = pos[idx].mean(1); idx = idx[~((tc[:, 1] < 1.25) & (np.abs(tc[:, 0]) < 0.10))]
     add(key, pos, idx, fib, cavity(pos, idx) if soft and len(idx) > 20 else None)
 
 # ---------- generated muscles: latissimus dorsi and rectus abdominis, cut from the skin surface and set just under it ----------
 sm = lambda a, b, x: np.clip((x - a) / (b - a), 0, 1) ** 2 * (3 - 2 * np.clip((x - a) / (b - a), 0, 1))
 spos, snor, sidx = skin
+
+# ---------- hands and feet: plain smooth shapes cut from the skin, in the same style as the head ----------
+from scipy.spatial import cKDTree
+_c0 = spos[sidx].mean(1)
+gf = sidx[((_c0[:, 1] < WRIST_Y) & (np.abs(_c0[:, 0]) > HAND_X)) | (_c0[:, 1] < ANKLE_Y)]
+used = np.unique(gf); remap = -np.ones(len(spos), np.int64); remap[used] = np.arange(len(used)); gpos = spos[used].copy(); gf = remap[gf]
+_, first, inv = np.unique(np.round(gpos / 2e-4).astype(np.int64), axis=0, return_index=True, return_inverse=True)
+gpos = gpos[first]; gf = inv.ravel()[gf]; gf = gf[(gf[:, 0] != gf[:, 1]) & (gf[:, 1] != gf[:, 2]) & (gf[:, 0] != gf[:, 2])]
+_, _f = np.unique(np.sort(gf, axis=1), axis=0, return_index=True); gf = gf[np.sort(_f)]
+_tc = gpos[gf].mean(1); _near = np.vstack(inner_pts)[cKDTree(np.vstack(inner_pts)).query(_tc)[1]]
+_fn = np.cross(gpos[gf[:, 1]] - gpos[gf[:, 0]], gpos[gf[:, 2]] - gpos[gf[:, 0]]); _flip = (_fn * (_tc - _near)).sum(1) < 0; gf[_flip] = gf[_flip][:, [0, 2, 1]]
+gpos = smooth(gpos, gf, 3)
+add('head', gpos, gf, np.zeros(len(gpos)))
 
 # ---------- the head: one smooth, plain shape. Cut from the skin above the jaw line, then smoothed until the face has no features. ----------
 _c = spos[sidx].mean(1)
@@ -231,7 +253,7 @@ x, y, z = spos[:, 0], spos[:, 1], spos[:, 2]; ax = np.abs(x); sx = np.sign(x) + 
 outward = snor[:, 0] * sx   # > 0 on the outer side of the trunk, < 0 on the inside of the arm
 
 
-def patch(field, depth, key, axis, period):
+def patch(field, depth, key, axis, period, relief=None):
     """A muscle cut out of the skin surface. `field` is a number per skin point, positive inside the muscle; triangles that cross zero are
     cut along the zero line, so the outline is a clean curve and not a staircase of whole triangles."""
     fv = field[sidx]; npos = (fv > 0).sum(1)
@@ -261,6 +283,7 @@ def patch(field, depth, key, axis, period):
         nb = np.zeros(len(used), bool); on = ring[ue[:, 0]] == r - 1; nb[ue[on, 1]] = True; on = ring[ue[:, 1]] == r - 1; nb[ue[on, 0]] = True; ring[nb & (ring == 99)] = r
     sink = (1 - np.clip(ring / 4, 0, 1)) ** 2 * 0.010
     pos = P[used] - N[used] * (depth + sink)[:, None]
+    if relief is not None: pos = pos + N[used] * relief(pos)[:, None]
     add(key, pos, f, np.zeros(len(used)) if axis is None else (np.abs(pos[:, 0]) * axis[0] + pos[:, 1] * axis[1] + pos[:, 2] * axis[2]) / period)
 
 
@@ -275,9 +298,29 @@ zlim = -0.055 + 0.07 * sm(1.05, 1.30, y)                                # the fr
 patch(allof(trunk, back, upper - y, y - lower, ax - np.maximum(trap_w, apo_w), zlim - z), 0.004, 'lats', (0.62, 0.78, 0), 0.010)
 patch(allof(trunk, -0.3 - snor[:, 2], 1.21 - y, y - 1.0, apo_w + 0.004 - ax), 0.0045, 'tendon', None, 1)
 abs_w = 0.050 + 0.020 * sm(0.95, 1.22, y)                               # rectus abdominis: wider under the ribs, narrowing to the pubis
-patch(allof(snor[:, 2] - 0.3, z - 0.05, ax - 0.006, abs_w - ax, y - 0.9, 1.275 - y), -0.001, 'abs', (1, 0, 0), 0.0085)
-_g = groups['abs']; _p = _g['pos'][-1]; _line = np.min([np.abs(_p[:, 1] - yy) for yy in (1.222, 1.158, 1.094)], axis=0)   # tendinous intersections
+ABS_LINES = (1.222, 1.158, 1.094)                                       # the tendon bands that split the muscle into its blocks
+def six_pack(q):
+    """How far each point of the abs is pushed out, in metres: every block between two tendon bands swells into its own rounded pad."""
+    edges = np.array([0.9, *ABS_LINES[::-1], 1.275]); k = np.clip(np.searchsorted(edges, q[:, 1]) - 1, 0, len(edges) - 2)
+    v = (q[:, 1] - edges[k]) / (edges[k + 1] - edges[k]); w = 0.050 + 0.020 * sm(0.95, 1.22, q[:, 1]); u = np.clip((np.abs(q[:, 0]) - 0.006) / (w - 0.006), 0, 1)
+    return 0.0055 * np.sin(np.pi * np.clip(u, 0, 1)) ** 0.55 * np.sin(np.pi * np.clip(v, 0, 1)) ** 0.55 - 0.002
+patch(allof(snor[:, 2] - 0.3, z - 0.05, ax - 0.006, abs_w - ax, y - 0.9, 1.275 - y), -0.001, 'abs', (1, 0, 0), 0.0085, six_pack)
+_g = groups['abs']; _p = _g['pos'][-1]; _line = np.min([np.abs(_p[:, 1] - yy) for yy in ABS_LINES], axis=0)   # tendinous intersections
 _g['ao'][-1] = np.clip(0.35 + 0.65 * sm(0.0015, 0.0065, _line), 0, 1) * np.clip(0.5 + 0.5 * sm(0.007, 0.013, np.abs(_p[:, 0])), 0, 1)
+
+# ---------- depth shade: how far each muscle point sits below the skin, compared with the muscle surface around it ----------
+# Points down in the furrows between muscles sit deeper than the tops of the muscles next to them, so they are drawn darker. This is what
+# separates one muscle from the next at a glance. (The generated lats and abs sit on the skin itself, so they are left out of the comparison.)
+_sp, _sn, _si = skin
+_w = np.array([[a, b, 1 - a - b] for a in np.linspace(0, 1, 6) for b in np.linspace(0, 1, 6) if a + b <= 1.0001])
+_skin_pts = np.einsum('wk,tkd->twd', _w, _sp[_si]).reshape(-1, 3); _skin_tree = cKDTree(_skin_pts)
+_real = [(k, i) for k, g in groups.items() if k not in ('bone', 'tendon', 'head') for i in range(len(g['pos'])) if not (k in ('lats', 'abs') and i == len(g['pos']) - 1)]
+_all = np.vstack([groups[k]['pos'][i] for k, i in _real]); _d = _skin_tree.query(_all)[0]
+_sub = np.arange(0, len(_all), 3); _dist, _nb = cKDTree(_all[_sub]).query(_all, k=24, distance_upper_bound=0.03)
+_dn = np.where(np.isfinite(_dist), _d[_sub][np.minimum(_nb, len(_sub) - 1)], np.inf); _base = np.minimum(_dn.min(1), _d)
+_shade = 1 - 0.7 * sm(0.002, 0.016, _d - _base); _o = 0
+for k, i in _real:
+    n = len(groups[k]['pos'][i]); groups[k]['ao'][i] = groups[k]['ao'][i] * _shade[_o:_o + n]; _o += n
 
 # ---------- write the GLB ----------
 bin_ = bytearray(); views = []; accs = []; meshes = []; nodes = []
