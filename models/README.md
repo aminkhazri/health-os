@@ -8,7 +8,7 @@
 - **Changes made here:** parts selected and regrouped by muscle, simplified to keep the file small, fibre data added.
   BodyParts3D has no latissimus dorsi or rectus abdominis, so those two (and the lumbar aponeurosis) are generated from the skin surface.
   They are approximations, not sculpted anatomy.
-  The skull is left out: the head is one plain smooth shape made from the skin surface.
+  The skull is left out: the head, hands and feet are plain smooth shapes made from the skin surface.
 - **Rebuild:** `python3 tools/anatomy/build_body.py <human-atlas>/public/models models/body.glb`
 
 This is a training aid, not a medical reference.
