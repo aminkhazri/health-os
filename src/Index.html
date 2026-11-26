@@ -827,7 +827,7 @@ function deckPaint(el) {
 }
 function deckGo(id, i) {
   const el = $(id), c = el && el.children[i]; if (!c) return;
-  el.scrollTo({ left: c.offsetLeft - (el.clientWidth - c.offsetWidth) / 2, behavior: RM ? 'auto' : 'smooth' });
+  c.scrollIntoView({ inline: 'center', block: 'nearest', behavior: RM ? 'auto' : 'smooth' });   // lets the snap points do the centring
 }
 function isHold(ex) { return /hold|plank/i.test(ex); }
 function saveW() {
