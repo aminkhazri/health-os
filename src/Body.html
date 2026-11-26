@@ -317,7 +317,7 @@ function bdSetAngle(a, drag) { bdAngle = a; const f = $('bdFlip'); if (!f) retur
 function bdTurn() { if (BD3.ready) bd3Go((Math.round(BD3.yaw / Math.PI) + 1) * Math.PI, BD3.zoomTo, 700); else bdSetAngle(Math.round(bdAngle / 180) * 180 + 180); if (navigator.vibrate) navigator.vibrate(8); }
 function bdModeSet(m) { bdMode = m; document.querySelectorAll('.bd-modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('bdFlip').classList.toggle('bd-bones', m === 'bones'); if (BD3.ready) BD3.xray(m === 'bones'); }
 
-// ---------- The 3D body: a real anatomical model. Skeleton and muscles come from BodyParts3D (CC BY 4.0), regrouped into this app's muscle
+// ---------- The 3D body: a real anatomical model. Skeleton and muscles come from Z-Anatomy (CC BY-SA 4.0, itself built on BodyParts3D), regrouped into this app's muscle
 // keys by tools/anatomy/build_body.py; each muscle group is its own mesh, so colouring by recovery is one colour per mesh and a tap finds
 // the muscle under the finger. The flat drawing stays as the fallback while this loads or if the phone can't run WebGL. ----------
 const BD3 = { ready: false, loading: false, failed: false, yaw: 0, zoom: 0, zoomTo: 0, focus: null, lift: 0, fit: 1 };
@@ -326,7 +326,7 @@ const BD3_COL = { fresh: 0xb4433a, rec: 0xff8a2a, hot: 0xffdf5e, bone: 0xe2d8c3,
 const BD_FACE = { pecs: [0, .25], delt_a: [0, .6], delt_l: [0, 1.35], triceps: [1, .75], serratus: [0, 1.1], lats: [1, .5], traps_mid: [1, 0], traps_up: [1, 0], delt_p: [1, .7], cuff: [1, .35],
   biceps: [0, .45], forearms: [0, .7], neck: [0, .8], quads: [0, .15], adductors: [0, 0], hams: [1, .1], glute_max: [1, .2], glute_med: [1, 1.0], calves: [1, .1], tibialis: [0, .35], abs: [0, 0], obliques: [0, .85], erectors: [1, 0] };
 const BD_UNDER = { glute_med: 1 };
-const BD3_MODEL = 'gh/aminkhazri/health-os@ed59550ce0adbf4bf6005ac0645edd3accd179d6/models/body.glb';
+const BD3_MODEL = 'gh/aminkhazri/health-os@e6228799ef19b566b7fb068782f0f8ed7bd20736/models/body.glb';
 async function bd3Init() {
   if (BD3.loading || BD3.ready || BD3.failed) return; BD3.loading = true;
   try {
@@ -518,7 +518,7 @@ function renderBody() {
       <div class="bd-top"><div class="bd-big bd-cu" data-to="${M.overall ?? ''}">${M.overall ?? '—'}</div><div class="bd-meter" id="bdMeter">${Array.from({ length: 10 }, () => '<i></i>').join('')}</div></div>
       <div class="muted" style="margin-top:6px">Overall strength, 0–100 · 60 is a solid intermediate for your bodyweight (${Math.round(M.bw)} lb)</div>
       ${groups}
-      <p class="bd-note">Scores come from your best set of each exercise: weight and reps turn into an estimated one-rep max, compared with your bodyweight. Bodyweight moves use reps, holds use seconds. Recovery is an estimate: each set adds fatigue to the muscles it works (helpers count half), and it fades over about two to three days. Both are guides for your own progress, not medical or lab measures.<br>Anatomy model: BodyParts3D, © The Database Center for Life Science, CC BY 4.0, simplified and regrouped. The lats and abs are approximated from the body surface, and the head, hands and feet are plain smoothed shapes.</p></div>`;
+      <p class="bd-note">Scores come from your best set of each exercise: weight and reps turn into an estimated one-rep max, compared with your bodyweight. Bodyweight moves use reps, holds use seconds. Recovery is an estimate: each set adds fatigue to the muscles it works (helpers count half), and it fades over about two to three days. Both are guides for your own progress, not medical or lab measures.<br>Anatomy model: Z-Anatomy, the libre 3D atlas of anatomy (CC BY-SA 4.0), built on BodyParts3D © The Database Center for Life Science. Regrouped, simplified and smoothed for this app; the head, hands and feet are plain shapes.</p></div>`;
   $('bodyApp').dataset.ready = 1;
   bdSetAngle(bdAngle);
 
