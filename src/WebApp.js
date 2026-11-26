@@ -76,7 +76,8 @@ function num_(v) { return (v === '' || v === null || isNaN(v)) ? null : Number(v
 
 /** Everything the page needs in one round trip. dateKey = 'yyyy-MM-dd' (defaults to today). */
 function getAppData(dateKey) {
-  const ss = ss_(), tz = ss.getSpreadsheetTimeZone();
+  const t0 = Date.now(), lap = [], mark = n => lap.push(n + ' ' + (Date.now() - t0));   // timing, shown in Executions logs
+  const ss = ss_(), tz = ss.getSpreadsheetTimeZone(); mark('open');
   const today = key_(new Date(), tz);
   dateKey = dateKey || today;
 
@@ -92,16 +93,19 @@ function getAppData(dateKey) {
     if (k <= today && (r[1] !== '' || r[2] !== '' || num_(r[12]) > 0 || r[16] !== '' || num_(r[17]) > 0 || num_(r[18]) > 0)) series.push({ m: num_(r[17]) || null, f: num_(r[18]) || null, p: num_(r[13]) || null, wo: num_(r[14]) || null, d: k, w: num_(r[1]), s: num_(r[2]), wa: num_(r[8]), k: num_(r[12]) || null, hr: num_(r[16]) });
   });
 
+  mark('daily');
   const weekly = ss.getSheetByName('Weekly Summary').getRange(2, 1, 52, 12).getValues()
     .filter(r => r[0] instanceof Date && key_(r[0], tz) <= today)
     .map(r => ({ wk: key_(r[0], tz), avg: num_(r[1]), chg: num_(r[2]), toGoal: num_(r[3]), workouts: num_(r[4]) || 0,
       sleep: num_(r[5]), protein: num_(r[6]) || 0, trend: String(r[7] || ''), rate2: num_(r[8]), cal: String(r[9] || ''), kcal: num_(r[11]) }));
 
+  mark('weekly');
   const sh = ss.getSheetByName('Start Here');
   const targets = { start: num_(sh.getRange('B5').getValue()), goal: num_(sh.getRange('B6').getValue()),
     calories: num_(sh.getRange('B7').getValue()), workouts: CONFIG.WEEKLY_WORKOUT_TARGET || 3, mindful: CONFIG.MINDFUL_GOAL_MIN || 10, stretch: CONFIG.STRETCH_GOAL_MIN || 5, low: num_(sh.getRange('B12').getValue()),
     high: num_(sh.getRange('B13').getValue()), phase: String(sh.getRange('B14').getValue()) };
 
+  mark('targets');
   const wl = ss.getSheetByName('Workout Log');
   const wv = wl.getRange(2, 1, Math.max(wl.getLastRow() - 1, 1), 7).getValues().filter(r => r[0] instanceof Date && r[2] !== '');
   const last = {}, lastSession = {};
@@ -113,10 +117,12 @@ function getAppData(dateKey) {
     if (WORKOUTS[l]) { lastLetter = l; lastDate = key_(r[0], tz); }   // projects don't move the main rotation
   });
 
+  mark('workouts');
   const cal = weekly.filter(w => w.cal).pop() || null;
-  const food = getFoodData_(ss, dateKey, tz);
-  const activity = getActivityData_(ss, dateKey, tz);
-  const chores = getChores_(ss, today);
+  const food = getFoodData_(ss, dateKey, tz); mark('food');
+  const activity = getActivityData_(ss, dateKey, tz); mark('activity');
+  const chores = getChores_(ss, today); mark('chores');
+  console.log('getAppData ms: ' + lap.join(', '));
   return { today, dateKey, entry, series: series.slice(-120), weekly, targets, last,
     next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, lastSession, workouts: WORKOUTS, projects: PROJECTS, calCheck: cal, food, activity, chores, stretches: STRETCHES, routines: STRETCH_ROUTINES, videos: VIDEOS, name: CONFIG.NAME || '' };
 }
@@ -201,6 +207,7 @@ function maintenance() {
   const dl = ss.getSheetByName('Daily Log');
   const dv = dl.getRange(2, 8, dl.getLastRow() - 1, 1).getValues();
   dv.forEach((r, i) => { if (r[0] === 'TEST') { dl.getRange(i + 2, 2, 1, 7).clearContent(); dl.getRange(i + 2, 12).clearContent(); } });
+  mark('targets');
   const wl = ss.getSheetByName('Workout Log');
   const wv = wl.getRange(2, 7, wl.getLastRow() - 1, 1).getValues();
   wv.forEach((r, i) => { if (r[0] === 'TEST') wl.getRange(i + 2, 1, 1, 7).clearContent(); });
