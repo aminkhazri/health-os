@@ -2,13 +2,32 @@
 
 `body.glb` is the anatomical figure on the app's Body tab: the skeleton and the muscles of the whole body, grouped into the app's muscle keys.
 
-- **Source:** BodyParts3D 4.0, © The Database Center for Life Science, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
-  (https://dbarchive.biosciencedbc.jp/en/bodyparts3d/), taken in the packed form published by the open-source
-  [human-atlas](https://github.com/ashemag/human-atlas) viewer.
-- **Changes made here:** parts selected and regrouped by muscle, simplified to keep the file small, fibre data added.
-  BodyParts3D has no latissimus dorsi or rectus abdominis, so those two (and the lumbar aponeurosis) are generated from the skin surface.
-  They are approximations, not sculpted anatomy.
-  The skull is left out: the head, hands and feet are plain smooth shapes made from the skin surface.
-- **Rebuild:** `python3 tools/anatomy/build_body.py <human-atlas>/public/models models/body.glb`
+## Licence and credit
+
+`body.glb` is licensed **[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)**. This is a different licence from the app's code:
+it applies to this model file only.
+
+- **Z-Anatomy, the libre 3D atlas of anatomy**, CC BY-SA 4.0 (https://github.com/Z-Anatomy/Models-of-human-anatomy)
+- which is derived from **BodyParts3D**, © The Database Center for Life Science, CC BY-SA 2.1 Japan
+  (https://dbarchive.biosciencedbc.jp/en/bodyparts3d/)
+
+If you reuse or change the model, keep this credit and share your version under the same licence.
+
+## Changes made here
+
+- muscles, a few tendon sheets and the skeleton kept; fascia layers, bursae, organs, vessels and nerves left out
+- parts regrouped by muscle; very dense parts simplified; coarse muscles subdivided and smoothed
+- the tendon sheet of the external oblique is cut away where it covers the rectus abdominis, so the abs show
+- the head, hands and feet are replaced by plain smooth shapes (no skull, face, fingers bones or toes)
+- three numbers per muscle point added for the app's shader (fibre, groove shade, occlusion shade)
+- Z-Anatomy's "ascending" and "descending" trapezius labels are swapped in its file; the parts are sorted by height here
+
+## Rebuild
+
+Blender is not needed: `extract_zanatomy.py` reads the `.blend` file directly.
+
+    # unzip Z-Anatomy.zip from the Z-Anatomy repository to get Z-Anatomy/Startup.blend
+    python3 tools/anatomy/extract_zanatomy.py Z-Anatomy/Startup.blend z.npz
+    python3 tools/anatomy/build_body.py z.npz models/body.glb
 
 This is a training aid, not a medical reference.
