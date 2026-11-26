@@ -185,10 +185,29 @@ def cavity(pos, idx, rounds=5, depth=0.0035):
 groups = {}
 
 
-def add(key, pos, idx, fib, ao=None):
-    g = groups.setdefault(key, {'pos': [], 'nor': [], 'idx': [], 'fib': [], 'ao': [], 'n': 0})
+def add(key, pos, idx, fib, ao=None, tend=None, tint=0.5):
+    g = groups.setdefault(key, {'pos': [], 'nor': [], 'idx': [], 'fib': [], 'ao': [], 'tend': [], 'tint': [], 'n': 0})
     g['pos'].append(pos); g['nor'].append(normals(pos, idx)); g['idx'].append(idx + g['n']); g['fib'].append(fib)
-    g['ao'].append(np.ones(len(pos)) if ao is None else ao); g['n'] += len(pos)
+    g['ao'].append(np.ones(len(pos)) if ao is None else ao); g['tend'].append(np.zeros(len(pos)) if tend is None else tend)
+    g['tint'].append(np.full(len(pos), tint)); g['n'] += len(pos)
+
+
+# Broad, flat muscles attach along a wide edge, not through a cord: they only get a faint pale band there.
+FLAT = ('pecs', 'lats', 'traps_mid', 'traps_up', 'glute_max', 'glute_med', 'obliques', 'serratus', 'abs', 'erectors', 'neck', 'cuff')
+
+
+def tendon_ends(pos, flat=False):
+    """How tendon-like each point of a muscle is, 0 (red belly) to 1 (pale tendon). A muscle turns to tendon toward its two ends, and
+    most of all where it narrows into a cord; a broad flat muscle only gets a faint pale band along its attachments."""
+    c = pos.mean(0); w, v = np.linalg.eigh(np.cov((pos - c).T)); t = (pos - c) @ v[:, 2]; lo, hi = t.min(), t.max(); length = hi - lo
+    if length < 0.05: return np.zeros(len(pos))
+    u = (t - lo) / length; r = np.linalg.norm((pos - c) - np.outer(t, v[:, 2]), axis=1)
+    NB = 24; bi = np.minimum((u * NB).astype(int), NB - 1); rb = np.array([np.percentile(r[bi == k], 80) if (bi == k).sum() > 2 else np.nan for k in range(NB)])
+    ok = ~np.isnan(rb); rb = np.interp(np.arange(NB), np.arange(NB)[ok], rb[ok]); rb = np.convolve(np.pad(rb, 1, mode='edge'), np.ones(3) / 3, 'valid')
+    girth = np.interp(u * NB - 0.5, np.arange(NB), rb) / rb.max()                 # 1 at the thickest part of the belly
+    end = 1 - sm(0.02, 0.17, np.minimum(u, 1 - u)); thin = 1 - sm(0.22, 0.55, girth)
+    if flat: return 0.32 * (1 - sm(0.0, 0.07, np.minimum(u, 1 - u)))
+    return np.clip(end * (0.3 + 0.7 * thin) + 0.85 * thin * sm(0.5, 0.2, np.minimum(u, 1 - u)), 0, 1)
 
 
 # ---------- every part: sort, even out its detail, bake fibre and groove numbers ----------
@@ -221,7 +240,8 @@ for name, path, pos, idx in PARTS:
         while edge_len(pos, idx) > COARSE and len(idx) < 60000: pos, idx = loop_subdivide(pos, idx)
     if len(idx) < 8: continue
     fib = fibre(pos) if soft else np.zeros(len(pos))
-    add(key, pos, idx, fib, cavity(pos, idx) if soft and len(idx) > 20 else None)
+    tint = (int.from_bytes(re.sub(r'\.[lr]$', '', name).encode()[-6:], 'little') * 2654435761 % 1000) / 1000   # the same on both sides of the body
+    add(key, pos, idx, fib, cavity(pos, idx) if len(idx) > 20 else None, tendon_ends(pos, key in FLAT) if soft and key != 'deep' else None, tint)
 
 
 # ---------- uncover the abs ----------
@@ -272,7 +292,7 @@ for key, g in groups.items():
     S_P.append(a[t] + (b_[t] - a[t]) * u[:, None] + (c_[t] - a[t]) * v[:, None]); S_N.append(fn[t] / (2 * area[t, None] + 1e-20))
 S_P, S_N = np.vstack(S_P), np.vstack(S_N); tree = cKDTree(S_P); UP, R = 0.006, 0.009; flat = DENS * np.pi * (R * R - UP * UP)
 for key, g in groups.items():
-    if key in ('bone', 'tendon', 'head'): continue
+    if key in ('head', 'tendon'): continue
     for i in range(len(g['pos'])):
         q = g['pos'][i] + g['nor'][i] * UP; seen = np.zeros(len(q))
         for s in range(0, len(q), 20000):
@@ -307,9 +327,11 @@ for key in sorted(groups):
     accs.append({'bufferView': v, 'componentType': 5120, 'normalized': True, 'count': len(pos), 'type': 'VEC3'})
     if key not in ('bone', 'tendon', 'head'):
         a['_FIB'] = len(accs); accs.append({'bufferView': view(fib.tobytes(), 34962), 'componentType': 5126, 'count': len(pos), 'type': 'SCALAR'})
+    if key != 'head':   # three shades per point, one byte each: occlusion, tendon-ness, and a tint that differs from one muscle to the next
         a4 = np.zeros((len(pos), 4), np.uint8); a4[:, 0] = ao
+        a4[:, 1] = np.clip(np.round(np.concatenate(g['tend']) * 255), 0, 255); a4[:, 2] = np.clip(np.round(np.concatenate(g['tint']) * 255), 0, 255)
         a['_AO'] = len(accs); v = view(a4.tobytes(), 34962); views[v]['byteStride'] = 4
-        accs.append({'bufferView': v, 'componentType': 5121, 'normalized': True, 'count': len(pos), 'type': 'SCALAR'})
+        accs.append({'bufferView': v, 'componentType': 5121, 'normalized': True, 'count': len(pos), 'type': 'VEC3'})
     small = len(pos) < 65535
     accs.append({'bufferView': view((idx.astype(np.uint16) if small else idx).tobytes(), 34963), 'componentType': 5123 if small else 5125, 'count': idx.size, 'type': 'SCALAR'})
     meshes.append({'name': key, 'primitives': [{'attributes': a, 'indices': len(accs) - 1}]})

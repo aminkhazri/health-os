@@ -19,7 +19,7 @@ If you reuse or change the model, keep this credit and share your version under 
 - parts regrouped by muscle; very dense parts simplified; coarse muscles subdivided and smoothed
 - the tendon sheet of the external oblique is cut away where it covers the rectus abdominis, so the abs show
 - the head, hands and feet are replaced by plain smooth shapes (no skull, face, fingers bones or toes)
-- three numbers per muscle point added for the app's shader (fibre, groove shade, occlusion shade)
+- numbers baked into every point for the app's shader: a fibre number, an occlusion shade, how tendon-like the point is (muscles fade to pale tendon at their ends) and a small per-muscle tint
 - Z-Anatomy's "ascending" and "descending" trapezius labels are swapped in its file; the parts are sorted by height here
 
 ## Rebuild
