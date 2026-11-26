@@ -34,11 +34,19 @@
   .bd-side { position: absolute; right: 8px; bottom: 16px; font-family: var(--display); font-weight: 700; letter-spacing: .14em; font-size: 13px; color: var(--text-muted); text-transform: uppercase; }
   .bd-legend { display: flex; justify-content: center; gap: 16px; font-size: 13px; color: var(--text-secondary); margin-top: 6px; }
   .bd-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
-  .bd-info { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid var(--border); font-size: 14px; color: var(--text-secondary); }
-  .bd-info.pop { animation: bdDrop .35s ease-out; }
-  .bd-info h4 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 24px; text-transform: uppercase; color: var(--text-primary); }
-  .bd-info .lat { font-size: 12px; letter-spacing: .08em; color: var(--teal); text-transform: uppercase; margin-bottom: 6px; }
-  .bd-info .does { color: var(--text-primary); margin: 4px 0 10px; line-height: 1.45; }
+  .bd-info { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid var(--border); font-size: 14px; color: var(--text-secondary); text-align: center; }
+  .bd-sheet { position: fixed; left: 0; right: 0; bottom: 62px; z-index: 9; max-width: 560px; margin: 0 auto; max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    padding: 8px 16px 16px; border-radius: 22px 22px 0 0; border: 1px solid var(--border); border-bottom: 0; background: rgba(14,18,25,.9); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: 0 -18px 40px rgba(0,0,0,.55); font-size: 14px; color: var(--text-secondary); transform: translateY(105%); visibility: hidden; transition: transform .42s cubic-bezier(.2,.8,.2,1), visibility 0s .42s; }
+  .bd-sheet.open { transform: none; visibility: visible; transition: transform .42s cubic-bezier(.2,.8,.2,1); }
+  .bd-sheet .grip { width: 38px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.22); margin: 0 auto 8px; }
+  .bd-sheet .hd { display: flex; align-items: flex-start; gap: 10px; }
+  .bd-sheet .hd > div { flex: 1; min-width: 0; }
+  .bd-sheet h4 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; line-height: 1.05; text-transform: uppercase; color: var(--text-primary); }
+  .bd-sheet .lat { font-size: 12px; letter-spacing: .08em; color: var(--teal); text-transform: uppercase; margin: 2px 0 8px; }
+  .bd-sheet .does { color: var(--text-primary); margin: 2px 0 10px; line-height: 1.45; }
+  .bd-sheet .x { flex: 0 0 36px; width: 36px; height: 36px; border-radius: 18px; border: 1px solid var(--border); background: rgba(255,255,255,.06); color: var(--text-primary); font-size: 16px; line-height: 1; }
+  .bd-sheet .cap { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
   .bd-kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 10px; text-align: center; }
   .bd-kv div { border-radius: 10px; background: rgba(0,0,0,.25); padding: 8px 4px; }
   .bd-kv b { display: block; font-family: var(--display); font-weight: 800; font-size: 22px; color: var(--text-primary); }
@@ -93,7 +101,7 @@
   .bd-draw polyline { stroke-dasharray: 400; stroke-dashoffset: 400; animation: bdDraw 1.2s .15s ease-out forwards; }
   @keyframes bdDraw { to { stroke-dashoffset: 0; } }
   .bd-note { font-size: 13px; color: var(--text-muted); margin-top: 10px; line-height: 1.5; }
-  @media (prefers-reduced-motion: reduce) { .bd-flip, .bd-ring-fg, .bd-m, .bd-bone { transition: none; } .bd-draw polyline { animation: none; stroke-dashoffset: 0; } .bd-info.pop { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .bd-flip, .bd-ring-fg, .bd-m, .bd-bone { transition: none; } .bd-draw polyline { animation: none; stroke-dashoffset: 0; } .bd-sheet, .bd-sheet.open { transition: none; } }
 </style>
 <script>
 // ---------- Muscles: name, anatomical name, group (for weekly sets) and what it does. ----------
@@ -303,52 +311,97 @@ function bdFigure(side) {
     ${BD_BONES_MID[side]}<g>${bones}</g><g ${mirror}>${bones}</g><g>${half}</g><g ${mirror}>${half}</g></svg>`;
 }
 
-let bdAngle = 0, bdSel = null, bdOpenGrp = {}, bdMode = 'rec', bdDragged = false;
+let bdAngle = 0, bdSel = null, bdSide = 'R', bdOpenGrp = {}, bdMode = 'rec', bdDragged = false;
 function bdSetAngle(a, drag) { bdAngle = a; const f = $('bdFlip'); if (!f) return; f.classList.toggle('drag', !!drag); f.style.transform = `rotateY(${a}deg)`;
   const n = ((a % 360) + 360) % 360; $('bdSide').textContent = n > 90 && n < 270 ? 'Back' : 'Front'; }
-function bdTurn() { if (BD3.ready) bd3Spin((Math.round(BD3.yaw / Math.PI) + 1) * Math.PI); else bdSetAngle(Math.round(bdAngle / 180) * 180 + 180); if (navigator.vibrate) navigator.vibrate(8); }
+function bdTurn() { if (BD3.ready) bd3Go((Math.round(BD3.yaw / Math.PI) + 1) * Math.PI, BD3.zoomTo, 700); else bdSetAngle(Math.round(bdAngle / 180) * 180 + 180); if (navigator.vibrate) navigator.vibrate(8); }
 function bdModeSet(m) { bdMode = m; document.querySelectorAll('.bd-modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('bdFlip').classList.toggle('bd-bones', m === 'bones'); if (BD3.ready) BD3.xray(m === 'bones'); }
 
 // ---------- The 3D body: a real anatomical model. Skeleton and muscles come from BodyParts3D (CC BY 4.0), regrouped into this app's muscle
 // keys by tools/anatomy/build_body.py; each muscle group is its own mesh, so colouring by recovery is one colour per mesh and a tap finds
 // the muscle under the finger. The flat drawing stays as the fallback while this loads or if the phone can't run WebGL. ----------
-const BD3 = { ready: false, loading: false, failed: false, yaw: 0 };
-const BD3_COL = { fresh: 0xb4433a, rec: 0xff8a2a, hot: 0xffdf5e, bone: 0xe6dcc6, tendon: 0xefe9da, deep: 0x8f3b33 };   // heat scale: muscle red, then orange, then glowing yellow
+const BD3 = { ready: false, loading: false, failed: false, yaw: 0, zoom: 0, zoomTo: 0, focus: null, lift: 0, fit: 1 };
+const BD3_COL = { fresh: 0xb4433a, rec: 0xff8a2a, hot: 0xffdf5e, bone: 0xe2d8c3, tendon: 0xd2ada0, deep: 0x8f3b33, head: 0x4c5565 };   // heat scale: muscle red, then orange, then glowing yellow
+// Which way each muscle faces, for turning the body when you pick it: [0 front or 1 back, how far round to the side in radians].
+const BD_FACE = { pecs: [0, .25], delt_a: [0, .6], delt_l: [0, 1.35], triceps: [1, .75], serratus: [0, 1.1], lats: [1, .5], traps_mid: [1, 0], traps_up: [1, 0], delt_p: [1, .7], cuff: [1, .35],
+  biceps: [0, .45], forearms: [0, .7], neck: [0, .8], quads: [0, .15], adductors: [0, 0], hams: [1, .1], glute_max: [1, .2], glute_med: [1, 1.0], calves: [1, .1], tibialis: [0, .35], abs: [0, 0], obliques: [0, .85], erectors: [1, 0] };
+const BD3_MODEL = 'gh/aminkhazri/health-os@1b64566a45654957ef9657cb5051164c315bb779/models/body.glb';
 async function bd3Init() {
   if (BD3.loading || BD3.ready || BD3.failed) return; BD3.loading = true;
   try {
     const CDN = 'https://cdn.jsdelivr.net/';
     const [T, G] = await Promise.all([import(CDN + 'npm/three@0.160.0/+esm'), import(CDN + 'npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm')]);
-    const gltf = await new G.GLTFLoader().loadAsync(CDN + 'gh/aminkhazri/health-os@ba0aafef54bb8f848687bc6c58439b35e55736c0/models/body.glb');
+    const gltf = await new G.GLTFLoader().loadAsync(CDN + BD3_MODEL);
     const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
-    const scene = new T.Scene(), cam = new T.PerspectiveCamera(28, 1, 0.1, 20), pivot = new T.Group();
-    cam.position.set(0, 0.95, 4.15); cam.lookAt(0, 0.87, 0);
+    const FOV = 28, scene = new T.Scene(), cam = new T.PerspectiveCamera(FOV, 1, 0.25, 12), pivot = new T.Group();
+    const HOME = new T.Vector3(0, 0.87, 0), HOME_D = 4.15, UP = new T.Vector3(0, 1, 0);
     scene.add(pivot); pivot.add(gltf.scene);
     scene.add(new T.HemisphereLight(0xfff1e6, 0x1a1210, 0.9));
     const key = new T.DirectionalLight(0xffffff, 2.3); key.position.set(1.6, 2.6, 3); scene.add(key);
     const fill = new T.DirectionalLight(0xffe2cf, 0.9); fill.position.set(-2.5, 1, 2); scene.add(fill);
     const rim = new T.DirectionalLight(0x9fd8ff, 1.8); rim.position.set(-2.2, 1.8, -3); scene.add(rim);
-    const fibres = sh => {   // fine fibre lines across each muscle, from the per-point fibre number baked into the model
-      sh.vertexShader = 'attribute float _fib; varying float vFib;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vFib = _fib;');
-      sh.fragmentShader = 'varying float vFib;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n float st = 0.5 + 0.5 * sin(vFib * 6.2832); diffuseColor.rgb *= 0.74 + 0.26 * smoothstep(0.08, 0.6, st);');
+    // Muscle surface, drawn by the graphics chip from two numbers baked into every point of the model: a fibre number (position across the
+    // muscle) and a groove shade. The fibre number becomes ridged fibre bundles that catch the light (three sizes; the finer ones fade in as
+    // you zoom, and fade out before they would turn into flicker), the groove shade darkens the folds between bundles.
+    const fibres = sh => {
+      sh.vertexShader = 'attribute float _fib; attribute float _ao; varying float vFib; varying float vAo;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vFib = _fib; vAo = _ao;');
+      sh.fragmentShader = `varying float vFib; varying float vAo;
+        vec3 bdBump(vec3 p, vec3 n, vec2 dh, float face) { vec3 sx = dFdx(p), sy = dFdy(p); vec3 r1 = cross(sy, n), r2 = cross(n, sx); float det = dot(sx, r1) * face;
+          vec3 g = sign(det) * (dh.x * r1 + dh.y * r2); return normalize(abs(det) * n - g); }
+        float bdFade(float f) { return 1.0 - smoothstep(0.18, 0.45, f); }
+        float bdHeight(float t, float w) { return 0.62 * cos(t * 6.2832) * bdFade(w) + 0.26 * cos(t * 17.2 + 1.3) * bdFade(w * 2.74) + 0.12 * cos(t * 39.6 + 0.4) * bdFade(w * 6.3); }\n`
+        + sh.fragmentShader
+          .replace('#include <color_fragment>', '#include <color_fragment>\n float bdW = fwidth(vFib); float bdH = bdHeight(vFib, bdW); diffuseColor.rgb *= (0.9 + 0.1 * bdH) * (0.55 + 0.45 * vAo);')
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = bdBump(-vViewPosition, normal, vec2(dFdx(bdH), dFdy(bdH)) * 0.00065, faceDirection);');
     };
-    const muscles = {}, soft = [], all = [];
+    const muscles = {}, soft = [], hard = [], all = [], spots = {};
     gltf.scene.traverse(o => { if (!o.isMesh) return; all.push(o); const k = o.name;
-      if (k === 'bone' || k === 'tendon') o.material = new T.MeshStandardMaterial({ color: BD3_COL[k], roughness: 0.62, metalness: 0, side: T.DoubleSide });
-      else { o.material = new T.MeshStandardMaterial({ color: BD3_COL.deep, roughness: 0.5, metalness: 0.04, side: T.DoubleSide }); o.material.onBeforeCompile = fibres; o.material.customProgramCacheKey = () => 'bdfib'; soft.push(o); if (BD_MUSCLES[k]) muscles[k] = o; }
+      if (k === 'bone' || k === 'tendon' || k === 'head') { o.material = new T.MeshStandardMaterial({ color: BD3_COL[k], roughness: k === 'head' ? 0.85 : 0.62, metalness: 0, side: T.DoubleSide }); hard.push(o); }
+      else { o.material = new T.MeshStandardMaterial({ color: BD3_COL.deep, roughness: 0.6, metalness: 0, side: T.DoubleSide }); o.material.extensions = { derivatives: true };
+        o.material.onBeforeCompile = fibres; o.material.customProgramCacheKey = () => 'bdfib2'; soft.push(o); if (BD_MUSCLES[k]) muscles[k] = o; }
     });
-    BD3.canvas = renderer.domElement;
-    BD3.draw = () => { pivot.rotation.y = BD3.yaw; renderer.render(scene, cam); const s = $('bdSide'); if (s) s.textContent = Math.cos(BD3.yaw) < 0 ? 'Back' : 'Front'; };
-    BD3.size = () => { const st = $('bdStage'); if (!st) return; const w = st.clientWidth, h = st.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); };
-    BD3.paint = M => { Object.keys(muscles).forEach(k => { const m = muscles[k].material, st = bdState(M.fresh[k]);
-        m.color.setHex(BD3_COL[st]); m.emissive.setHex(k === bdSel ? 0xffffff : st === 'hot' ? 0xff9a2a : 0x000000); m.emissiveIntensity = k === bdSel ? 0.38 : st === 'hot' ? 0.35 : 0; }); BD3.draw(); };
+    // Where each muscle is, for zooming: its middle, its size and the way it faces, kept per body side (both sides together when they meet at the midline).
+    gltf.scene.updateMatrixWorld(true);
+    Object.keys(muscles).forEach(k => { const o = muscles[k], P = o.geometry.attributes.position, N = o.geometry.attributes.normal, v = new T.Vector3(), n = new T.Vector3();
+      const mk = () => ({ c: new T.Vector3(), n: new T.Vector3(), cnt: 0, pts: [] }), S = { L: mk(), R: mk() }, stepN = Math.max(1, Math.floor(P.count / 1500));
+      for (let i = 0; i < P.count; i += stepN) { v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld); n.fromBufferAttribute(N, i); const s = S[v.x < 0 ? 'L' : 'R']; s.c.add(v); s.n.add(n); s.cnt++; s.pts.push(v.clone()); }
+      const fin = s => { s.c.divideScalar(Math.max(1, s.cnt)); const d = s.pts.map(p => p.distanceTo(s.c)).sort((a, b) => a - b); s.r = d[Math.floor(d.length * .92)] || .1; delete s.pts; return s; };
+      if (S.L.cnt && S.R.cnt) { const cl = S.L.c.clone().divideScalar(S.L.cnt), cr = S.R.c.clone().divideScalar(S.R.cnt);
+        if (cr.x - cl.x < 0.17) { const m = mk(); m.c.add(S.L.c).add(S.R.c); m.n.add(S.L.n).add(S.R.n); m.cnt = S.L.cnt + S.R.cnt; m.pts = S.L.pts.concat(S.R.pts); spots[k] = { M: fin(m) }; return; } }
+      spots[k] = {}; if (S.L.cnt) spots[k].L = fin(S.L); if (S.R.cnt) spots[k].R = fin(S.R);
+    });
+    BD3.canvas = renderer.domElement; BD3.three = T; BD3.scene = scene;
+    const tgt = new T.Vector3(), foc = new T.Vector3();
+    BD3.draw = () => { pivot.rotation.y = BD3.yaw; const z = BD3.zoom, w = BD3.w || 1, h = BD3.h || 1;
+      let d = HOME_D; tgt.copy(HOME);
+      // zoomed: far enough that the muscle fits the free space above the sheet, in height and in width
+      if (BD3.focus && z > 0) { foc.copy(BD3.focus.c).applyAxisAngle(UP, BD3.yaw); tgt.lerp(foc, z);
+        const dz = Math.min(3.6, Math.max(1.05, BD3.focus.r * 1.5 / (Math.tan(FOV * Math.PI / 360) * Math.min(BD3.fit, w / h)))); d = HOME_D + (dz - HOME_D) * z; }
+      cam.position.set(tgt.x, tgt.y + 0.08 * (1 - z) + 0.03 * z, tgt.z + d); cam.lookAt(tgt);
+      if (z > 0 && BD3.lift) cam.setViewOffset(w, h, 0, BD3.lift * z, w, h); else cam.clearViewOffset();
+      renderer.render(scene, cam); const s = $('bdSide'); if (s) s.textContent = Math.cos(BD3.yaw) < 0 ? 'Back' : 'Front'; };
+    BD3.size = () => { const st = $('bdStage'); if (!st) return; const w = st.clientWidth, h = st.clientHeight; if (!w || !h) return; BD3.w = w; BD3.h = h; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); };
+    // Colour every muscle by its recovery. With one muscle chosen, it keeps its full colour and a soft glow while everything else steps back.
+    BD3.paint = M => { const dim = bdSel ? 0.42 : 1;
+      soft.forEach(o => { const k = o.name, m = o.material, tracked = !!muscles[k], st = tracked ? bdState(M.fresh[k]) : 'deep', on = k === bdSel;
+        m.color.setHex(BD3_COL[st]); if (!on) m.color.multiplyScalar(dim);
+        m.emissive.setHex(on ? BD3_COL[st] : st === 'hot' ? 0xff9a2a : 0x000000); m.emissiveIntensity = on ? 0.22 : st === 'hot' ? 0.35 * dim : 0; });
+      hard.forEach(o => { o.material.color.setHex(BD3_COL[o.name]); o.material.color.multiplyScalar(bdSel ? 0.6 : 1); });
+      BD3.draw(); };
     BD3.xray = on => { soft.forEach(m => { m.material.transparent = on; m.material.opacity = on ? 0.16 : 1; m.material.depthWrite = !on; m.material.needsUpdate = true; }); BD3.draw(); };
     const ray = new T.Raycaster(), ndc = new T.Vector2();
+    // A tap: the muscle under the finger. A thin sheet of tendon or a bone in front does not block the muscle right behind it.
     BD3.pick = e => { const r = BD3.canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam);
-      const hit = ray.intersectObjects(bdMode === 'bones' ? Object.values(muscles) : all, false)[0]; return hit && muscles[hit.object.name] ? hit.object.name : null; };
+      const hits = ray.intersectObjects(bdMode === 'bones' ? Object.values(muscles) : all, false); if (!hits.length || hits[0].object.name === 'head') return null;
+      const hit = hits.find(h => muscles[h.object.name] && h.distance - hits[0].distance < 0.035); if (!hit) return null;
+      return { k: hit.object.name, side: pivot.worldToLocal(hit.point.clone()).x < 0 ? 'L' : 'R' }; };
+    // Zoom onto one muscle: turn the body so the muscle faces you, then move the camera in until it fills the free space above the sheet.
+    BD3.aim = (k, side) => { const sp = spots[k]; if (!sp) return; const s = sp.M || sp[side] || sp.L || sp.R; BD3.focus = s;
+      const [rear, out] = BD_FACE[k] || [0, 0], sgn = sp.M ? 0 : s === sp.L ? -1 : 1, dir = rear ? Math.PI - sgn * out : sgn * out, want = -dir;
+      bd3Go(want + Math.round((BD3.yaw - want) / (2 * Math.PI)) * 2 * Math.PI, 1, 850); };
     BD3.ready = true; BD3.loading = false;
-    BD3.yaw = -2.4; bd3Attach(BD3.M); bd3Spin(0, 1400);
+    BD3.yaw = -2.4; bd3Attach(BD3.M); bd3Go(0, 0, 1400);
   } catch (e) { BD3.failed = true; BD3.loading = false; console.warn('3D body unavailable, keeping the drawing: ' + (e && e.message || e)); }
 }
 /** Put the 3D canvas into the stage (the tab's HTML is rebuilt on every refresh) and repaint it. */
@@ -359,13 +412,34 @@ function bd3Attach(M) {
   $('bdFlip').style.display = 'none';
   BD3.size(); BD3.xray(bdMode === 'bones'); BD3.paint(M);
 }
-function bd3Spin(to, ms) {
-  if (typeof RM !== 'undefined' && RM) { BD3.yaw = to; return BD3.draw(); }
-  const from = BD3.yaw, t0 = performance.now(), dur = ms || 700; cancelAnimationFrame(BD3.raf);
-  const step = t => { const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3); BD3.yaw = from + (to - from) * e; BD3.draw(); if (p < 1) BD3.raf = requestAnimationFrame(step); };
+/** Glide the body to a turn angle and a zoom level (0 = whole body, 1 = on the chosen muscle). */
+function bd3Go(yaw, zoom, ms) {
+  BD3.zoomTo = zoom; cancelAnimationFrame(BD3.raf);
+  if (typeof RM !== 'undefined' && RM) { BD3.yaw = yaw; BD3.zoom = zoom; return BD3.draw(); }
+  const y0 = BD3.yaw, z0 = BD3.zoom, t0 = performance.now(), dur = ms || 700;
+  const step = t => { const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3); BD3.yaw = y0 + (yaw - y0) * e; BD3.zoom = z0 + (zoom - z0) * e; BD3.draw(); if (p < 1) BD3.raf = requestAnimationFrame(step); };
   BD3.raf = requestAnimationFrame(step);
 }
 window.addEventListener('resize', () => { if (BD3.ready && $('bdStage')) { BD3.size(); BD3.draw(); } });
+
+/** Choose a muscle: light it up, slide its sheet up over the bottom of the screen and zoom the body onto it. */
+function bdSelect(k, side) {
+  if (!BD3.M) return; bdSel = k; bdSide = side || bdSide;
+  document.querySelectorAll('#bodyApp .bd-m').forEach(x => x.classList.toggle('sel', x.dataset.m === k));
+  bdDetail(k, BD3.M); bdSheetOpen(true);
+  if (BD3.ready) { BD3.paint(BD3.M); BD3.aim(k, bdSide); }
+  if (navigator.vibrate) navigator.vibrate(6);
+}
+function bdClose() { bdSel = null; const sh = $('bdSheet'); if (sh) sh.classList.remove('open'); document.querySelectorAll('#bodyApp .bd-m.sel').forEach(x => x.classList.remove('sel'));
+  if (BD3.ready && BD3.M) { BD3.paint(BD3.M); bd3Go(BD3.yaw, 0, 600); } }
+/** Show the sheet just above the tab bar, bring the body to the top of the screen, and work out how much of the body is still in view above the sheet. */
+function bdSheetOpen(scroll) {
+  const sh = $('bdSheet'), st = $('bdStage'), nav = document.querySelector('nav'); if (!sh || !st) return;
+  sh.style.bottom = (nav ? nav.offsetHeight : 62) + 'px'; sh.classList.add('open'); sh.scrollTop = 0;
+  const top = 8, h = st.clientHeight, free = Math.max(140, Math.min(h, window.innerHeight - (nav ? nav.offsetHeight : 62) - sh.offsetHeight - top));
+  BD3.lift = h / 2 - free / 2; BD3.fit = free / h;
+  if (scroll) window.scrollTo({ top: st.getBoundingClientRect().top + window.scrollY - top, behavior: (typeof RM !== 'undefined' && RM) ? 'auto' : 'smooth' });
+}
 
 /** The detail panel for one muscle: what it does, recovery, this week's sets, strength, and your exercises for it. */
 function bdDetail(k, M) {
@@ -375,12 +449,12 @@ function bdDetail(k, M) {
   const sess = ex => { const L = Object.keys(D.workouts || {}).find(l => D.workouts[l].includes(ex)); if (L) return 'Workout ' + L; const P = Object.values(D.projects || {}).find(p => p.ex.includes(ex)); return P ? P.name : ''; };
   const exRow = (ex, i) => `<div><span>${esc(ex)}<small>${sess(ex)}</small></span>${(D.videos || {})[ex] ? `<button onclick="bdDemo(${i})">▶ Demo</button>` : ''}</div>`;
   bdDemoList = lib;
-  $('bdInfo').classList.remove('pop'); void $('bdInfo').offsetWidth; $('bdInfo').classList.add('pop');
-  $('bdInfo').innerHTML = `<h4>${m.n}</h4><div class="lat">${m.lat}</div><div class="does">${m.does}</div>
+  $('bdSheet').innerHTML = `<div class="grip"></div><div class="hd"><div><h4>${m.n}</h4><div class="lat">${m.lat}</div></div><button class="x" onclick="bdClose()" aria-label="Close">✕</button></div>
     <div class="bd-rec"><i style="width:${f}%;background:${col}"></i></div>
     <div style="font-size:13px">${{ fresh: 'Recovered and ready to train', rec: 'Recovering', hot: 'Worked hard: let it rest' }[st]} · ${f}%${days ? ` · about ${days} day${days > 1 ? 's' : ''} to fresh` : ''}</div>
     <div class="bd-kv"><div><b>${Math.round(M.weekSets[k] * 10) / 10}</b><span>Sets this week</span></div><div><b>${M.score[k] ?? '—'}</b><span>Strength</span></div><div><b>${M.last[k] ? fmtDate(M.last[k], { month: 'short', day: 'numeric' }) : '—'}</b><span>Last trained</span></div></div>
-    <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)">Your exercises for it</div>
+    <div class="does">${m.does}</div>
+    <div class="cap">Your exercises for it</div>
     <div class="bd-exl">${lib.length ? lib.map(exRow).join('') : '<div><span class="muted">None in your plan yet</span></div>'}</div>
     ${helps.length ? `<div style="font-size:13px;margin-top:8px;color:var(--text-muted)">Also helps in: ${helps.map(esc).join(', ')}</div>` : ''}`;
 }
@@ -429,7 +503,8 @@ function renderBody() {
       <div class="bd-stage" id="bdStage"><div class="bd-floor"></div><div class="bd-flip ${bdMode === 'bones' ? 'bd-bones' : ''}" id="bdFlip"><div class="bd-face f">${bdFigure('front')}</div><div class="bd-face b">${bdFigure('back')}</div></div>
         <button class="bd-turn" onclick="bdTurn()" aria-label="Turn the figure around">⟲</button><div class="bd-side" id="bdSide">Front</div></div>
       <div class="bd-legend"><span><i style="background:#b4433a"></i>Fresh</span><span><i style="background:#ff8a2a"></i>Recovering</span><span><i style="background:#ffdf5e"></i>Worked</span></div>
-      <div class="bd-info" id="bdInfo">Tap any muscle for what it does, how recovered it is and which of your exercises train it. Drag sideways to spin the body.</div>
+      <div class="bd-info" id="bdInfo">Tap a muscle to zoom in and see its recovery, sets and strength. Drag sideways to spin the body.</div>
+      <div class="bd-sheet" id="bdSheet" role="dialog" aria-label="Muscle details"></div>
     </div>
     <div class="card"><h2>This week's sets</h2>
       <div class="bd-ringwrap"><svg viewBox="0 0 200 200">${arcs}</svg><div class="bd-ring-mid"><b><span class="bd-cu" data-to="${pct}">${pct}</span>%</b><span>${totSets} of ${totTarget} sets</span></div></div>
@@ -439,7 +514,7 @@ function renderBody() {
       <div class="bd-top"><div class="bd-big bd-cu" data-to="${M.overall ?? ''}">${M.overall ?? '—'}</div><div class="bd-meter" id="bdMeter">${Array.from({ length: 10 }, () => '<i></i>').join('')}</div></div>
       <div class="muted" style="margin-top:6px">Overall strength, 0–100 · 60 is a solid intermediate for your bodyweight (${Math.round(M.bw)} lb)</div>
       ${groups}
-      <p class="bd-note">Scores come from your best set of each exercise: weight and reps turn into an estimated one-rep max, compared with your bodyweight. Bodyweight moves use reps, holds use seconds. Recovery is an estimate: each set adds fatigue to the muscles it works (helpers count half), and it fades over about two to three days. Both are guides for your own progress, not medical or lab measures.<br>Anatomy model: BodyParts3D, © The Database Center for Life Science, CC BY 4.0, simplified and regrouped. The lats and abs are approximated from the body surface.</p></div>`;
+      <p class="bd-note">Scores come from your best set of each exercise: weight and reps turn into an estimated one-rep max, compared with your bodyweight. Bodyweight moves use reps, holds use seconds. Recovery is an estimate: each set adds fatigue to the muscles it works (helpers count half), and it fades over about two to three days. Both are guides for your own progress, not medical or lab measures.<br>Anatomy model: BodyParts3D, © The Database Center for Life Science, CC BY 4.0, simplified and regrouped. The lats and abs are approximated from the body surface, and the head is a plain smoothed shape.</p></div>`;
   $('bodyApp').dataset.ready = 1;
   bdSetAngle(bdAngle);
 
@@ -447,18 +522,18 @@ function renderBody() {
     const k = el.dataset.m;
     el.classList.add(bdState(M.fresh[k])); if (bdSel === k) el.classList.add('sel');
     if (first && !(typeof RM !== 'undefined' && RM)) { el.style.opacity = 0; setTimeout(() => { el.style.opacity = ''; }, 120 + (i % 30) * 22); }
-    el.addEventListener('click', () => { if (bdDragged) return; bdSel = k; document.querySelectorAll('#bodyApp .bd-m').forEach(x => x.classList.toggle('sel', x.dataset.m === k)); bdDetail(k, M); if (navigator.vibrate) navigator.vibrate(6); });
+    el.addEventListener('click', () => { if (bdDragged) return; bdSelect(k); });
   });
-  if (bdSel) bdDetail(bdSel, M);
   bd3Attach(M);
+  if (bdSel) { bdDetail(bdSel, M); const sh = $('bdSheet'); sh.style.transition = 'none'; bdSheetOpen(false); void sh.offsetWidth; sh.style.transition = ''; if (BD3.ready) BD3.draw(); }   // a refresh keeps the open sheet in place
   // drag to rotate: the body follows your finger, then settles facing front or back
   const stage = $('bdStage'); let x0 = null, a0 = 0; bdDragged = false;
-  stage.onpointerdown = e => { if (e.target.closest('.bd-turn')) return; x0 = e.clientX; a0 = BD3.ready ? BD3.yaw : bdAngle; bdDragged = false; if (BD3.ready) cancelAnimationFrame(BD3.raf); };
-  stage.onpointermove = e => { if (x0 == null) return; const dx = e.clientX - x0; if (Math.abs(dx) > 6) { bdDragged = true; if (BD3.ready) { BD3.yaw = a0 + dx * 0.012; BD3.draw(); } else bdSetAngle(a0 + dx * .7, true); } };
+  stage.onpointerdown = e => { if (e.target.closest('.bd-turn')) return; x0 = e.clientX; a0 = BD3.ready ? BD3.yaw : bdAngle; bdDragged = false; };
+  stage.onpointermove = e => { if (x0 == null) return; const dx = e.clientX - x0; if (Math.abs(dx) > 6) { if (!bdDragged && BD3.ready) { cancelAnimationFrame(BD3.raf); BD3.zoom = BD3.zoomTo; a0 = BD3.yaw; x0 = e.clientX; } bdDragged = true; if (BD3.ready) { BD3.yaw = a0 + (e.clientX - x0) * 0.012; BD3.draw(); } else bdSetAngle(a0 + dx * .7, true); } };
   const end = e => { if (x0 == null) return; x0 = null;
     if (bdDragged) { if (!BD3.ready) bdSetAngle(Math.round(bdAngle / 180) * 180); setTimeout(() => { bdDragged = false; }, 50); }
     else if (BD3.ready && e && e.type === 'pointerup' && e.target === BD3.canvas) {   // a tap on the 3D body: find the muscle under the finger
-      const k = BD3.pick(e); if (k) { bdSel = k; BD3.paint(M); bdDetail(k, M); if (navigator.vibrate) navigator.vibrate(6); } } };
+      const hit = BD3.pick(e); if (hit) bdSelect(hit.k, hit.side); else if (bdSel) bdClose(); } };
   stage.onpointerup = end; stage.onpointerleave = end; stage.onpointercancel = end;
 
   document.querySelectorAll('#bodyApp .bd-cu').forEach(el => { const v = el.dataset.to; if (v !== '') countUp(el, Number(v)); });
