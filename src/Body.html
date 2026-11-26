@@ -15,6 +15,7 @@
   .bd-face { position: absolute; inset: 0; display: flex; justify-content: center; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
   .bd-face.b { transform: rotateY(180deg); }
   .bd-face svg { height: 100%; width: auto; overflow: visible; filter: drop-shadow(0 26px 30px rgba(0,0,0,.65)); }
+  .bd-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-y; animation: bdDrop .6s ease-out; }
   .bd-floor { position: absolute; left: 50%; bottom: 6px; width: 180px; height: 26px; transform: translateX(-50%); border-radius: 50%;
     background: radial-gradient(closest-side, rgba(45,212,191,.22), transparent); filter: blur(2px); }
   .bd-sil { fill: url(#bdSkin); }
@@ -304,8 +305,127 @@ function bdFigure(side) {
 let bdAngle = 0, bdSel = null, bdOpenGrp = {}, bdMode = 'rec', bdDragged = false;
 function bdSetAngle(a, drag) { bdAngle = a; const f = $('bdFlip'); if (!f) return; f.classList.toggle('drag', !!drag); f.style.transform = `rotateY(${a}deg)`;
   const n = ((a % 360) + 360) % 360; $('bdSide').textContent = n > 90 && n < 270 ? 'Back' : 'Front'; }
-function bdTurn() { bdSetAngle(Math.round(bdAngle / 180) * 180 + 180); if (navigator.vibrate) navigator.vibrate(8); }
-function bdModeSet(m) { bdMode = m; document.querySelectorAll('.bd-modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('bdFlip').classList.toggle('bd-bones', m === 'bones'); }
+function bdTurn() { if (BD3.ready) bd3Spin((Math.round(BD3.yaw / Math.PI) + 1) * Math.PI); else bdSetAngle(Math.round(bdAngle / 180) * 180 + 180); if (navigator.vibrate) navigator.vibrate(8); }
+function bdModeSet(m) { bdMode = m; document.querySelectorAll('.bd-modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('bdFlip').classList.toggle('bd-bones', m === 'bones'); if (BD3.ready) BD3.xray(m === 'bones'); }
+
+// ---------- The 3D body. A real 3D model (the CC0 Mesh2Motion mannequin) drawn with three.js: lit from fixed lights so the form reads as you
+// spin it. Every point on its surface is assigned to a muscle from the bones that move it, where it sits and which way it faces; muscles are
+// then coloured by recovery. The flat drawing above stays as the fallback while this loads or if the phone can't run WebGL. ----------
+const BD3 = { ready: false, loading: false, failed: false, yaw: 0 };
+const BD3_COL = { base: 0x47515f, fresh: 0x3fb3ae, rec: 0xf0aa3c, hot: 0xf2546b, bone: 0xe8dfc8 };
+async function bd3Init() {
+  if (BD3.loading || BD3.ready || BD3.failed) return; BD3.loading = true;
+  try {
+    const CDN = 'https://cdn.jsdelivr.net/';
+    const [T, G] = await Promise.all([import(CDN + 'npm/three@0.160.0/+esm'), import(CDN + 'npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm')]);
+    const gltf = await new G.GLTFLoader().loadAsync(CDN + 'gh/aminkhazri/health-os@fe025674fa73cdba93dc640ffec45df556ff22d7/models/athlete.glb');
+    const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+    const scene = new T.Scene(), cam = new T.PerspectiveCamera(28, 1, 0.1, 20), pivot = new T.Group();
+    cam.position.set(0, 0.95, 4.35); cam.lookAt(0, 0.86, 0);
+    scene.add(pivot); pivot.add(gltf.scene);
+    scene.add(new T.HemisphereLight(0xcfe0ff, 0x0b0e14, 0.85));
+    const key = new T.DirectionalLight(0xffffff, 2.4); key.position.set(1.6, 2.6, 3); scene.add(key);
+    const rim = new T.DirectionalLight(0x2dd4bf, 2.6); rim.position.set(-2.2, 1.6, -3); scene.add(rim);
+    const rim2 = new T.DirectionalLight(0xb8f23e, 1.1); rim2.position.set(2.6, 0.6, -2.2); scene.add(rim2);
+    gltf.scene.updateMatrixWorld(true);
+    const meshes = []; gltf.scene.traverse(o => { if (o.isSkinnedMesh) meshes.push(o); });
+    const bone = n => gltf.scene.getObjectByName(n), wp = n => bone(n).getWorldPosition(new T.Vector3());
+    const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    const keys = Object.keys(BD_MUSCLES);
+    // Assign every surface point to a muscle (done once, in the model's arms-out rest pose).
+    const hipY = wp('LeftUpLeg').y, shY = wp('LeftArm').y, shX = Math.abs(wp('LeftArm').x), armL = wp('LeftArm').distanceTo(wp('LeftForeArm')) || 0.3;
+    meshes.forEach(m => {
+      const g = m.geometry, pos = g.attributes.position, nor = g.attributes.normal, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, N = pos.count;
+      const names = m.skeleton.bones.map(b => b.name.replace(/^(mixamorig:?)?(Left|Right)?/, ''));
+      const mid = new Int8Array(N).fill(-1), amt = new Float32Array(N), w = {};
+      for (let i = 0; i < N; i++) {
+        for (const k in w) delete w[k];
+        for (let k = 0; k < 4; k++) { const nm = names[si.getComponent(i, k)]; w[nm] = (w[nm] || 0) + sw.getComponent(i, k); }
+        const W = n => w[n] || 0, x = pos.getX(i), y = pos.getY(i), ax = Math.abs(x), sgn = x >= 0 ? 1 : -1, nx = nor.getX(i) * sgn, ny = nor.getY(i), nz = nor.getZ(i);
+        const front = sm(-0.15, 0.45, nz), back = sm(-0.15, 0.45, -nz), outer = sm(0.1, 0.6, nx), inner = sm(0.1, 0.6, -nx), top = sm(0.2, 0.7, ny);
+        const leg = W('UpLeg'), shin = W('Leg'), trunk = W('Spine') + W('Spine1'), chest = W('Spine2'), arm = W('Arm'), along = (ax - shX) / armL, hips = W('Hips');
+        const delt = W('Shoulder') * sm(shX - 0.07, shX - 0.02, ax) + arm * (1 - sm(0.28, 0.45, along));
+        const belowPit = 1 - sm(shY - 0.12, shY - 0.06, y);
+        const v = {
+          quads: leg * Math.max(front, outer * 0.7) * (1 - inner * 0.6),
+          hams: leg * back * (1 - sm(hipY - 0.16, hipY - 0.10, y)),
+          glute_max: (hips + leg) * back * sm(hipY - 0.15, hipY - 0.09, y) * (1 - sm(hipY + 0.07, hipY + 0.12, y)),
+          glute_med: (hips + leg * 0.6) * outer * (1 - front * 0.7) * sm(hipY - 0.04, hipY + 0.02, y) * (1 - sm(hipY + 0.11, hipY + 0.17, y)) * 1.1,
+          adductors: leg * inner * sm(hipY - 0.34, hipY - 0.26, y),
+          calves: shin * back, tibialis: shin * front * (1 - inner * 0.5),
+          abs: (trunk + hips * sm(hipY + 0.02, hipY + 0.08, y)) * front * (1 - sm(0.07, 0.11, ax)),
+          obliques: trunk * sm(0.07, 0.11, ax) * (1 - back), erectors: trunk * back,
+          pecs: (chest + W('Shoulder') * 0.6) * front * (1 - sm(shY - 0.01, shY + 0.03, y)) * sm(shY - 0.2, shY - 0.14, y),
+          serratus: chest * outer * (1 - back) * (1 - front * 0.5) * belowPit * 1.2 + chest * front * (1 - sm(shY - 0.2, shY - 0.14, y)) * sm(0.08, 0.13, ax),
+          lats: chest * Math.min(1, back * 0.9 + outer * 0.4) * (1 - sm(shY - 0.14, shY - 0.08, y)),
+          traps_mid: chest * back * sm(shY - 0.16, shY - 0.10, y),
+          traps_up: W('Neck') * back + W('Shoulder') * top + chest * back * sm(shY - 0.04, shY + 0.02, y) * 0.6,
+          delt_a: delt * front, delt_p: delt * back, delt_l: delt * top * 1.15,
+          biceps: arm * front * sm(0.28, 0.45, along), triceps: arm * back * sm(0.2, 0.4, along),
+          forearms: W('ForeArm'), neck: W('Neck') * (1 - back * 0.7),
+        };
+        let best = -1, bv = 0.22; keys.forEach((k, j) => { if (v[k] > bv) { bv = v[k]; best = j; } });
+        mid[i] = best; amt[i] = best < 0 ? 0 : sm(0.22, 0.6, bv);
+      }
+      m.userData.mid = mid; m.userData.amt = amt;
+      g.setAttribute('color', new T.BufferAttribute(new Float32Array(N * 3), 3));
+      m.material = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.48, metalness: 0.12 });
+      m.frustumCulled = false;
+    });
+    // Bring the arms down from the T-pose so the body stands naturally.
+    ['LeftArm', 'RightArm'].forEach(n => { const b = bone(n); if (!b) return; const pq = b.parent.getWorldQuaternion(new T.Quaternion());
+      const r = new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 0, 1), wp(n).x > 0 ? -1.08 : 1.08);
+      b.quaternion.premultiply(pq.clone().invert().multiply(r).multiply(pq)); });
+    gltf.scene.updateMatrixWorld(true);
+    meshes.forEach(m => { m.skeleton.update(); m.computeBoundingBox(); m.computeBoundingSphere(); });
+    // A simple skeleton built along the model's own joints, for "Show bones".
+    const bones = new T.Group(), bmat = new T.MeshStandardMaterial({ color: BD3_COL.bone, roughness: 0.55 }), UP = new T.Vector3(0, 1, 0);
+    const stick = (a, b, r) => { const A = wp(a), B = wp(b), d = B.clone().sub(A), len = d.length(); if (!len) return;
+      const c = new T.Mesh(new T.CapsuleGeometry(r, len, 4, 10), bmat); c.position.copy(A).addScaledVector(d, 0.5); c.quaternion.setFromUnitVectors(UP, d.normalize()); bones.add(c); };
+    [['Hips', 'Spine'], ['Spine', 'Spine1'], ['Spine1', 'Spine2'], ['Spine2', 'Neck'], ['Neck', 'Head']].forEach(p => stick(p[0], p[1], 0.02));
+    ['Left', 'Right'].forEach(S => { [['Shoulder', 'Arm', 0.012], ['Arm', 'ForeArm', 0.02], ['ForeArm', 'Hand', 0.016], ['UpLeg', 'Leg', 0.026], ['Leg', 'Foot', 0.022], ['Foot', 'ToeBase', 0.016]].forEach(p => stick(S + p[0], S + p[1], p[2]));
+      stick('Hips', S + 'UpLeg', 0.02); stick('Spine2', S + 'Shoulder', 0.012); });
+    const skull = new T.Mesh(new T.SphereGeometry(0.095, 20, 16), bmat); skull.position.copy(wp('Head')).add(new T.Vector3(0, 0.09, 0.01)); skull.scale.set(0.85, 1.1, 1); bones.add(skull);
+    const ring = (y, r, tube, z) => { const t = new T.Mesh(new T.TorusGeometry(r, tube, 6, 28), bmat); t.rotation.x = Math.PI / 2; t.position.set(0, y, z || 0); t.scale.set(1, 0.68, 1); bones.add(t); };
+    const s1 = wp('Spine1').y, s2 = wp('Spine2').y, nk = wp('Neck').y;
+    for (let i = 0; i < 5; i++) ring(s1 + (nk - 0.05 - s1) * (i / 4), 0.115 + 0.022 * Math.sin((i + 0.6) / 4.6 * Math.PI), 0.007, 0.01);
+    ring(wp('Hips').y + 0.03, 0.125, 0.02);
+    bones.visible = false; pivot.add(bones);
+
+    const col = k => new T.Color(BD3_COL[k]), CB = col('base'), CS = { fresh: col('fresh'), rec: col('rec'), hot: col('hot') }, WHITE = new T.Color(0xffffff), tmp = new T.Color();
+    BD3.canvas = renderer.domElement;
+    BD3.draw = () => { pivot.rotation.y = BD3.yaw; renderer.render(scene, cam); const s = $('bdSide'); if (s) s.textContent = Math.cos(BD3.yaw) < 0 ? 'Back' : 'Front'; };
+    BD3.size = () => { const st = $('bdStage'); if (!st) return; const w = st.clientWidth, h = st.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); };
+    BD3.paint = M => { meshes.forEach(m => { const c = m.geometry.attributes.color, mid = m.userData.mid, amt = m.userData.amt;
+        for (let i = 0; i < mid.length; i++) { const k = mid[i] < 0 ? null : keys[mid[i]]; tmp.copy(CB);
+          if (k) { tmp.lerp(CS[bdState(M.fresh[k])], amt[i]); if (k === bdSel) tmp.lerp(WHITE, 0.45 * amt[i]); }
+          c.setXYZ(i, tmp.r, tmp.g, tmp.b); }
+        c.needsUpdate = true; }); BD3.draw(); };
+    BD3.xray = on => { bones.visible = on; meshes.forEach(m => { m.material.transparent = on; m.material.opacity = on ? 0.3 : 1; m.material.depthWrite = !on; m.material.needsUpdate = true; }); BD3.draw(); };
+    const ray = new T.Raycaster(), ndc = new T.Vector2();
+    BD3.pick = e => { const r = BD3.canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam);
+      const hit = ray.intersectObjects(meshes, false)[0]; if (!hit || !hit.face) return null; const mid = hit.object.userData.mid;
+      const j = [hit.face.a, hit.face.b, hit.face.c].map(i => mid[i]).find(x => x >= 0); return j == null ? null : keys[j]; };
+    BD3.ready = true; BD3.loading = false;
+    BD3.yaw = -2.4; bd3Attach(BD3.M); bd3Spin(0, 1400);
+  } catch (e) { BD3.failed = true; BD3.loading = false; console.warn('3D body unavailable, keeping the drawing: ' + (e && e.message || e)); }
+}
+/** Put the 3D canvas into the stage (the tab's HTML is rebuilt on every refresh) and repaint it. */
+function bd3Attach(M) {
+  BD3.M = M; if (!BD3.ready) { bd3Init(); return; }
+  const st = $('bdStage'); if (!st || !M) return;
+  if (BD3.canvas.parentElement !== st) st.insertBefore(BD3.canvas, $('bdFlip'));
+  $('bdFlip').style.display = 'none';
+  BD3.size(); BD3.xray(bdMode === 'bones'); BD3.paint(M);
+}
+function bd3Spin(to, ms) {
+  if (typeof RM !== 'undefined' && RM) { BD3.yaw = to; return BD3.draw(); }
+  const from = BD3.yaw, t0 = performance.now(), dur = ms || 700; cancelAnimationFrame(BD3.raf);
+  const step = t => { const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3); BD3.yaw = from + (to - from) * e; BD3.draw(); if (p < 1) BD3.raf = requestAnimationFrame(step); };
+  BD3.raf = requestAnimationFrame(step);
+}
+window.addEventListener('resize', () => { if (BD3.ready && $('bdStage')) { BD3.size(); BD3.draw(); } });
 
 /** The detail panel for one muscle: what it does, recovery, this week's sets, strength, and your exercises for it. */
 function bdDetail(k, M) {
@@ -369,7 +489,7 @@ function renderBody() {
       <div class="bd-stage" id="bdStage"><div class="bd-floor"></div><div class="bd-flip ${bdMode === 'bones' ? 'bd-bones' : ''}" id="bdFlip"><div class="bd-face f">${bdFigure('front')}</div><div class="bd-face b">${bdFigure('back')}</div></div>
         <button class="bd-turn" onclick="bdTurn()" aria-label="Turn the figure around">⟲</button><div class="bd-side" id="bdSide">Front</div></div>
       <div class="bd-legend"><span><i style="background:#3d7e80"></i>Fresh</span><span><i style="background:#e3a33b"></i>Recovering</span><span><i style="background:#f2546b"></i>Worked</span></div>
-      <div class="bd-info" id="bdInfo">Tap any muscle for what it does, how recovered it is and which of your exercises train it. Drag sideways to turn the body around.</div>
+      <div class="bd-info" id="bdInfo">Tap any muscle for what it does, how recovered it is and which of your exercises train it. Drag sideways to spin the body.</div>
     </div>
     <div class="card"><h2>This week's sets</h2>
       <div class="bd-ringwrap"><svg viewBox="0 0 200 200">${arcs}</svg><div class="bd-ring-mid"><b><span class="bd-cu" data-to="${pct}">${pct}</span>%</b><span>${totSets} of ${totTarget} sets</span></div></div>
@@ -390,11 +510,15 @@ function renderBody() {
     el.addEventListener('click', () => { if (bdDragged) return; bdSel = k; document.querySelectorAll('#bodyApp .bd-m').forEach(x => x.classList.toggle('sel', x.dataset.m === k)); bdDetail(k, M); if (navigator.vibrate) navigator.vibrate(6); });
   });
   if (bdSel) bdDetail(bdSel, M);
+  bd3Attach(M);
   // drag to rotate: the body follows your finger, then settles facing front or back
   const stage = $('bdStage'); let x0 = null, a0 = 0; bdDragged = false;
-  stage.onpointerdown = e => { if (e.target.closest('.bd-turn')) return; x0 = e.clientX; a0 = bdAngle; bdDragged = false; };
-  stage.onpointermove = e => { if (x0 == null) return; const dx = e.clientX - x0; if (Math.abs(dx) > 6) { bdDragged = true; bdSetAngle(a0 + dx * .7, true); } };
-  const end = () => { if (x0 == null) return; x0 = null; if (bdDragged) { bdSetAngle(Math.round(bdAngle / 180) * 180); setTimeout(() => { bdDragged = false; }, 50); } };
+  stage.onpointerdown = e => { if (e.target.closest('.bd-turn')) return; x0 = e.clientX; a0 = BD3.ready ? BD3.yaw : bdAngle; bdDragged = false; if (BD3.ready) cancelAnimationFrame(BD3.raf); };
+  stage.onpointermove = e => { if (x0 == null) return; const dx = e.clientX - x0; if (Math.abs(dx) > 6) { bdDragged = true; if (BD3.ready) { BD3.yaw = a0 + dx * 0.012; BD3.draw(); } else bdSetAngle(a0 + dx * .7, true); } };
+  const end = e => { if (x0 == null) return; x0 = null;
+    if (bdDragged) { if (!BD3.ready) bdSetAngle(Math.round(bdAngle / 180) * 180); setTimeout(() => { bdDragged = false; }, 50); }
+    else if (BD3.ready && e && e.type === 'pointerup' && e.target === BD3.canvas) {   // a tap on the 3D body: find the muscle under the finger
+      const k = BD3.pick(e); if (k) { bdSel = k; BD3.paint(M); bdDetail(k, M); if (navigator.vibrate) navigator.vibrate(6); } } };
   stage.onpointerup = end; stage.onpointerleave = end; stage.onpointercancel = end;
 
   document.querySelectorAll('#bodyApp .bd-cu').forEach(el => { const v = el.dataset.to; if (v !== '') countUp(el, Number(v)); });
