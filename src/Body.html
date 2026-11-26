@@ -354,7 +354,7 @@ async function bd3Init() {
         const belowPit = 1 - sm(shY - 0.12, shY - 0.06, y);
         // Back layout, checked against an anatomy atlas: the trapezius is a long diamond that narrows to a point on the spine near the bottom of the ribs;
         // the rotator cuff sits on the shoulder blade beside it; the lats sweep from under the arm down to the lower back; the erectors run beside the spine.
-        const triW = 0.02 + 0.15 * sm(shY - 0.32, shY - 0.06, y), inTri = 1 - sm(triW - 0.015, triW + 0.015, ax), torso = chest + trunk;
+        const triW = 0.02 + 0.075 * sm(shY - 0.30, shY - 0.08, y), inTri = 1 - sm(triW - 0.015, triW + 0.015, ax), torso = chest + trunk;
         const v = {
           quads: leg * Math.max(front, outer * 0.7) * (1 - inner * 0.6),
           hams: leg * back * (1 - sm(hipY - 0.16, hipY - 0.10, y)),
