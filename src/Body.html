@@ -1,32 +1,60 @@
-<!-- Body tab: recovery map, weekly set targets and strength scores, all worked out on the phone from the Workout Log history (D.wlog).
+<!-- Body tab: a muscle-and-bone map (front and back), recovery, weekly set targets, strength scores and a "train next" pick,
+     all worked out on the phone from the Workout Log history (D.wlog). The figure is original artwork drawn from general anatomy:
+     muscles sit where they attach on the skeleton, and each one says what it does and which of your exercises train it.
      Note: no double slash inside backtick strings in this file. Apps Script's HTML step can cut the line there. -->
 <style>
-  .bd-hero { position: relative; overflow: hidden; }
   .bd-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center; margin-bottom: 6px; }
   .bd-stat b { display: block; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 46px; line-height: 1; color: var(--text-primary); }
   .bd-stat span { display: block; margin-top: 4px; font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-secondary); }
-  .bd-stage { position: relative; height: 430px; perspective: 1200px; touch-action: pan-y; }
-  .bd-flip { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .9s cubic-bezier(.2,.8,.2,1); }
-  .bd-flip.back { transform: rotateY(180deg); }
+  .bd-modes { display: flex; justify-content: center; gap: 8px; margin: 8px 0 2px; }
+  .bd-modes button { font: inherit; font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--text-secondary); }
+  .bd-modes button.on { background: var(--lime); color: var(--lime-ink); border-color: var(--lime); }
+  .bd-stage { position: relative; height: 470px; perspective: 1100px; touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: grab; }
+  .bd-flip { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .8s cubic-bezier(.2,.8,.2,1); }
+  .bd-flip.drag { transition: none; }
   .bd-face { position: absolute; inset: 0; display: flex; justify-content: center; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
   .bd-face.b { transform: rotateY(180deg); }
-  .bd-face svg { height: 100%; width: auto; overflow: visible; filter: drop-shadow(0 24px 30px rgba(0,0,0,.6)); }
-  .bd-sil { fill: #2a313d; }
-  .bd-sil.hl { fill: #333b49; }
-  .bd-m { fill: #3a4352; stroke: rgba(0,0,0,.35); stroke-width: 1; cursor: pointer; transition: fill .6s ease, filter .6s ease, opacity .5s ease; }
-  .bd-m.fresh { fill: #3d6e72; }
-  .bd-m.rec { fill: #e3a33b; filter: drop-shadow(0 0 6px rgba(227,163,59,.45)); }
-  .bd-m.hot { fill: #f2546b; filter: drop-shadow(0 0 9px rgba(242,84,107,.6)); }
-  .bd-m.sel { stroke: #fff; stroke-width: 2; }
-  .bd-enter .bd-m { opacity: 0; }
-  .bd-turn { position: absolute; left: 6px; bottom: 6px; width: 46px; height: 46px; border-radius: 23px; border: 1px solid var(--border); background: var(--glass), var(--surface-2);
-    color: var(--text-primary); font-size: 20px; display: flex; align-items: center; justify-content: center; }
-  .bd-side { position: absolute; right: 8px; bottom: 14px; font-family: var(--display); font-weight: 700; letter-spacing: .14em; font-size: 13px; color: var(--text-muted); text-transform: uppercase; }
+  .bd-face svg { height: 100%; width: auto; overflow: visible; filter: drop-shadow(0 26px 30px rgba(0,0,0,.65)); }
+  .bd-floor { position: absolute; left: 50%; bottom: 6px; width: 180px; height: 26px; transform: translateX(-50%); border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(45,212,191,.22), transparent); filter: blur(2px); }
+  .bd-sil { fill: url(#bdSkin); }
+  .bd-bone { fill: none; stroke: #d8cfbd; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transition: opacity .5s ease; }
+  .bd-bonef { fill: #d8cfbd; opacity: 0; transition: opacity .5s ease; }
+  .bd-bones .bd-bone, .bd-bones .bd-bonef { opacity: .9; }
+  .bd-bones .bd-m { opacity: .38 !important; }
+  .bd-m { fill: url(#bdIdle); stroke: rgba(0,0,0,.45); stroke-width: .8; cursor: pointer; transition: opacity .5s ease, filter .5s ease; }
+  .bd-m.fresh { fill: url(#bdFresh); }
+  .bd-m.rec { fill: url(#bdRec); filter: drop-shadow(0 0 5px rgba(240,170,60,.5)); }
+  .bd-m.hot { fill: url(#bdHot); filter: drop-shadow(0 0 8px rgba(242,84,107,.65)); }
+  .bd-m.sel { stroke: #fff; stroke-width: 1.8; }
+  .bd-fib { fill: none; stroke: rgba(0,0,0,.28); stroke-width: .7; pointer-events: none; }
+  .bd-turn { position: absolute; left: 4px; bottom: 6px; width: 46px; height: 46px; border-radius: 23px; border: 1px solid var(--border); background: var(--glass), var(--surface-2);
+    color: var(--text-primary); font-size: 20px; display: flex; align-items: center; justify-content: center; z-index: 2; }
+  .bd-side { position: absolute; right: 8px; bottom: 16px; font-family: var(--display); font-weight: 700; letter-spacing: .14em; font-size: 13px; color: var(--text-muted); text-transform: uppercase; }
   .bd-legend { display: flex; justify-content: center; gap: 16px; font-size: 13px; color: var(--text-secondary); margin-top: 6px; }
   .bd-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
-  .bd-info { margin-top: 10px; min-height: 46px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid var(--border); font-size: 14px; color: var(--text-secondary); }
-  .bd-info b { color: var(--text-primary); font-family: var(--display); font-size: 18px; letter-spacing: .04em; }
-  /* weekly sets ring */
+  .bd-info { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid var(--border); font-size: 14px; color: var(--text-secondary); }
+  .bd-info.pop { animation: bdDrop .35s ease-out; }
+  .bd-info h4 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 24px; text-transform: uppercase; color: var(--text-primary); }
+  .bd-info .lat { font-size: 12px; letter-spacing: .08em; color: var(--teal); text-transform: uppercase; margin-bottom: 6px; }
+  .bd-info .does { color: var(--text-primary); margin: 4px 0 10px; line-height: 1.45; }
+  .bd-kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 10px; text-align: center; }
+  .bd-kv div { border-radius: 10px; background: rgba(0,0,0,.25); padding: 8px 4px; }
+  .bd-kv b { display: block; font-family: var(--display); font-weight: 800; font-size: 22px; color: var(--text-primary); }
+  .bd-kv span { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+  .bd-rec { height: 8px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; margin: 2px 0 4px; }
+  .bd-rec i { display: block; height: 100%; border-radius: 4px; transition: width .8s cubic-bezier(.2,.8,.2,1); }
+  .bd-exl { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .bd-exl div { display: flex; align-items: center; gap: 8px; }
+  .bd-exl span { flex: 1; color: var(--text-primary); } .bd-exl small { color: var(--text-muted); margin-left: 6px; }
+  .bd-exl button { font: inherit; font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.05); color: var(--teal); }
+  .bd-pick { display: flex; gap: 12px; align-items: center; }
+  .bd-pick .big { flex: 0 0 64px; height: 64px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 38px;
+    color: var(--lime-ink); background: linear-gradient(160deg, #e6ff9a, var(--lime)); box-shadow: 0 0 20px rgba(184,242,62,.3); }
+  .bd-pick .t b { font-size: 18px; } .bd-pick .t div { font-size: 14px; color: var(--text-secondary); line-height: 1.4; margin-top: 2px; }
+  .bd-alts { display: flex; gap: 8px; margin-top: 12px; }
+  .bd-alts div { flex: 1; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,.03); padding: 8px; text-align: center; font-size: 12px; color: var(--text-muted); }
+  .bd-alts b { display: block; font-family: var(--display); font-size: 20px; color: var(--text-primary); }
   .bd-ringwrap { position: relative; width: 210px; height: 210px; margin: 6px auto 4px; }
   .bd-ringwrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
   .bd-ring-bg { fill: none; stroke: rgba(255,255,255,.06); stroke-width: 16; }
@@ -35,7 +63,6 @@
   .bd-ring-mid b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 50px; line-height: 1; }
   .bd-ring-mid > span { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
   .bd-row { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--border); cursor: pointer; }
-  .bd-row:first-child { border-top: 0; }
   .bd-row svg { flex: 0 0 34px; height: 34px; transform: rotate(-90deg); }
   .bd-row .t { flex: 1; min-width: 0; } .bd-row .t b { display: block; font-size: 16px; } .bd-row .t span { font-size: 13px; color: var(--text-muted); }
   .bd-row .go { text-align: right; } .bd-row .go b { display: block; font-family: var(--display); font-weight: 800; font-size: 22px; line-height: 1; } .bd-row .go span { font-size: 12px; color: var(--text-muted); }
@@ -43,13 +70,11 @@
   .bd-sub.open { display: block; animation: bdDrop .35s ease-out; }
   .bd-sub div { display: flex; justify-content: space-between; padding: 4px 0; }
   @keyframes bdDrop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-  /* strength */
   .bd-top { display: flex; align-items: center; gap: 16px; }
   .bd-big { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 64px; line-height: .9; min-width: 84px; }
   .bd-meter { flex: 1; display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; height: 54px; }
   .bd-meter i { display: block; border-radius: 3px; transform: skewX(-18deg); background: rgba(255,255,255,.07); transition: background .3s ease, box-shadow .3s ease; }
   .bd-meter i.on { background: linear-gradient(180deg, #e9ff9e, var(--lime)); box-shadow: 0 0 10px rgba(184,242,62,.35); }
-  .bd-meter i:nth-child(n) { height: 100%; }
   .bd-grp { margin-top: 12px; border-radius: 14px; background: rgba(255,255,255,.035); border: 1px solid var(--border); overflow: hidden; }
   .bd-gh { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; }
   .bd-gh .t { flex: 1; } .bd-gh .t b { font-size: 16px; } .bd-gh .t div { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; line-height: 1.1; }
@@ -59,7 +84,7 @@
   .bd-chev { color: var(--text-muted); transition: transform .3s; } .bd-grp.open .bd-chev { transform: rotate(180deg); }
   .bd-ms { display: none; } .bd-grp.open .bd-ms { display: block; }
   .bd-mrow { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--border); }
-  .bd-mrow .t { flex: 0 0 96px; } .bd-mrow .t span { font-size: 14px; color: var(--text-secondary); } .bd-mrow .t b { display: block; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1; }
+  .bd-mrow .t { flex: 0 0 110px; } .bd-mrow .t span { font-size: 14px; color: var(--text-secondary); } .bd-mrow .t b { display: block; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 28px; line-height: 1; }
   .bd-spark { flex: 1; height: 44px; }
   .bd-spark polyline { fill: none; stroke: #e8edf3; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
   .bd-spark circle { fill: #fff; }
@@ -67,59 +92,77 @@
   .bd-draw polyline { stroke-dasharray: 400; stroke-dashoffset: 400; animation: bdDraw 1.2s .15s ease-out forwards; }
   @keyframes bdDraw { to { stroke-dashoffset: 0; } }
   .bd-note { font-size: 13px; color: var(--text-muted); margin-top: 10px; line-height: 1.5; }
-  @media (prefers-reduced-motion: reduce) { .bd-flip, .bd-ring-fg, .bd-m { transition: none; } .bd-draw polyline { animation: none; stroke-dashoffset: 0; } }
+  @media (prefers-reduced-motion: reduce) { .bd-flip, .bd-ring-fg, .bd-m, .bd-bone { transition: none; } .bd-draw polyline { animation: none; stroke-dashoffset: 0; } .bd-info.pop { animation: none; } }
 </style>
 <script>
-// ---------- What each exercise works. p = main muscles, s = helpers (count half). kind: w = weighted (score from estimated 1-rep max vs bodyweight),
-// r = reps, h = hold seconds. ref = the result that scores 60 ("solid intermediate"), so 100 is well above average. Rough guides, not lab numbers.
+// ---------- Muscles: name, anatomical name, group (for weekly sets) and what it does. ----------
 const BD_MUSCLES = {
-  chest: ['Chest', 'push'], shoulders: ['Shoulders', 'push'], triceps: ['Triceps', 'push'],
-  back: ['Back', 'pull'], biceps: ['Biceps', 'pull'], traps: ['Traps & neck', 'pull'], forearms: ['Forearms', 'pull'],
-  quads: ['Quads', 'legs'], hamstrings: ['Hamstrings', 'legs'], glutes: ['Glutes', 'legs'], calves: ['Calves', 'legs'],
-  abs: ['Abs', 'core'], obliques: ['Obliques', 'core'], lowback: ['Lower back', 'core'],
+  pecs:      { n: 'Chest', lat: 'Pectoralis major', g: 'push', does: 'Pushes the arm forward and across the body. The main mover in presses and push-ups.' },
+  delt_a:    { n: 'Front delts', lat: 'Anterior deltoid', g: 'push', does: 'Lifts the arm forward and helps every press. Works hard in shoulder and incline presses.' },
+  delt_l:    { n: 'Side delts', lat: 'Lateral deltoid', g: 'push', does: 'Lifts the arm out to the side. It gives the shoulders their width.' },
+  triceps:   { n: 'Triceps', lat: 'Triceps brachii', g: 'push', does: 'Straightens the elbow. Two thirds of the upper arm, used in every push.' },
+  serratus:  { n: 'Serratus', lat: 'Serratus anterior', g: 'push', does: 'Holds the shoulder blade flat on the ribs and reaches it forward. Keeps shoulders healthy in push-ups.' },
+  lats:      { n: 'Lats', lat: 'Latissimus dorsi', g: 'pull', does: 'Pulls the arm down and back toward the hip. The big muscle in rows and pull-ups.' },
+  traps_mid: { n: 'Mid back', lat: 'Middle trapezius & rhomboids', g: 'pull', does: 'Squeezes the shoulder blades together. Builds posture and balances all the pressing.' },
+  traps_up:  { n: 'Upper traps', lat: 'Upper trapezius', g: 'pull', does: 'Shrugs the shoulders up and supports the neck. Trained by shrugs and carries.' },
+  delt_p:    { n: 'Rear delts', lat: 'Posterior deltoid', g: 'pull', does: 'Pulls the arm back. Small but key for shoulder balance, trained by rows and pull-aparts.' },
+  biceps:    { n: 'Biceps', lat: 'Biceps brachii & brachialis', g: 'pull', does: 'Bends the elbow and turns the palm up. Helps in every row.' },
+  forearms:  { n: 'Forearms', lat: 'Wrist flexors & extensors', g: 'pull', does: 'Grip and wrist control. Trained by carries, rows and anything you hold.' },
+  neck:      { n: 'Neck', lat: 'Sternocleidomastoid & neck extensors', g: 'pull', does: 'Moves and steadies the head. A strong neck helps absorb contact and headers.' },
+  quads:     { n: 'Quads', lat: 'Quadriceps femoris', g: 'legs', does: 'Straightens the knee. The front of the thigh, worked by squats and split squats.' },
+  adductors: { n: 'Inner thigh', lat: 'Adductor group', g: 'legs', does: 'Pulls the leg in toward the midline and steadies the hip. Important for cutting and kicking.' },
+  hams:      { n: 'Hamstrings', lat: 'Biceps femoris, semitendinosus, semimembranosus', g: 'legs', does: 'Bends the knee and drives the hip back. Key for sprinting; trained by RDLs.' },
+  glute_max: { n: 'Glutes', lat: 'Gluteus maximus', g: 'legs', does: 'Extends the hip: standing up, sprinting, jumping. The largest muscle in the body.' },
+  glute_med: { n: 'Side glutes', lat: 'Gluteus medius', g: 'legs', does: 'Holds the pelvis level on one leg. Protects the knee in running and single-leg work.' },
+  calves:    { n: 'Calves', lat: 'Gastrocnemius & soleus', g: 'legs', does: 'Points the foot and pushes you off the ground. Every step, sprint and jump.' },
+  tibialis:  { n: 'Shins', lat: 'Tibialis anterior', g: 'legs', does: 'Lifts the toes and foot. Strong shins help prevent shin splints.' },
+  abs:       { n: 'Abs', lat: 'Rectus abdominis', g: 'core', does: 'Curls the trunk and stops the lower back from arching. Braces you under load.' },
+  obliques:  { n: 'Obliques', lat: 'External & internal obliques', g: 'core', does: 'Twists and side-bends the trunk, and resists twisting. Trained by side planks and carries.' },
+  erectors:  { n: 'Lower back', lat: 'Erector spinae', g: 'core', does: 'Holds the spine straight. Works in deadlifts, RDLs and every carry.' },
 };
 const BD_GROUPS = { push: ['Push muscles', 12], pull: ['Pull muscles', 12], legs: ['Leg muscles', 15], core: ['Core', 8] };   // name, weekly set target
 const BD_COLORS = { push: '#b8f23e', pull: '#2dd4bf', legs: '#f2546b', core: '#a78bfa' };
+// What each exercise works. p = main muscles, s = helpers (count half). kind: w = weighted (score from estimated 1-rep max vs bodyweight),
+// r = reps, h = hold seconds. ref = the result that scores 60 ("solid intermediate"). Rough guides, not lab numbers.
 const BD_EX = {
-  'Goblet squat': { p: ['quads'], s: ['glutes', 'abs'], k: 'w', ref: .45 },
-  'Dumbbell floor press': { p: ['chest'], s: ['triceps', 'shoulders'], k: 'w', ref: .35 },
-  'One-arm dumbbell row': { p: ['back'], s: ['biceps', 'forearms'], k: 'w', ref: .45 },
-  'Dumbbell Romanian deadlift': { p: ['hamstrings'], s: ['glutes', 'lowback'], k: 'w', ref: .4 },
-  'Dumbbell shoulder press': { p: ['shoulders'], s: ['triceps'], k: 'w', ref: .25 },
-  'Band pull-apart': { p: ['back'], s: ['shoulders'], k: 'r', ref: 20 },
-  'Copenhagen plank': { p: ['obliques'], s: ['abs'], k: 'h', ref: 30 },
-  'Side plank': { p: ['obliques'], s: ['abs'], k: 'h', ref: 60 },
-  'Bulgarian split squat': { p: ['quads', 'glutes'], s: ['hamstrings'], k: 'w', ref: .3 },
-  'Single-leg Romanian deadlift': { p: ['hamstrings', 'glutes'], s: ['lowback'], k: 'w', ref: .3 },
-  'Dumbbell hip thrust': { p: ['glutes'], s: ['hamstrings'], k: 'w', ref: .6 },
-  'Heel-raised goblet squat': { p: ['quads'], s: ['glutes'], k: 'w', ref: .35 },
+  'Goblet squat': { p: ['quads', 'glute_max'], s: ['adductors', 'abs', 'erectors'], k: 'w', ref: .45 },
+  'Dumbbell floor press': { p: ['pecs'], s: ['triceps', 'delt_a'], k: 'w', ref: .35 },
+  'One-arm dumbbell row': { p: ['lats', 'traps_mid'], s: ['biceps', 'delt_p', 'forearms'], k: 'w', ref: .45 },
+  'Dumbbell Romanian deadlift': { p: ['hams', 'glute_max'], s: ['erectors', 'forearms', 'adductors'], k: 'w', ref: .4 },
+  'Dumbbell shoulder press': { p: ['delt_a'], s: ['delt_l', 'triceps', 'traps_up', 'serratus'], k: 'w', ref: .25 },
+  'Band pull-apart': { p: ['delt_p', 'traps_mid'], s: [], k: 'r', ref: 20 },
+  'Copenhagen plank': { p: ['adductors', 'obliques'], s: ['abs'], k: 'h', ref: 30 },
+  'Side plank': { p: ['obliques'], s: ['glute_med', 'abs'], k: 'h', ref: 60 },
+  'Bulgarian split squat': { p: ['quads', 'glute_max'], s: ['glute_med', 'adductors', 'hams'], k: 'w', ref: .3 },
+  'Single-leg Romanian deadlift': { p: ['hams', 'glute_max'], s: ['glute_med', 'erectors'], k: 'w', ref: .3 },
+  'Dumbbell hip thrust': { p: ['glute_max'], s: ['hams', 'glute_med'], k: 'w', ref: .6 },
+  'Heel-raised goblet squat': { p: ['quads'], s: ['glute_max', 'abs'], k: 'w', ref: .35 },
   'Standing calf raise': { p: ['calves'], s: [], k: 'w', ref: .3 },
   'Dead bug': { p: ['abs'], s: ['obliques'], k: 'r', ref: 12 },
-  'Split squat bottom hold': { p: ['quads'], s: ['glutes'], k: 'h', ref: 45 },
-  'Single-leg glute bridge hold': { p: ['glutes'], s: ['hamstrings'], k: 'h', ref: 45 },
-  'Push-up': { p: ['chest'], s: ['triceps', 'shoulders', 'abs'], k: 'r', ref: 25 },
-  'Band row': { p: ['back'], s: ['biceps'], k: 'r', ref: 15 },
-  'Incline dumbbell press': { p: ['chest', 'shoulders'], s: ['triceps'], k: 'w', ref: .3 },
-  'Dumbbell lateral raise': { p: ['shoulders'], s: [], k: 'w', ref: .1 },
+  'Split squat bottom hold': { p: ['quads'], s: ['glute_max', 'adductors'], k: 'h', ref: 45 },
+  'Single-leg glute bridge hold': { p: ['glute_max'], s: ['hams', 'glute_med'], k: 'h', ref: 45 },
+  'Push-up': { p: ['pecs'], s: ['triceps', 'delt_a', 'serratus', 'abs'], k: 'r', ref: 25 },
+  'Band row': { p: ['lats', 'traps_mid'], s: ['biceps', 'delt_p'], k: 'r', ref: 15 },
+  'Incline dumbbell press': { p: ['pecs', 'delt_a'], s: ['triceps', 'serratus'], k: 'w', ref: .3 },
+  'Dumbbell lateral raise': { p: ['delt_l'], s: ['traps_up'], k: 'w', ref: .1 },
   'Dumbbell curl': { p: ['biceps'], s: ['forearms'], k: 'w', ref: .18 },
   'Overhead triceps extension': { p: ['triceps'], s: [], k: 'w', ref: .25 },
-  'Push-up bottom hold': { p: ['chest'], s: ['triceps'], k: 'h', ref: 30 },
-  "Dumbbell farmer's hold": { p: ['forearms', 'traps'], s: ['abs'], k: 'h', ref: 60 },
-  'Supine chin tuck': { p: ['traps'], s: [], k: 'r', ref: 15 },
-  'Neck isometric hold': { p: ['traps'], s: [], k: 'h', ref: 10 },
-  'Prone neck extension': { p: ['traps'], s: [], k: 'r', ref: 15 },
-  'Side-lying neck raise': { p: ['traps'], s: [], k: 'r', ref: 15 },
-  'Dumbbell shrug': { p: ['traps'], s: ['forearms'], k: 'w', ref: .45 },
+  'Push-up bottom hold': { p: ['pecs'], s: ['triceps', 'serratus'], k: 'h', ref: 30 },
+  "Dumbbell farmer's hold": { p: ['forearms', 'traps_up'], s: ['obliques', 'abs'], k: 'h', ref: 60 },
+  'Supine chin tuck': { p: ['neck'], s: [], k: 'r', ref: 15 },
+  'Neck isometric hold': { p: ['neck'], s: [], k: 'h', ref: 10 },
+  'Prone neck extension': { p: ['neck'], s: ['traps_up'], k: 'r', ref: 15 },
+  'Side-lying neck raise': { p: ['neck'], s: [], k: 'r', ref: 15 },
+  'Dumbbell shrug': { p: ['traps_up'], s: ['forearms', 'neck'], k: 'w', ref: .45 },
   'Single-leg deficit calf raise': { p: ['calves'], s: [], k: 'r', ref: 15 },
   'Seated dumbbell calf raise': { p: ['calves'], s: [], k: 'w', ref: .3 },
-  'Tibialis raise': { p: ['calves'], s: [], k: 'r', ref: 20 },
+  'Tibialis raise': { p: ['tibialis'], s: [], k: 'r', ref: 20 },
   'Single-leg calf raise hold': { p: ['calves'], s: [], k: 'h', ref: 30 },
 };
 
 function bdBest(reps) { const n = String(reps || '').split(/[^0-9.]+/).map(Number).filter(x => x > 0); return n.length ? Math.max(...n) : 0; }
 function bdBodyweight() { const w = (D.series || []).filter(x => x.w).slice(-1)[0]; return (w && w.w) || D.targets.start || 150; }
 function bdMonday(k) { const [y, m, d] = k.split('-').map(Number), t = new Date(y, m - 1, d); return addDays(k, -((t.getDay() + 6) % 7)); }
-/** One logged row's score (0-99), or null when it can't be scored (no weight on a weighted move, no reps). */
 function bdScore(ex, sets, reps, w, bw) {
   const m = BD_EX[ex]; if (!m) return null;
   const r = bdBest(reps); if (!r) return null;
@@ -131,26 +174,25 @@ function bdScore(ex, sets, reps, w, bw) {
 
 /** Everything the tab shows, worked out from the log. */
 function bdModel() {
-  const log = D.wlog || [], bw = bdBodyweight(), now = Date.now(), wk = bdMonday(D.today);
+  const log = D.wlog || [], bw = bdBodyweight(), now = Date.now(), wk = bdMonday(D.today), keys = Object.keys(BD_MUSCLES);
   const fat = {}, last = {}, weekSets = {}, groupSets = { push: 0, pull: 0, legs: 0, core: 0 }, byWeek = {};
-  Object.keys(BD_MUSCLES).forEach(k => { fat[k] = 0; weekSets[k] = 0; });
+  keys.forEach(k => { fat[k] = 0; weekSets[k] = 0; });
   log.forEach(([d, , ex, sets, reps, w]) => {
     const m = BD_EX[ex]; if (!m) return;
-    const n = sets || bdBest(reps) && 1 || 0, [y, mo, da] = d.split('-').map(Number);
+    const n = sets || (bdBest(reps) ? 1 : 0), [y, mo, da] = d.split('-').map(Number);
     const hrs = (now - new Date(y, mo - 1, da, 12).getTime()) / 3600000;
     const decay = Math.exp(-Math.max(0, hrs) / 30);   // fatigue fades with a ~30 h time constant: most of it is gone after 2-3 days
     m.p.forEach(k => { fat[k] += n * decay; if (!last[k] || d > last[k]) last[k] = d; });
-    m.s.forEach(k => { fat[k] += n * .5 * decay; });
-    if (d >= wk) { m.p.forEach(k => { weekSets[k] += n; }); groupSets[BD_MUSCLES[m.p[0]][1]] += n; }
+    m.s.forEach(k => { fat[k] += n * .5 * decay; if (!last[k] || d > last[k]) last[k] = d; });
+    if (d >= wk) { m.p.forEach(k => { weekSets[k] += n; }); m.s.forEach(k => { weekSets[k] += n * .5; }); groupSets[BD_MUSCLES[m.p[0]].g] += n; }
     const sc = bdScore(ex, sets, reps, w, bw); if (sc == null) return;
     const wkey = bdMonday(d);
     m.p.forEach(k => { const b = (byWeek[k] = byWeek[k] || {}); b[wkey] = Math.max(b[wkey] || 0, sc); });
   });
-  const fresh = {}; Object.keys(fat).forEach(k => { fresh[k] = Math.max(0, Math.round(100 - fat[k] * 14)); });
-  // weekly strength line per muscle, last 8 weeks, carrying the last known score forward
+  const fresh = {}; keys.forEach(k => { fresh[k] = Math.max(0, Math.round(100 - fat[k] * 14)); });
   const weeks = []; for (let i = 7; i >= 0; i--) weeks.push(addDays(wk, -7 * i));
   const line = {}, score = {};
-  Object.keys(BD_MUSCLES).forEach(k => {
+  keys.forEach(k => {
     let cur = null; const pts = [];
     const before = Object.keys(byWeek[k] || {}).filter(x => x < weeks[0]).sort().pop(); if (before) cur = byWeek[k][before];
     weeks.forEach(x => { if (byWeek[k] && byWeek[k][x] != null) cur = byWeek[k][x]; pts.push(cur); });
@@ -158,7 +200,7 @@ function bdModel() {
   });
   const gScore = {}, gLine = {};
   Object.keys(BD_GROUPS).forEach(g => {
-    const ks = Object.keys(BD_MUSCLES).filter(k => BD_MUSCLES[k][1] === g && score[k] != null);
+    const ks = keys.filter(k => BD_MUSCLES[k].g === g && score[k] != null);
     gScore[g] = ks.length ? Math.round(ks.reduce((a, k) => a + score[k], 0) / ks.length) : null;
     gLine[g] = weeks.map((_, i) => { const v = ks.map(k => line[k][i]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; });
   });
@@ -168,10 +210,23 @@ function bdModel() {
   return { fresh, last, weekSets, groupSets, line, score, gScore, gLine, overall, weeks, lastAny, bw };
 }
 function bdState(f) { return f >= 85 ? 'fresh' : f >= 50 ? 'rec' : 'hot'; }
+function bdDaysToFresh(f) { if (f >= 85) return 0; const F = (100 - f) / 14; return Math.max(1, Math.ceil(30 * Math.log(F / (15 / 14)) / 24)); }   // hours until fatigue decays to the "fresh" line
 function bdTrend(pts) { const v = pts.filter(x => x != null); if (v.length < 2) return 'flat'; const d = v[v.length - 1] - v[Math.max(0, v.length - 4)]; return d >= 2 ? 'up' : d <= -2 ? 'down' : 'flat'; }
 const BD_ARROW = { up: '↗', flat: '→', down: '↘' };
 
-/** Count a number up from 0, for the big figures. */
+/** Which session to do next: the one whose main muscles are freshest and most behind on this week's sets. */
+function bdPick(M) {
+  const names = (D.workoutInfo || {}).names || {};
+  return Object.keys(D.workouts || {}).map(L => {
+    const ms = [...new Set([].concat(...D.workouts[L].map(ex => (BD_EX[ex] || { p: [] }).p)))];
+    const fr = ms.length ? ms.reduce((a, k) => a + M.fresh[k], 0) / ms.length : 0;
+    const gs = [...new Set(ms.map(k => BD_MUSCLES[k].g))];
+    const need = gs.reduce((a, g) => a + Math.max(0, 1 - M.groupSets[g] / BD_GROUPS[g][1]), 0) / Math.max(1, gs.length);
+    const tired = ms.filter(k => M.fresh[k] < 50).map(k => BD_MUSCLES[k].n);
+    return { L, name: names[L] || 'Workout ' + L, fresh: Math.round(fr), need: Math.round(need * 100), tired, score: fr * .6 + need * 100 * .4 };
+  }).sort((a, b) => b.score - a.score);
+}
+
 function countUp(el, to, ms) {
   if (!el) return; if (to == null) { el.textContent = '—'; return; }
   if (typeof RM !== 'undefined' && RM) { el.textContent = to; return; }
@@ -180,81 +235,141 @@ function countUp(el, to, ms) {
   requestAnimationFrame(step);
 }
 
-// ---------- The figure: an original, simple athletic outline built from rounded shapes. Each coloured region has data-m = a muscle key. ----------
+// ---------- The figure. viewBox 0 0 200 440, midline x = 100. Muscles and bones are drawn for one side and mirrored for the other. ----------
+const BD_DEFS = `<defs>
+  <linearGradient id="bdSkin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#232a35"/><stop offset=".5" stop-color="#323b49"/><stop offset="1" stop-color="#232a35"/></linearGradient>
+  <radialGradient id="bdIdle" cx=".4" cy=".3" r=".9"><stop offset="0" stop-color="#5a6577"/><stop offset="1" stop-color="#363e4c"/></radialGradient>
+  <radialGradient id="bdFresh" cx=".4" cy=".3" r=".9"><stop offset="0" stop-color="#5fa3a3"/><stop offset="1" stop-color="#2a5457"/></radialGradient>
+  <radialGradient id="bdRec" cx=".4" cy=".3" r=".9"><stop offset="0" stop-color="#ffcf73"/><stop offset="1" stop-color="#c17a17"/></radialGradient>
+  <radialGradient id="bdHot" cx=".4" cy=".3" r=".9"><stop offset="0" stop-color="#ff8396"/><stop offset="1" stop-color="#b8243f"/></radialGradient>
+</defs>`;
+// Whole-body outline (both sides): head, neck, trapezius slope, arms hanging slightly out, legs.
+const BD_SIL = 'M100 12 C112 12 120 21 120 34 C120 46 113 56 106 58 L106 64 C118 68 134 72 144 78 C152 82 154 92 153 104 C152 124 154 146 156 166 C160 196 165 216 166 236 C168 250 164 262 158 262 C152 262 150 250 151 238 C150 220 144 196 140 176 C138 158 140 140 138 124 C136 150 134 170 134 190 C136 200 138 210 138 222 C140 262 136 296 128 318 C126 330 124 350 122 372 C120 386 120 396 124 404 C126 412 118 416 108 414 C104 414 104 406 106 396 C108 376 106 350 104 330 C102 300 102 262 100 236 C98 262 98 300 96 330 C94 350 92 376 94 396 C96 406 96 414 92 414 C82 416 74 412 76 404 C80 396 80 386 78 372 C76 350 74 330 72 318 C64 296 60 262 62 222 C62 210 64 200 66 190 C66 170 64 150 62 124 C60 140 62 158 60 176 C56 196 50 220 49 238 C50 250 48 262 42 262 C36 262 32 250 34 236 C35 216 40 196 44 166 C46 146 48 124 47 104 C46 92 48 82 56 78 C66 72 82 68 94 64 L94 58 C87 56 80 46 80 34 C80 21 88 12 100 12 Z';
+// Muscles for the left half of the drawing: [key, path]. Fibre lines are decoration only.
+const BD_FRONT = [
+  ['neck', 'M94 58 L99 60 L95 74 L88 72 Z'],
+  ['traps_up', 'M88 66 L94 68 L74 78 L64 78 Z'],
+  ['delt_l', 'M57 80 C50 84 47 94 48 106 C51 108 54 106 56 100 C57 92 59 86 63 81 Z'],
+  ['delt_a', 'M63 81 C59 86 57 94 57 103 C60 108 64 108 67 104 C69 96 71 88 72 82 C69 80 66 80 63 81 Z'],
+  ['pecs', 'M99 82 C90 79 80 80 72 83 C69 92 68 102 71 110 C76 118 86 121 95 119 C98 118 99 115 99 110 Z'],
+  ['serratus', 'M70 113 C69 120 69 128 71 136 L76 132 L75 124 L77 119 Z'],
+  ['biceps', 'M50 108 C46 120 45 138 47 156 C50 160 54 160 57 154 C59 138 59 122 57 110 Z'],
+  ['forearms', 'M45 168 C41 184 38 204 37 226 C39 230 42 230 44 226 C47 206 51 186 53 170 Z'],
+  ['abs', 'M99 122 L89 123 C87 140 87 170 89 196 C92 202 96 205 99 206 Z'],
+  ['obliques', 'M87 124 C80 130 76 146 75 170 C77 184 82 194 88 198 C86 174 86 146 87 124 Z'],
+  ['quads', 'M68 214 C64 240 66 280 75 309 C81 316 89 316 94 306 C98 282 98 246 95 218 C86 210 76 210 68 214 Z'],
+  ['adductors', 'M95 220 C98 234 99 254 98 276 C95 266 92 244 92 226 Z'],
+  ['tibialis', 'M79 330 C77 350 79 376 83 394 L87 394 C86 374 86 350 86 330 Z'],
+  ['calves', 'M88 332 C93 344 94 362 90 378 C88 366 87 348 88 332 Z'],
+];
+const BD_FRONT_FIB = 'M99 96 L74 92 M99 106 L72 102 M89 140 L99 140 M89 158 L99 158 M89 176 L99 176 M81 228 C80 250 82 280 86 304 M74 236 C74 260 76 286 80 304';
+const BD_BACK = [
+  ['neck', 'M93 58 L99 59 L99 74 L91 72 Z'],
+  ['traps_up', 'M99 60 L99 84 L64 80 C74 74 84 68 92 62 Z'],
+  ['traps_mid', 'M99 84 L70 84 C76 96 88 110 99 126 Z'],
+  ['delt_p', 'M64 80 C55 82 48 92 48 104 C52 108 58 108 62 102 C64 96 66 90 69 84 Z'],
+  ['lats', 'M71 100 C69 120 72 150 82 176 C88 178 94 172 97 160 L99 130 C90 120 80 108 71 100 Z'],
+  ['triceps', 'M50 108 C46 122 45 140 46 158 C50 162 55 162 58 154 C60 138 60 122 58 110 Z'],
+  ['forearms', 'M45 168 C41 184 38 204 37 226 C39 230 42 230 44 226 C47 206 51 186 53 170 Z'],
+  ['erectors', 'M99 130 L92 132 C90 152 90 176 92 198 L99 200 Z'],
+  ['glute_med', 'M69 194 C68 202 72 210 80 211 C87 206 90 200 89 193 C82 190 75 190 69 194 Z'],
+  ['glute_max', 'M70 210 C66 224 70 240 85 244 C94 244 99 238 99 228 L99 206 C90 204 79 204 70 210 Z'],
+  ['hams', 'M70 252 C68 272 71 296 79 312 C85 317 92 315 96 305 C98 285 98 264 96 250 C88 245 77 245 70 252 Z'],
+  ['adductors', 'M96 252 C98 262 99 276 98 288 C96 280 95 266 95 254 Z'],
+  ['calves', 'M75 326 C71 340 73 362 81 374 C88 376 94 368 96 354 C96 342 94 330 90 324 C85 321 79 322 75 326 Z'],
+];
+const BD_BACK_FIB = 'M99 100 L76 88 M99 112 L82 96 M76 120 C80 140 86 158 92 168 M85 260 C84 280 85 298 88 310 M85 336 C84 350 85 362 87 370';
+// Bones under the muscles (shown with "Show bones"): skull, collarbone, ribs, spine, pelvis, arm and leg bones, kneecap, shoulder blade.
+const BD_BONES_FRONT = `
+  <path class="bd-bone" stroke-width="2.5" d="M86 84 L64 80 M90 92 C78 96 74 108 78 122 M92 102 C80 106 77 118 81 132 M93 112 C82 116 80 128 84 140 M94 122 C85 126 84 138 87 148"/>
+  <path class="bd-bone" stroke-width="6" d="M60 84 L50 160 M50 164 L40 228 M80 218 L84 312 M84 324 L84 396"/>
+  <path class="bd-bone" stroke-width="3" d="M53 164 L44 228 M88 324 L89 394"/>
+  <path class="bd-bonef" d="M72 196 C80 190 92 196 99 202 L99 222 C90 222 82 218 76 214 C72 208 70 202 72 196 Z"/>
+  <circle class="bd-bonef" cx="85" cy="316" r="5"/>`;
+const BD_BONES_BACK = `
+  <path class="bd-bonef" d="M70 88 L90 92 L84 124 Z"/>
+  <path class="bd-bone" stroke-width="6" d="M60 84 L50 160 M50 164 L40 228 M80 218 L84 312 M84 324 L84 396"/>
+  <path class="bd-bone" stroke-width="3" d="M53 164 L44 228 M88 324 L89 394"/>
+  <path class="bd-bonef" d="M72 196 C80 190 92 196 99 202 L99 222 C90 222 82 218 76 214 C72 208 70 202 72 196 Z"/>`;
+const BD_BONES_MID = { front: '<ellipse class="bd-bonef" cx="100" cy="33" rx="15" ry="18"/><path class="bd-bone" stroke-width="3" d="M99 66 L99 200"/>',
+  back: '<ellipse class="bd-bonef" cx="100" cy="33" rx="15" ry="18"/><path class="bd-bone" stroke-width="4" stroke-dasharray="4 2" d="M100 60 L100 204"/>' };
 function bdFigure(side) {
-  const S = 'class="bd-sil"', cap = (x, y, w, h, r, rot) => `<rect ${S} x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="${r}" transform="rotate(${rot || 0} ${x} ${y})"/>`;
-  const sil = `<circle ${S} cx="100" cy="30" r="19"/>${cap(100, 58, 18, 18, 6)}
-    <path ${S} d="M62 74 Q100 64 138 74 L142 110 Q136 150 128 186 Q100 196 72 186 Q64 150 58 110 Z"/>
-    <path ${S} d="M72 182 Q100 192 128 182 L132 214 Q100 226 68 214 Z"/>
-    ${cap(52, 120, 20, 66, 10, 12)}${cap(148, 120, 20, 66, 10, -12)}${cap(40, 186, 16, 64, 8, 8)}${cap(160, 186, 16, 64, 8, -8)}
-    <circle ${S} cx="36" cy="226" r="9"/><circle ${S} cx="164" cy="226" r="9"/>
-    ${cap(84, 262, 30, 96, 15, 3)}${cap(116, 262, 30, 96, 15, -3)}${cap(85, 350, 22, 84, 11, 2)}${cap(115, 350, 22, 84, 11, -2)}
-    <ellipse ${S} cx="84" cy="398" rx="13" ry="7"/><ellipse ${S} cx="116" cy="398" rx="13" ry="7"/>`;
-  const M = (k, el) => el.replace(/^<(\w+)/, `<$1 class="bd-m" data-m="${k}"`);
-  const e = (cx, cy, rx, ry, rot) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${rot || 0} ${cx} ${cy})"/>`;
-  const front = [
-    M('traps', `<path d="M86 64 L100 70 L114 64 L126 76 L100 80 L74 76 Z"/>`),
-    M('shoulders', e(64, 88, 13, 12, -20)), M('shoulders', e(136, 88, 13, 12, 20)),
-    M('chest', `<path d="M76 92 Q88 86 99 92 L99 116 Q86 122 74 112 Z"/>`), M('chest', `<path d="M124 92 Q112 86 101 92 L101 116 Q114 122 126 112 Z"/>`),
-    M('biceps', e(53, 122, 8, 20, 12)), M('biceps', e(147, 122, 8, 20, -12)),
-    M('forearms', e(41, 184, 7, 22, 8)), M('forearms', e(159, 184, 7, 22, -8)),
-    M('abs', `<rect x="88" y="122" width="24" height="58" rx="8"/>`),
-    M('obliques', e(79, 152, 7, 24, -6)), M('obliques', e(121, 152, 7, 24, 6)),
-    M('quads', e(84, 256, 13, 40, 3)), M('quads', e(116, 256, 13, 40, -3)),
-    M('calves', e(84, 346, 8, 28, 2)), M('calves', e(116, 346, 8, 28, -2)),
-  ].join('');
-  const back = [
-    M('traps', `<path d="M100 64 L122 76 L112 108 L100 116 L88 108 L78 76 Z"/>`),
-    M('shoulders', e(64, 88, 13, 12, -20)), M('shoulders', e(136, 88, 13, 12, 20)),
-    M('back', `<path d="M76 96 L92 110 L96 160 Q84 166 74 150 Q66 124 76 96 Z"/>`), M('back', `<path d="M124 96 L108 110 L104 160 Q116 166 126 150 Q134 124 124 96 Z"/>`),
-    M('triceps', e(53, 124, 8, 20, 12)), M('triceps', e(147, 124, 8, 20, -12)),
-    M('forearms', e(41, 184, 7, 22, 8)), M('forearms', e(159, 184, 7, 22, -8)),
-    M('lowback', `<rect x="88" y="160" width="24" height="24" rx="8"/>`),
-    M('glutes', e(87, 204, 15, 14, 0)), M('glutes', e(113, 204, 15, 14, 0)),
-    M('hamstrings', e(84, 262, 12, 36, 3)), M('hamstrings', e(116, 262, 12, 36, -3)),
-    M('calves', e(85, 340, 10, 26, 2)), M('calves', e(115, 340, 10, 26, -2)),
-  ].join('');
-  return `<svg viewBox="20 6 160 404" role="img" aria-label="Muscle recovery, ${side} view">${sil}${side === 'front' ? front : back}</svg>`;
+  const ms = side === 'front' ? BD_FRONT : BD_BACK, fib = side === 'front' ? BD_FRONT_FIB : BD_BACK_FIB, bones = side === 'front' ? BD_BONES_FRONT : BD_BONES_BACK;
+  const half = ms.map(([k, d]) => `<path class="bd-m" data-m="${k}" d="${d}"/>`).join('') + `<path class="bd-fib" d="${fib}"/>`;
+  const mirror = 'transform="translate(200 0) scale(-1 1)"';
+  return `<svg viewBox="20 6 160 416" role="img" aria-label="Muscle and bone map, ${side} view">${BD_DEFS}<path class="bd-sil" d="${BD_SIL}"/>
+    ${BD_BONES_MID[side]}<g>${bones}</g><g ${mirror}>${bones}</g><g>${half}</g><g ${mirror}>${half}</g></svg>`;
 }
 
-let bdBack = false, bdSel = null, bdOpenGrp = {};
+let bdAngle = 0, bdSel = null, bdOpenGrp = {}, bdMode = 'rec', bdDragged = false;
+function bdSetAngle(a, drag) { bdAngle = a; const f = $('bdFlip'); if (!f) return; f.classList.toggle('drag', !!drag); f.style.transform = `rotateY(${a}deg)`;
+  const n = ((a % 360) + 360) % 360; $('bdSide').textContent = n > 90 && n < 270 ? 'Back' : 'Front'; }
+function bdTurn() { bdSetAngle(Math.round(bdAngle / 180) * 180 + 180); if (navigator.vibrate) navigator.vibrate(8); }
+function bdModeSet(m) { bdMode = m; document.querySelectorAll('.bd-modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('bdFlip').classList.toggle('bd-bones', m === 'bones'); }
+
+/** The detail panel for one muscle: what it does, recovery, this week's sets, strength, and your exercises for it. */
+function bdDetail(k, M) {
+  const m = BD_MUSCLES[k], f = M.fresh[k], st = bdState(f), days = bdDaysToFresh(f);
+  const col = { fresh: '#5fa3a3', rec: '#f0aa3c', hot: '#f2546b' }[st];
+  const lib = Object.keys(BD_EX).filter(ex => BD_EX[ex].p.includes(k)), helps = Object.keys(BD_EX).filter(ex => BD_EX[ex].s.includes(k));
+  const sess = ex => { const L = Object.keys(D.workouts || {}).find(l => D.workouts[l].includes(ex)); if (L) return 'Workout ' + L; const P = Object.values(D.projects || {}).find(p => p.ex.includes(ex)); return P ? P.name : ''; };
+  const exRow = (ex, i) => `<div><span>${esc(ex)}<small>${sess(ex)}</small></span>${(D.videos || {})[ex] ? `<button onclick="bdDemo(${i})">▶ Demo</button>` : ''}</div>`;
+  bdDemoList = lib;
+  $('bdInfo').classList.remove('pop'); void $('bdInfo').offsetWidth; $('bdInfo').classList.add('pop');
+  $('bdInfo').innerHTML = `<h4>${m.n}</h4><div class="lat">${m.lat}</div><div class="does">${m.does}</div>
+    <div class="bd-rec"><i style="width:${f}%;background:${col}"></i></div>
+    <div style="font-size:13px">${{ fresh: 'Recovered and ready to train', rec: 'Recovering', hot: 'Worked hard: let it rest' }[st]} · ${f}%${days ? ` · about ${days} day${days > 1 ? 's' : ''} to fresh` : ''}</div>
+    <div class="bd-kv"><div><b>${Math.round(M.weekSets[k] * 10) / 10}</b><span>Sets this week</span></div><div><b>${M.score[k] ?? '—'}</b><span>Strength</span></div><div><b>${M.last[k] ? fmtDate(M.last[k], { month: 'short', day: 'numeric' }) : '—'}</b><span>Last trained</span></div></div>
+    <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)">Your exercises for it</div>
+    <div class="bd-exl">${lib.length ? lib.map(exRow).join('') : '<div><span class="muted">None in your plan yet</span></div>'}</div>
+    ${helps.length ? `<div style="font-size:13px;margin-top:8px;color:var(--text-muted)">Also helps in: ${helps.map(esc).join(', ')}</div>` : ''}`;
+}
+let bdDemoList = [];
+function bdDemo(i) { const ex = bdDemoList[i]; if (ex) demo(ex); }
+
 function renderBody() {
   if (!D || !$('bodyApp')) return;
-  const M = bdModel(), first = !$('bodyApp').dataset.ready;
-  const freshCount = Object.keys(BD_MUSCLES).filter(k => M.fresh[k] >= 85).length;
+  const M = bdModel(), first = !$('bodyApp').dataset.ready, keys = Object.keys(BD_MUSCLES);
+  const freshCount = keys.filter(k => M.fresh[k] >= 85).length;
   const since = M.lastAny ? Math.max(0, Math.round((new Date(D.today) - new Date(M.lastAny)) / 86400000)) : null;
   const totSets = Object.values(M.groupSets).reduce((a, b) => a + b, 0), totTarget = Object.values(BD_GROUPS).reduce((a, g) => a + g[1], 0);
   const pct = Math.min(100, Math.round(totSets / totTarget * 100));
   const R = 84, C = 2 * Math.PI * R, gk = Object.keys(BD_GROUPS), quarter = C / gk.length, gap = 10;
   const arcs = gk.map((g, i) => { const done = Math.min(1, M.groupSets[g] / BD_GROUPS[g][1]), len = Math.max(0, (quarter - gap) * done);
     return `<circle class="bd-ring-bg" cx="100" cy="100" r="${R}" style="stroke-dasharray:${quarter - gap} ${C};stroke-dashoffset:${-i * quarter}"/>`
-      + (len > 0 ? `<circle class="bd-ring-fg" data-len="${len}" cx="100" cy="100" r="${R}" stroke="${BD_COLORS[g]}" style="stroke-dasharray:0 ${C};stroke-dashoffset:${-i * quarter}"/>` : ''); }).join('');   // no arc at all when empty: a round cap would draw a dot
+      + (len > 0 ? `<circle class="bd-ring-fg" data-len="${len}" cx="100" cy="100" r="${R}" stroke="${BD_COLORS[g]}" style="stroke-dasharray:0 ${C};stroke-dashoffset:${-i * quarter}"/>` : ''); }).join('');   // no arc when empty: a round cap would draw a dot
   const mini = (g) => { const r = 13, c = 2 * Math.PI * r, d = Math.min(1, M.groupSets[g] / BD_GROUPS[g][1]);
     return `<svg viewBox="0 0 34 34"><circle cx="17" cy="17" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="5"/>${d > 0 ? `<circle cx="17" cy="17" r="${r}" fill="none" stroke="${BD_COLORS[g]}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${c * d} ${c}"/>` : ''}</svg>`; };
-  const rows = gk.map(g => { const ms = Object.keys(BD_MUSCLES).filter(k => BD_MUSCLES[k][1] === g), left = Math.max(0, BD_GROUPS[g][1] - M.groupSets[g]);
+  const rows = gk.map(g => { const ms = keys.filter(k => BD_MUSCLES[k].g === g), left = Math.max(0, BD_GROUPS[g][1] - M.groupSets[g]);
     return `<div class="bd-row" onclick="this.nextElementSibling.classList.toggle('open')">${mini(g)}<div class="t"><b>${BD_GROUPS[g][0]}</b><span>${M.groupSets[g]} / ${BD_GROUPS[g][1]} sets</span></div>
       <div class="go"><b>${left || '✓'}</b><span>${left ? 'to go' : 'done'}</span></div></div>
-      <div class="bd-sub">${ms.map(k => `<div><span>${BD_MUSCLES[k][0]}</span><span>${M.weekSets[k]} sets</span></div>`).join('')}</div>`; }).join('');
+      <div class="bd-sub">${ms.map(k => `<div><span>${BD_MUSCLES[k].n}</span><span>${Math.round(M.weekSets[k] * 10) / 10} sets</span></div>`).join('')}</div>`; }).join('');
   const spark = pts => { const v = pts.map((x, i) => [i, x]).filter(p => p[1] != null); if (!v.length) return '<div class="muted" style="flex:1;font-size:13px">Log weights and reps to score</div>';
     const lo = Math.min(...v.map(p => p[1])) - 4, hi = Math.max(...v.map(p => p[1])) + 4, X = i => 6 + i * (148 / 7), Y = y => 40 - (y - lo) / Math.max(1, hi - lo) * 32;
     const avg = v.reduce((a, p) => a + p[1], 0) / v.length;
     return `<svg class="bd-spark bd-draw" viewBox="0 0 160 44" preserveAspectRatio="none"><line x1="0" x2="160" y1="${Y(avg)}" y2="${Y(avg)}"/><polyline points="${v.map(p => X(p[0]) + ',' + Y(p[1])).join(' ')}"/>${v.map(p => `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="3"/>`).join('')}</svg>`; };
   const meterOn = M.overall == null ? 0 : Math.round(M.overall / 10);
-  const groups = gk.map(g => { const ms = Object.keys(BD_MUSCLES).filter(k => BD_MUSCLES[k][1] === g), tr = bdTrend(M.gLine[g]);
-    return `<div class="bd-grp ${bdOpenGrp[g] ? 'open' : ''}" data-g="${g}"><div class="bd-gh" onclick="bdOpenGrp['${g}']=!bdOpenGrp['${g}'];this.parentElement.classList.toggle('open')">
+  const groups = gk.map(g => { const ms = keys.filter(k => BD_MUSCLES[k].g === g), tr = bdTrend(M.gLine[g]);
+    return `<div class="bd-grp ${bdOpenGrp[g] ? 'open' : ''}"><div class="bd-gh" onclick="bdOpenGrp['${g}']=!bdOpenGrp['${g}'];this.parentElement.classList.toggle('open')">
       <div class="t"><b>${BD_GROUPS[g][0]}</b>${M.gScore[g] != null ? `<span class="bd-chip ${tr}">${BD_ARROW[tr]}</span>` : ''}<div><span class="bd-cu" data-to="${M.gScore[g] ?? ''}">${M.gScore[g] ?? '—'}</span><small>STRENGTH</small></div></div><span class="bd-chev">⌄</span></div>
-      <div class="bd-ms">${ms.map(k => `<div class="bd-mrow"><div class="t"><span>${BD_MUSCLES[k][0]}</span><b>${M.score[k] ?? '—'}</b></div>${spark(M.line[k])}</div>`).join('')}</div></div>`; }).join('');
-  const label = { fresh: 'fresh, ready to train', rec: 'recovering', hot: 'worked hard, needs rest' };
+      <div class="bd-ms">${ms.map(k => `<div class="bd-mrow"><div class="t"><span>${BD_MUSCLES[k].n}</span><b>${M.score[k] ?? '—'}</b></div>${spark(M.line[k])}</div>`).join('')}</div></div>`; }).join('');
+  const picks = bdPick(M), top = picks[0];
+  const pickWhy = top ? `Its muscles are ${top.fresh}% recovered${top.need ? ` and ${top.need}% of their weekly sets are still to do` : ''}.${top.tired.length ? ' Still tired: ' + top.tired.join(', ') + '.' : ''}` : '';
 
   $('bodyApp').innerHTML = `
-    <div class="card bd-hero ${first ? 'bd-enter' : ''}">
-      <h2>Recovery</h2>
+    ${top ? `<div class="card"><h2>Train next</h2>
+      <div class="bd-pick"><div class="big">${top.L}</div><div class="t"><b>Workout ${top.L} · ${esc(top.name)}</b><div>${pickWhy}</div></div></div>
+      <div class="bd-alts">${picks.map(p => `<div><b>${p.L}</b>${p.fresh}% fresh</div>`).join('')}</div>
+      <button class="primary" style="margin-top:12px" onclick="letter='${top.L}';show('work');renderWorkout()">Open Workout ${top.L}</button></div>` : ''}
+    <div class="card">
+      <h2>Muscle map</h2>
       <div class="bd-stats"><div class="bd-stat"><b class="bd-cu" data-to="${since ?? ''}">${since ?? '—'}</b><span>${since === 1 ? 'Day' : 'Days'} since<br>last workout</span></div>
-        <div class="bd-stat"><b class="bd-cu" data-to="${freshCount}">${freshCount}</b><span>Fresh muscle<br>groups of ${Object.keys(BD_MUSCLES).length}</span></div></div>
-      <div class="bd-stage" id="bdStage"><div class="bd-flip ${bdBack ? 'back' : ''}" id="bdFlip"><div class="bd-face f">${bdFigure('front')}</div><div class="bd-face b">${bdFigure('back')}</div></div>
-        <button class="bd-turn" onclick="bdTurn()" aria-label="Turn the figure around">⟲</button><div class="bd-side" id="bdSide">${bdBack ? 'Back' : 'Front'}</div></div>
-      <div class="bd-legend"><span><i style="background:#3d6e72"></i>Fresh</span><span><i style="background:#e3a33b"></i>Recovering</span><span><i style="background:#f2546b"></i>Worked</span></div>
-      <div class="bd-info" id="bdInfo">Tap a muscle to see when you last trained it. Swipe or tap ⟲ to turn around.</div>
+        <div class="bd-stat"><b class="bd-cu" data-to="${freshCount}">${freshCount}</b><span>Fresh muscles<br>of ${keys.length}</span></div></div>
+      <div class="bd-modes"><button data-m="rec" class="${bdMode === 'rec' ? 'on' : ''}" onclick="bdModeSet('rec')">Recovery</button><button data-m="bones" class="${bdMode === 'bones' ? 'on' : ''}" onclick="bdModeSet('bones')">Show bones</button></div>
+      <div class="bd-stage" id="bdStage"><div class="bd-floor"></div><div class="bd-flip ${bdMode === 'bones' ? 'bd-bones' : ''}" id="bdFlip"><div class="bd-face f">${bdFigure('front')}</div><div class="bd-face b">${bdFigure('back')}</div></div>
+        <button class="bd-turn" onclick="bdTurn()" aria-label="Turn the figure around">⟲</button><div class="bd-side" id="bdSide">Front</div></div>
+      <div class="bd-legend"><span><i style="background:#3d7e80"></i>Fresh</span><span><i style="background:#e3a33b"></i>Recovering</span><span><i style="background:#f2546b"></i>Worked</span></div>
+      <div class="bd-info" id="bdInfo">Tap any muscle for what it does, how recovered it is and which of your exercises train it. Drag sideways to turn the body around.</div>
     </div>
     <div class="card"><h2>This week's sets</h2>
       <div class="bd-ringwrap"><svg viewBox="0 0 200 200">${arcs}</svg><div class="bd-ring-mid"><b><span class="bd-cu" data-to="${pct}">${pct}</span>%</b><span>${totSets} of ${totTarget} sets</span></div></div>
@@ -264,29 +379,28 @@ function renderBody() {
       <div class="bd-top"><div class="bd-big bd-cu" data-to="${M.overall ?? ''}">${M.overall ?? '—'}</div><div class="bd-meter" id="bdMeter">${Array.from({ length: 10 }, () => '<i></i>').join('')}</div></div>
       <div class="muted" style="margin-top:6px">Overall strength, 0–100 · 60 is a solid intermediate for your bodyweight (${Math.round(M.bw)} lb)</div>
       ${groups}
-      <p class="bd-note">Scores come from your best set of each exercise: weight and reps turn into an estimated one-rep max, compared with your bodyweight. Bodyweight moves use reps, holds use seconds. They are rough guides to track your own progress, not lab tests. Log the weight you used to get scores for dumbbell moves.</p></div>`;
+      <p class="bd-note">Scores come from your best set of each exercise: weight and reps turn into an estimated one-rep max, compared with your bodyweight. Bodyweight moves use reps, holds use seconds. Recovery is an estimate: each set adds fatigue to the muscles it works (helpers count half), and it fades over about two to three days. Both are guides for your own progress, not medical or lab measures.</p></div>`;
   $('bodyApp').dataset.ready = 1;
+  bdSetAngle(bdAngle);
 
-  // paint recovery colours, wire taps and swipes
   document.querySelectorAll('#bodyApp .bd-m').forEach((el, i) => {
-    const k = el.dataset.m, st = bdState(M.fresh[k]);
-    el.classList.add(st); if (bdSel === k) el.classList.add('sel');
-    if (first && !(typeof RM !== 'undefined' && RM)) setTimeout(() => { el.style.opacity = 1; }, 120 + i * 25); else el.style.opacity = 1;
-    el.addEventListener('click', () => {
-      bdSel = k; document.querySelectorAll('#bodyApp .bd-m').forEach(x => x.classList.toggle('sel', x.dataset.m === k));
-      const f = M.fresh[k], F = (100 - f) / 14, days = f >= 85 ? 0 : Math.max(1, Math.ceil(30 * Math.log(F / (15 / 14)) / 24));   // hours until fatigue decays to the "fresh" line
-      $('bdInfo').innerHTML = `<b>${BD_MUSCLES[k][0]}</b> · ${label[bdState(f)]}<br>${M.last[k] ? 'Last trained ' + fmtDate(M.last[k]) : 'Not trained in the last 16 weeks'} · ${M.weekSets[k]} sets this week${f < 85 ? ` · about ${days} day${days > 1 ? 's' : ''} to fresh` : ''}`;
-    });
+    const k = el.dataset.m;
+    el.classList.add(bdState(M.fresh[k])); if (bdSel === k) el.classList.add('sel');
+    if (first && !(typeof RM !== 'undefined' && RM)) { el.style.opacity = 0; setTimeout(() => { el.style.opacity = ''; }, 120 + (i % 30) * 22); }
+    el.addEventListener('click', () => { if (bdDragged) return; bdSel = k; document.querySelectorAll('#bodyApp .bd-m').forEach(x => x.classList.toggle('sel', x.dataset.m === k)); bdDetail(k, M); if (navigator.vibrate) navigator.vibrate(6); });
   });
-  const stage = $('bdStage'); let x0 = null;
-  stage.onpointerdown = e => { x0 = e.clientX; };
-  stage.onpointerup = e => { if (x0 != null && Math.abs(e.clientX - x0) > 40) bdTurn(); x0 = null; };
-  // animate numbers, ring and meter
+  if (bdSel) bdDetail(bdSel, M);
+  // drag to rotate: the body follows your finger, then settles facing front or back
+  const stage = $('bdStage'); let x0 = null, a0 = 0; bdDragged = false;
+  stage.onpointerdown = e => { if (e.target.closest('.bd-turn')) return; x0 = e.clientX; a0 = bdAngle; bdDragged = false; };
+  stage.onpointermove = e => { if (x0 == null) return; const dx = e.clientX - x0; if (Math.abs(dx) > 6) { bdDragged = true; bdSetAngle(a0 + dx * .7, true); } };
+  const end = () => { if (x0 == null) return; x0 = null; if (bdDragged) { bdSetAngle(Math.round(bdAngle / 180) * 180); setTimeout(() => { bdDragged = false; }, 50); } };
+  stage.onpointerup = end; stage.onpointerleave = end; stage.onpointercancel = end;
+
   document.querySelectorAll('#bodyApp .bd-cu').forEach(el => { const v = el.dataset.to; if (v !== '') countUp(el, Number(v)); });
   requestAnimationFrame(() => requestAnimationFrame(() => {
     document.querySelectorAll('#bodyApp .bd-ring-fg').forEach(el => { el.style.strokeDasharray = el.dataset.len + ' ' + C; });
     [...$('bdMeter').children].forEach((el, i) => setTimeout(() => el.classList.toggle('on', i < meterOn), (typeof RM !== 'undefined' && RM) ? 0 : 200 + i * 70));
   }));
 }
-function bdTurn() { bdBack = !bdBack; $('bdFlip').classList.toggle('back', bdBack); $('bdSide').textContent = bdBack ? 'Back' : 'Front'; if (navigator.vibrate) navigator.vibrate(8); }
 </script>
