@@ -326,7 +326,7 @@ const BD3_COL = { fresh: 0xb4433a, rec: 0xff8a2a, hot: 0xffdf5e, bone: 0xe2d8c3,
 const BD_FACE = { pecs: [0, .25], delt_a: [0, .6], delt_l: [0, 1.35], triceps: [1, .75], serratus: [0, 1.1], lats: [1, .5], traps_mid: [1, 0], traps_up: [1, 0], delt_p: [1, .7], cuff: [1, .35],
   biceps: [0, .45], forearms: [0, .7], neck: [0, .8], quads: [0, .15], adductors: [0, 0], hams: [1, .1], glute_max: [1, .2], glute_med: [1, 1.0], calves: [1, .1], tibialis: [0, .35], abs: [0, 0], obliques: [0, .85], erectors: [1, 0] };
 const BD_UNDER = { glute_med: 1 };
-const BD3_MODEL = 'gh/aminkhazri/health-os@e6228799ef19b566b7fb068782f0f8ed7bd20736/models/body.glb';
+const BD3_MODEL = 'gh/aminkhazri/health-os@7d6d8a57b27225c98d2f276818524e1720deada1/models/body.glb';
 async function bd3Init() {
   if (BD3.loading || BD3.ready || BD3.failed) return; BD3.loading = true;
   try {
@@ -334,34 +334,52 @@ async function bd3Init() {
     const [T, G] = await Promise.all([import(CDN + 'npm/three@0.160.0/+esm'), import(CDN + 'npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm')]);
     const gltf = await new G.GLTFLoader().loadAsync(CDN + BD3_MODEL);
     const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.98;
     const FOV = 28, scene = new T.Scene(), cam = new T.PerspectiveCamera(FOV, 1, 0.25, 12), pivot = new T.Group();
     const HOME = new T.Vector3(0, 0.87, 0), HOME_D = 4.15, UP = new T.Vector3(0, 1, 0);
     scene.add(pivot); pivot.add(gltf.scene);
-    scene.add(new T.HemisphereLight(0xfff1e6, 0x1a1210, 0.9));
-    const key = new T.DirectionalLight(0xffffff, 2.3); key.position.set(1.6, 2.6, 3); scene.add(key);
-    const fill = new T.DirectionalLight(0xffe2cf, 0.9); fill.position.set(-2.5, 1, 2); scene.add(fill);
-    const rim = new T.DirectionalLight(0x9fd8ff, 1.8); rim.position.set(-2.2, 1.8, -3); scene.add(rim);
-    // Muscle surface, drawn by the graphics chip from two numbers baked into every point of the model: a fibre number (position across the
-    // muscle) and a groove shade. The fibre number becomes ridged fibre bundles that catch the light (three sizes; the finer ones fade in as
-    // you zoom, and fade out before they would turn into flicker), the groove shade darkens the folds between bundles.
-    const fibres = sh => {
-      sh.vertexShader = 'attribute float _fib; attribute float _ao; varying float vFib; varying float vAo;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vFib = _fib; vAo = _ao;');
-      sh.fragmentShader = `varying float vFib; varying float vAo;
+    // Light: a soft studio room reflected in every surface (what gives muscle its moist sheen and bone its soft shading), plus a key
+    // light from the front, a weak fill and a cool rim light from behind to pick out the outline.
+    try { const R = await import(CDN + 'npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js/+esm'); const pm = new T.PMREMGenerator(renderer);
+      scene.environment = pm.fromScene(new R.RoomEnvironment(), 0.04).texture; pm.dispose(); } catch (e) { scene.add(new T.HemisphereLight(0xfff1e6, 0x1a1210, 0.7)); }
+    scene.add(new T.HemisphereLight(0xfff1e6, 0x1a1210, 0.22));
+    const key = new T.DirectionalLight(0xfff6ee, 1.7); key.position.set(1.6, 2.6, 3); scene.add(key);
+    const fill = new T.DirectionalLight(0xffe2cf, 0.45); fill.position.set(-2.5, 1, 2); scene.add(fill);
+    const rim = new T.DirectionalLight(0x9fd8ff, 1.5); rim.position.set(-2.2, 1.8, -3); scene.add(rim);
+    // Muscle surface, drawn by the graphics chip from numbers baked into every point of the model:
+    //   fibre number   position round the muscle; becomes ridged fibre bundles in three sizes (the finer ones fade in as you zoom and fade
+    //                  out before they would flicker), each bundle a slightly different shade so the surface is not a regular stripe
+    //   _ao.x          occlusion: darkens the furrows between muscles and between bundles
+    //   _ao.y          tendon-ness: the muscle's colour gives way to pale, glossier tendon toward its ends
+    //   _ao.z          a small tint that differs from one muscle to its neighbour, so the heads of one muscle group can be told apart
+    const fibres = (sh, mat) => {
+      sh.uniforms.uDim = mat.userData.dim;
+      sh.vertexShader = 'attribute float _fib; attribute vec3 _ao; varying float vFib; varying vec3 vAo;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vFib = _fib; vAo = _ao;');
+      sh.fragmentShader = `varying float vFib; varying vec3 vAo; uniform float uDim;
         vec3 bdBump(vec3 p, vec3 n, vec2 dh, float face) { vec3 sx = dFdx(p), sy = dFdy(p); vec3 r1 = cross(sy, n), r2 = cross(n, sx); float det = dot(sx, r1) * face;
           vec3 g = sign(det) * (dh.x * r1 + dh.y * r2); return normalize(abs(det) * n - g); }
         float bdFade(float f) { return 1.0 - smoothstep(0.18, 0.45, f); }
         float bdHeight(float t, float w) { return 0.62 * cos(t * 6.2832) * bdFade(w) + 0.26 * cos(t * 17.2 + 1.3) * bdFade(w * 2.74) + 0.12 * cos(t * 39.6 + 0.4) * bdFade(w * 6.3); }\n`
         + sh.fragmentShader
-          .replace('#include <color_fragment>', '#include <color_fragment>\n float bdW = fwidth(vFib); float bdH = bdHeight(vFib, bdW); diffuseColor.rgb *= (0.9 + 0.1 * bdH) * (0.4 + 0.6 * vAo);')
-          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = bdBump(-vViewPosition, normal, vec2(dFdx(bdH), dFdy(bdH)) * 0.00065, faceDirection);')
-          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * pow(1.0 - abs(dot(normalize(vViewPosition), normal)), 3.0) * 0.4;');
+          .replace('#include <color_fragment>', `#include <color_fragment>
+            float bdW = fwidth(vFib); float bdH = bdHeight(vFib, bdW); float bdR = fract(sin(floor(vFib + 0.5) * 12.9898) * 43758.5453);
+            vec3 bdC = diffuseColor.rgb * (0.92 + 0.16 * vAo.z) * (0.91 + 0.09 * bdH) * (0.93 + 0.14 * bdR * bdFade(bdW));
+            float bdT = smoothstep(0.08, 0.85, vAo.y);
+            bdC = mix(bdC, vec3(0.93, 0.87, 0.78) * uDim * (0.93 + 0.07 * bdH), bdT * 0.86);
+            diffuseColor.rgb = bdC * (0.36 + 0.64 * vAo.x);`)
+          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.36, bdT);')
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = bdBump(-vViewPosition, normal, vec2(dFdx(bdH), dFdy(bdH)) * 0.0005, faceDirection);')
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * pow(1.0 - abs(dot(normalize(vViewPosition), normal)), 3.0) * 0.3;');
     };
+    // Bone and tendon sheets only need the occlusion shade.
+    const shaded = sh => { sh.vertexShader = 'attribute vec3 _ao; varying float vOcc;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vOcc = _ao.x;');
+      sh.fragmentShader = 'varying float vOcc;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb *= 0.45 + 0.55 * vOcc;'); };
     const muscles = {}, soft = [], hard = [], all = [], spots = {};
     gltf.scene.traverse(o => { if (!o.isMesh) return; all.push(o); const k = o.name;
-      if (k === 'bone' || k === 'tendon' || k === 'head') { o.material = new T.MeshStandardMaterial({ color: BD3_COL[k], roughness: k === 'head' ? 0.85 : 0.62, metalness: 0, side: T.DoubleSide }); hard.push(o); }
-      else { o.material = new T.MeshStandardMaterial({ color: BD3_COL.deep, roughness: 0.6, metalness: 0, side: T.DoubleSide }); o.material.extensions = { derivatives: true };
-        o.material.onBeforeCompile = fibres; o.material.customProgramCacheKey = () => 'bdfib3'; soft.push(o); if (BD_MUSCLES[k]) muscles[k] = o; }
+      if (k === 'bone' || k === 'tendon' || k === 'head') { const m = o.material = new T.MeshStandardMaterial({ color: BD3_COL[k], roughness: k === 'head' ? 0.8 : k === 'bone' ? 0.55 : 0.42, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.55 });
+        if (k !== 'head' && o.geometry.attributes._ao) { m.onBeforeCompile = shaded; m.customProgramCacheKey = () => 'bdhard1'; } hard.push(o); }
+      else { const m = o.material = new T.MeshStandardMaterial({ color: BD3_COL.deep, roughness: 0.52, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.6 }); m.extensions = { derivatives: true }; m.userData.dim = { value: 1 };
+        m.onBeforeCompile = sh => fibres(sh, m); m.customProgramCacheKey = () => 'bdfib4'; soft.push(o); if (BD_MUSCLES[k]) muscles[k] = o; }
     });
     // Where each muscle is, for zooming: its middle, its size and the way it faces, kept per body side (both sides together when they meet at the midline).
     gltf.scene.updateMatrixWorld(true);
@@ -387,7 +405,7 @@ async function bd3Init() {
     // Colour every muscle by its recovery. With one muscle chosen, it keeps its full colour and a soft glow while everything else steps back.
     BD3.paint = M => { const dim = bdSel ? 0.42 : 1;
       soft.forEach(o => { const k = o.name, m = o.material, tracked = !!muscles[k], st = tracked ? bdState(M.fresh[k]) : 'deep', on = k === bdSel;
-        m.color.setHex(BD3_COL[st]); if (!on) m.color.multiplyScalar(dim);
+        m.color.setHex(BD3_COL[st]); if (!on) m.color.multiplyScalar(dim); m.userData.dim.value = on ? 1 : dim;
         m.emissive.setHex(on ? BD3_COL[st] : st === 'hot' ? 0xff9a2a : 0x000000); m.emissiveIntensity = on ? 0.22 : st === 'hot' ? 0.35 * dim : 0; });
       // a chosen muscle that lies under a sheet of fascia (the side glutes under the band down the outer thigh) shows through it
       hard.forEach(o => { const m = o.material, thin = o.name === 'tendon' && BD_UNDER[bdSel]; m.color.setHex(BD3_COL[o.name]); m.color.multiplyScalar(bdSel ? 0.6 : 1);
