@@ -10,6 +10,8 @@
 <?!= include('Parser'); ?>
 <?!= include('Recovery'); ?>
 <?!= include('Figure'); ?>
+<?!= include('Body'); ?>
+<?!= include('Player'); ?>
 <style>
   /* Theme: "Matchday" — floodlit-night slate, pitch-lime accent, condensed scoreboard type. One look in light and dark. */
   :root {
@@ -555,6 +557,7 @@
         <div><label class="f" for="wdate">Date</label><input id="wdate" type="date"></div>
       </div>
     </div>
+    <button class="primary gw-launch" onclick="gwStart()">▶ Start guided workout</button>
     <div id="exnote"></div>
     <div class="deck" id="exlist"></div>
     <button class="primary" id="saveW" onclick="saveW()">Save workout</button>
@@ -571,6 +574,8 @@
     </div>
     <div id="rtlist"></div>
   </section>
+
+  <section class="tab" id="t-body"><div id="bodyApp"></div></section>
 
   <section class="tab" id="t-prog">
     <div class="card" id="profCard">
@@ -620,6 +625,7 @@
   <button id="n-today" class="on" onclick="show('today')"><span>✓</span>Today</button>
   <button id="n-work" onclick="show('work')"><span>🏋️</span>Workout</button>
   <button id="n-str" onclick="show('str')"><span>🤸</span>Stretch</button>
+  <button id="n-body" onclick="show('body')"><span>💪</span>Body</button>
   <button id="n-prog" onclick="show('prog')"><span>📈</span>Progress</button>
 </nav>
 <div class="breath" id="breath" hidden>
@@ -666,8 +672,9 @@ function addDays(k, n) { const [y,m,d] = k.split('-').map(Number); const t = new
 function n1(v) { return v === null || v === undefined ? '—' : Number(v).toFixed(1); }
 
 function show(t) {
-  ['today','work','str','prog'].forEach(x => { $('t-' + x).classList.toggle('on', x === t); $('n-' + x).classList.toggle('on', x === t); });
+  ['today','work','str','body','prog'].forEach(x => { $('t-' + x).classList.toggle('on', x === t); $('n-' + x).classList.toggle('on', x === t); });
   if (t === 'prog') renderProgress();
+  if (t === 'body') renderBody();
   window.scrollTo(0, 0);
   requestAnimationFrame(() => document.querySelectorAll('.tab.on .deck').forEach(deckPaint));
 }
@@ -687,6 +694,7 @@ function render() {
   renderHeader();
   renderToday(); renderWorkout(); renderStretch(); renderOvr(); renderChores();
   if ($('t-prog').classList.contains('on')) renderProgress();
+  if ($('t-body').classList.contains('on')) renderBody();
 }
 
 // Consecutive days with something logged, counting back from today (or yesterday if today is still empty).

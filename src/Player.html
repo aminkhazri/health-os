@@ -1,0 +1,199 @@
+<!-- Guided workout: a full-screen player that walks through today's exercises set by set, with the demo clip, a rest timer and
+     what's next. What you log here is written back into the exercise cards, so "Save workout" saves it as usual.
+     Note: no double slash inside backtick strings in this file. Apps Script's HTML step can cut the line there. -->
+<style>
+  .gw { position: fixed; inset: 0; z-index: 45; display: flex; flex-direction: column; padding: calc(12px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+    background: radial-gradient(80% 50% at 50% 0%, rgba(45,212,191,.18), transparent 70%), radial-gradient(70% 40% at 50% 110%, rgba(184,242,62,.12), transparent 70%), #05070b;
+    animation: gwIn .45s cubic-bezier(.2,.8,.2,1); }
+  .gw[hidden] { display: none; }
+  @keyframes gwIn { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: none; } }
+  .gw-top { display: flex; align-items: center; gap: 10px; }
+  .gw-x { flex: 0 0 40px; height: 40px; border-radius: 20px; border: 1px solid var(--border); background: rgba(255,255,255,.06); color: var(--text-primary); font-size: 18px; }
+  .gw-segs { flex: 1; display: flex; gap: 4px; }
+  .gw-segs i { flex: 1; height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; position: relative; }
+  .gw-segs i b { position: absolute; inset: 0; width: 0; background: var(--lime); box-shadow: 0 0 8px rgba(184,242,62,.6); transition: width .5s ease; }
+  .gw-clock { font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: .08em; color: var(--text-secondary); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+  .gw-ex { margin-top: 14px; font-family: var(--display); font-weight: 700; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; color: var(--teal); }
+  .gw-name { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 34px; line-height: 1; text-transform: uppercase; margin-top: 2px; }
+  .gw-mid { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; margin: 12px 0; position: relative; }
+  .gw-vid { position: relative; height: 100%; max-height: 40vh; aspect-ratio: 9 / 16; border-radius: 16px; overflow: hidden; background: #000; box-shadow: 0 20px 40px -20px #000; }
+  .gw-vid iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .gw-vid .vcover { position: absolute; inset: 0; background: transparent; border: 0; }
+  .gw-body { display: flex; flex-direction: column; gap: 12px; }
+  .gw-set { display: flex; align-items: baseline; justify-content: space-between; }
+  .gw-set b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 30px; }
+  .gw-set span { font-size: 14px; color: var(--text-secondary); text-align: right; }
+  .gw-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .gw-step { border-radius: 16px; border: 1px solid var(--border); background: rgba(255,255,255,.04); padding: 8px 6px; text-align: center; }
+  .gw-step label { display: block; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
+  .gw-step .r { display: flex; align-items: center; justify-content: space-between; }
+  .gw-step button { width: 40px; height: 40px; border-radius: 20px; border: 1px solid var(--border); background: rgba(255,255,255,.06); color: var(--text-primary); font-size: 22px; }
+  .gw-step input { width: 64px; text-align: center; background: none; border: 0; box-shadow: none; font-family: var(--display); font-weight: 800; font-size: 34px; color: var(--text-primary); padding: 0; }
+  .gw-go { margin: 0; }
+  .gw-row { display: flex; gap: 10px; } .gw-row .btn2 { flex: 1; margin: 0; }
+  .gw-ring { position: relative; width: min(62vw, 250px); aspect-ratio: 1; }
+  .gw-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .gw-ring circle { fill: none; stroke-width: 12; }
+  .gw-ring .bg { stroke: rgba(255,255,255,.08); }
+  .gw-ring .fg { stroke: var(--teal); stroke-linecap: round; filter: drop-shadow(0 0 10px rgba(45,212,191,.6)); transition: stroke-dashoffset 1s linear; }
+  .gw-ring.hold .fg { stroke: var(--lime); filter: drop-shadow(0 0 10px rgba(184,242,62,.6)); }
+  .gw-ring .n { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .gw-ring .n b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 72px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .gw-ring .n span { font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-secondary); }
+  .gw-next { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; border: 1px solid var(--border); background: rgba(255,255,255,.04); }
+  .gw-next small { display: block; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); }
+  .gw-next b { font-size: 17px; }
+  .gw-done { text-align: center; }
+  .gw-done h3 { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 40px; margin: 0 0 6px; text-transform: uppercase;
+    background: linear-gradient(180deg, #f1ffc4, var(--lime)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .gw-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0; }
+  .gw-stats div { border-radius: 16px; border: 1px solid var(--border); background: rgba(255,255,255,.04); padding: 14px 6px; }
+  .gw-stats b { display: block; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 34px; line-height: 1; }
+  .gw-stats span { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); }
+  .gw-pop { animation: gwPop .35s ease-out; }
+  @keyframes gwPop { 0% { transform: scale(.9); opacity: .4; } 100% { transform: none; opacity: 1; } }
+  .gw-start { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0 0; }
+  @media (prefers-reduced-motion: reduce) { .gw, .gw-pop { animation: none; } .gw-ring .fg, .gw-segs i b { transition: none; } }
+</style>
+<script>
+let GW = null;
+function gwTarget(ex) { return String(((D.workoutInfo || {}).targets || {})[ex] || Object.values(D.projects || {}).map(p => p.targets[ex]).find(Boolean) || ''); }
+/** Read a target like "3 × 8–12" or "2 × 30–45 s each side" into sets, rep range and whether it's a hold. */
+function gwParse(ex, tg) {
+  const sets = Number((tg.match(/^(\d+)/) || [])[1]) || 3;
+  const rg = tg.match(/×\s*(\d+)\s*[–-]\s*(\d+)/), one = tg.match(/×\s*(\d+)/);
+  const lo = rg ? Number(rg[1]) : one ? Number(one[1]) : null, hi = rg ? Number(rg[2]) : lo;
+  const hold = isHold(ex) || /\d\s*s\b/.test(tg);
+  return { sets, lo, hi, hold };
+}
+function gwStart() {
+  const cards = [...document.querySelectorAll('#exlist .ex')];
+  if (!cards.length) return toast('No exercises to start');
+  const list = cards.map(card => {
+    const ex = card.dataset.ex, tg = gwTarget(ex), P = gwParse(ex, tg), L = D.last[ex] || {};
+    const lastReps = String(L.reps || '').split(/[^0-9.]+/).map(Number).filter(x => x > 0);
+    return Object.assign({ ex, tg, card, L, lastReps, done: [] }, P);
+  });
+  ensureAudio(); keepAwake(true);
+  GW = { list, i: 0, set: 1, phase: 'work', t0: Date.now(), tick: null, clock: null };
+  if (!$('gw')) { const d = document.createElement('div'); d.className = 'gw'; d.id = 'gw'; document.body.appendChild(d); }
+  $('gw').hidden = false;
+  $('gw').innerHTML = `<div class="gw-top"><button class="gw-x" onclick="gwClose()" aria-label="Close the workout player">✕</button><div class="gw-segs" id="gwSegs">${list.map(() => '<i><b></b></i>').join('')}</div><div class="gw-clock" id="gwClock">0:00</div></div>
+    <div class="gw-ex" id="gwEx"></div><div class="gw-name" id="gwName"></div>
+    <div class="gw-mid" id="gwMid"></div><div class="gw-body" id="gwBody"></div>`;
+  clearInterval(GW.clock); GW.clock = setInterval(() => { if (!GW) return; const s = Math.floor((Date.now() - GW.t0) / 1000); $('gwClock').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }, 1000);
+  gwExercise();
+}
+function gwCur() { return GW.list[GW.i]; }
+/** A new exercise: swap the clip and title, then show the set screen. */
+function gwExercise() {
+  const E = gwCur();
+  $('gwEx').textContent = `Exercise ${GW.i + 1} of ${GW.list.length}`;
+  $('gwName').textContent = E.ex; $('gwName').classList.remove('gw-pop'); void $('gwName').offsetWidth; $('gwName').classList.add('gw-pop');
+  $('gwMid').innerHTML = (D.videos || {})[E.ex] ? `<div class="gw-vid">${clipHTML(E.ex)}</div>` : '';
+  gwSegs(); gwWork();
+}
+function gwSegs() {
+  [...$('gwSegs').children].forEach((s, i) => { const E = GW.list[i]; s.firstChild.style.width = (i < GW.i ? 100 : i === GW.i ? Math.min(100, E.done.length / E.sets * 100) : 0) + '%'; });
+}
+function gwWork() {
+  const E = gwCur(); GW.phase = 'work'; clearInterval(GW.tick);
+  if (!$('gwMid').firstChild && (D.videos || {})[E.ex]) $('gwMid').innerHTML = `<div class="gw-vid">${clipHTML(E.ex)}</div>`;
+  const prev = E.done[E.done.length - 1], idx = E.done.length;
+  const w = prev ? prev.w : (E.L.weight ?? ''), r = prev ? prev.r : (E.lastReps[idx] || E.lastReps[0] || E.hi || 10);
+  const lastTxt = E.L.date ? `Last: ${E.L.sets ?? '?'}×${E.L.reps || '?'}${E.L.weight ? ' @ ' + E.L.weight + ' lb' : ''}` : 'First time: start light';
+  $('gwBody').innerHTML = `
+    <div class="gw-set"><b>Set ${idx + 1} <small style="font-size:18px;color:var(--text-muted)">/ ${E.sets}</small></b><span>${E.tg ? 'Goal ' + esc(E.tg) + '<br>' : ''}${esc(lastTxt)}</span></div>
+    <div class="gw-steps">
+      <div class="gw-step"><label>${E.hold ? 'Extra weight' : 'Weight'} lb</label><div class="r"><button onclick="gwBump('gwW',-5)">−</button><input id="gwW" inputmode="decimal" type="number" value="${w ?? ''}" placeholder="–"><button onclick="gwBump('gwW',5)">+</button></div></div>
+      <div class="gw-step"><label>${E.hold ? 'Seconds' : 'Reps'}</label><div class="r"><button onclick="gwBump('gwR',${E.hold ? -5 : -1})">−</button><input id="gwR" inputmode="numeric" type="number" value="${r}"><button onclick="gwBump('gwR',${E.hold ? 5 : 1})">+</button></div></div>
+    </div>
+    ${E.hold ? `<button class="primary gw-go" onclick="gwHold()">▶ Start ${r}-second hold</button>` : `<button class="primary gw-go" onclick="gwSetDone()">✓ Set done</button>`}
+    <div class="gw-row"><button class="btn2" onclick="gwSkip()">Skip exercise</button>${E.done.length ? '<button class="btn2" onclick="gwNextEx()">Finish exercise</button>' : ''}</div>`;
+  if (E.hold) $('gwR').oninput = () => { const b = $('gwBody').querySelector('.gw-go'); if (b) b.textContent = `▶ Start ${Number($('gwR').value) || 0}-second hold`; };
+}
+function gwBump(id, d) { const el = $(id), v = Math.max(0, (Number(el.value) || 0) + d); el.value = v; if (el.oninput) el.oninput(); if (navigator.vibrate) navigator.vibrate(6); }
+/** Countdown ring used for holds and rests. */
+function gwRing(total, label, cls) {
+  const R = 54, C = 2 * Math.PI * R;
+  $('gwMid').innerHTML = `<div class="gw-ring ${cls || ''}"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="${R}"/><circle class="fg" id="gwArc" cx="60" cy="60" r="${R}" style="stroke-dasharray:${C};stroke-dashoffset:0"/></svg>
+    <div class="n"><b id="gwN">${total}</b><span>${label}</span></div></div>`;
+  return C;
+}
+function gwCountdown(total, label, cls, onEnd) {
+  clearInterval(GW.tick); let left = total; const C = gwRing(total, label, cls);
+  GW.left = () => left; GW.add = s => { left += s; total += s; };
+  GW.tick = setInterval(() => {
+    left--; if (left >= 1 && left <= 3) tone(700, 0.12);
+    const n = $('gwN'), a = $('gwArc'); if (!n) return clearInterval(GW.tick);
+    n.textContent = Math.max(0, left); a.style.strokeDashoffset = C * (1 - Math.max(0, left) / total);
+    if (left <= 0) { clearInterval(GW.tick); onEnd(); }
+  }, 1000);
+}
+function gwHold() {
+  const secs = Number($('gwR').value) || 30, w = $('gwW').value;
+  GW.phase = 'hold'; tone(520, 0.25);
+  $('gwBody').innerHTML = `<div class="gw-row"><button class="btn2" onclick="gwHoldEnd(${secs}, '${w}', true)">Stop early</button></div>`;
+  const start = Date.now();
+  GW.holdStart = start;
+  gwCountdown(secs, 'Hold · breathe', 'hold', () => gwHoldEnd(secs, w, false));
+}
+function gwHoldEnd(secs, w, early) {
+  clearInterval(GW.tick);
+  const held = early ? Math.max(1, Math.round((Date.now() - GW.holdStart) / 1000)) : secs;
+  gwLog(w, held);
+}
+function gwSetDone() { gwLog($('gwW').value, Number($('gwR').value) || 0); }
+/** Record a set, then rest or move on. */
+function gwLog(w, r) {
+  const E = gwCur(); E.done.push({ w: w === '' ? '' : Number(w), r });
+  tone(784, 0.15); tone(988, 0.25, 0.15); if (navigator.vibrate) navigator.vibrate([15, 30, 15]);
+  gwWrite(E); gwSegs();
+  if (E.done.length >= E.sets) return gwRest(true);
+  gwRest(false);
+}
+function gwRest(exerciseDone) {
+  const E = gwCur(), nextE = GW.list[GW.i + 1];
+  if (exerciseDone && !nextE) return gwFinish();
+  GW.phase = 'rest';
+  const secs = E.hold ? 45 : (BD_EX[E.ex] && BD_EX[E.ex].k === 'w') ? 90 : 60;
+  const upNext = exerciseDone ? `<small>Up next</small><b>${esc(nextE.ex)}</b>` : `<small>Up next</small><b>Set ${E.done.length + 1} of ${E.sets}</b>`;
+  $('gwBody').innerHTML = `<div class="gw-next"><div style="flex:1">${upNext}</div></div>
+    <div class="gw-row"><button class="btn2" onclick="GW.add && GW.add(15)">+15 s</button><button class="btn2" onclick="gwAfterRest(${exerciseDone})">Skip rest</button></div>`;
+  gwCountdown(secs, 'Rest', '', () => { tone(520, 0.3); gwAfterRest(exerciseDone); });
+}
+function gwAfterRest(exerciseDone) { clearInterval(GW.tick); if (exerciseDone) return gwNextEx(); $('gwMid').innerHTML = ''; gwWork(); }
+function gwNextEx() {
+  clearInterval(GW.tick);
+  if (GW.i >= GW.list.length - 1) return gwFinish();
+  GW.i++; deckGo('exlist', GW.i); gwExercise();
+}
+function gwSkip() { const E = gwCur(); if (E.done.length) gwWrite(E); gwNextEx(); }
+/** Copy what was logged into the exercise card and tick it. */
+function gwWrite(E) {
+  if (!E.done.length) return;
+  const ins = E.card.querySelectorAll('input'), ws = E.done.map(d => d.w).filter(x => x !== '' && x != null);
+  ins[0].value = ws.length ? Math.max(...ws) : ''; ins[1].value = E.done.length; ins[2].value = E.done.map(d => d.r).join(',');
+  const ck = E.card.querySelector('.check'); ck.classList.add('on'); ck.textContent = '✓';
+  deckPaint($('exlist'));
+}
+function gwFinish() {
+  clearInterval(GW.tick); keepAwake(false); GW.phase = 'done';
+  const sets = GW.list.reduce((a, E) => a + E.done.length, 0), mins = Math.max(1, Math.round((Date.now() - GW.t0) / 60000));
+  const vol = Math.round(GW.list.reduce((a, E) => a + (E.hold ? 0 : E.done.reduce((b, d) => b + (Number(d.w) || 0) * d.r, 0)), 0));
+  GW.i = GW.list.length; gwSegs(); [...$('gwSegs').children].forEach(s => { s.firstChild.style.width = '100%'; });
+  $('gwEx').textContent = ''; $('gwName').textContent = '';
+  $('gwMid').innerHTML = `<div class="gw-done"><h3>Workout complete</h3><div class="muted">Nice work. Save it to keep the record.</div>
+    <div class="gw-stats"><div><b class="gw-cu" data-to="${sets}">${sets}</b><span>Sets</span></div><div><b class="gw-cu" data-to="${mins}">${mins}</b><span>Minutes</span></div><div><b class="gw-cu" data-to="${vol}">${vol}</b><span>lb lifted</span></div></div></div>`;
+  $('gwBody').innerHTML = `<button class="primary gw-go" onclick="gwClose(); saveW()">Save workout</button><div class="gw-row"><button class="btn2" onclick="gwClose()">Review first</button></div>`;
+  document.querySelectorAll('.gw-cu').forEach(el => countUp(el, Number(el.dataset.to), 1100));
+  tone(784, 0.2); tone(988, 0.2, 0.2); tone(1175, 0.5, 0.4);
+  if (typeof celebrate === 'function') celebrate('Workout complete');
+}
+function gwClose() {
+  if (!GW) return;
+  clearInterval(GW.tick); clearInterval(GW.clock); keepAwake(false);
+  if (GW.phase !== 'done' && GW.list.some(E => E.done.length)) toast('Your sets are filled in below. Tap Save workout when ready.');
+  GW = null; $('gw').hidden = true; $('gw').innerHTML = '';
+}
+</script>

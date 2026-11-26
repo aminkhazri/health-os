@@ -166,7 +166,10 @@ function buildAppData_(dateKey) {
   const activity = getActivityData_(ss, dateKey, tz); mark('activity');
   const chores = getChores_(ss, today); mark('chores');
   console.log('getAppData: built from the Sheet, ms: ' + lap.join(', '));
-  return { today, dateKey, entry, series: series.slice(-120), weekly, targets, last,
+  // Workout history for the Body tab (recovery, weekly sets, strength): [date, session, exercise, sets, reps, weight], last 16 weeks.
+  const since = Utilities.formatDate(new Date(Date.now() - 112 * 86400000), tz, 'yyyy-MM-dd');
+  const wlog = wv.map(r => [key_(r[0], tz), String(r[1] || ''), String(r[2]), num_(r[3]), String(r[4] || ''), num_(r[5])]).filter(r => r[0] >= since);
+  return { today, dateKey, entry, series: series.slice(-120), weekly, targets, last, wlog,
     next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, lastSession, workouts: WORKOUTS, projects: PROJECTS, calCheck: cal, food, activity, chores, stretches: STRETCHES, routines: STRETCH_ROUTINES, videos: VIDEOS, name: CONFIG.NAME || '' };
 }
 
