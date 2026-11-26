@@ -80,7 +80,8 @@ function num_(v) { return (v === '' || v === null || isNaN(v)) ? null : Number(v
 // also rebuilds it, which keeps it warm and picks up edits made straight in the Sheet. Steps and heart rate come from a
 // separate inbox project, so that one part is always read fresh.
 const CACHE_TTL = 21600;            // seconds (6 hours, the most CacheService allows)
-const CACHE_CHUNK = 30000;          // characters per cache entry; entries are capped at 100 KB
+const CACHE_CHUNK = 30000;
+const CACHE_SHAPE = 'app2';          // change this whenever getAppData starts returning new fields, so old copies aren't served          // characters per cache entry; entries are capped at 100 KB
 function cache_() { return CacheService.getScriptCache(); }
 function bumpCache_() { cache_().put('gen', String(Date.now()), CACHE_TTL); }
 function cacheGet_(key) {
@@ -101,7 +102,7 @@ function cachePut_(key, obj) {
 function getAppData(dateKey) {
   const t0 = Date.now(), today = Utilities.formatDate(new Date(), CONFIG.TZ || Session.getScriptTimeZone(), 'yyyy-MM-dd');
   dateKey = dateKey || today;
-  const key = ['app', cache_().get('gen') || '0', today, dateKey].join('|');
+  const key = [CACHE_SHAPE, cache_().get('gen') || '0', today, dateKey].join('|');
   const hit = cacheGet_(key);
   if (hit) {
     const ss = ss_();
