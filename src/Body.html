@@ -25,8 +25,8 @@
   .bd-bones .bd-m { opacity: .38 !important; }
   .bd-m { fill: url(#bdIdle); stroke: rgba(0,0,0,.45); stroke-width: .8; cursor: pointer; transition: opacity .5s ease, filter .5s ease; }
   .bd-m.fresh { fill: url(#bdFresh); }
-  .bd-m.rec { fill: url(#bdRec); filter: drop-shadow(0 0 5px rgba(240,170,60,.5)); }
-  .bd-m.hot { fill: url(#bdHot); filter: drop-shadow(0 0 8px rgba(242,84,107,.65)); }
+  .bd-m.rec { fill: url(#bdRec); filter: drop-shadow(0 0 5px rgba(255,138,42,.5)); }
+  .bd-m.hot { fill: url(#bdHot); filter: drop-shadow(0 0 8px rgba(255,223,94,.65)); }
   .bd-m.sel { stroke: #fff; stroke-width: 1.8; }
   .bd-fib { fill: none; stroke: rgba(0,0,0,.28); stroke-width: .7; pointer-events: none; }
   .bd-turn { position: absolute; left: 4px; bottom: 6px; width: 46px; height: 46px; border-radius: 23px; border: 1px solid var(--border); background: var(--glass), var(--surface-2);
@@ -241,9 +241,9 @@ function countUp(el, to, ms) {
 const BD_DEFS = `<defs>
   <linearGradient id="bdSkin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#232a35"/><stop offset=".5" stop-color="#323b49"/><stop offset="1" stop-color="#232a35"/></linearGradient>
   <radialGradient id="bdIdle" cx=".4" cy=".3" r=".9"><stop offset="0" stop-color="#5a6577"/><stop offset="1" stop-color="#363e4c"/></radialGradient>
-  <radialGradient id="bdFresh" cx=".4" cy=".3" r=".9"><stop offset="0" stop-color="#5fa3a3"/><stop offset="1" stop-color="#2a5457"/></radialGradient>
-  <radialGradient id="bdRec" cx=".4" cy=".3" r=".9"><stop offset="0" stop-color="#ffcf73"/><stop offset="1" stop-color="#c17a17"/></radialGradient>
-  <radialGradient id="bdHot" cx=".4" cy=".3" r=".9"><stop offset="0" stop-color="#ff8396"/><stop offset="1" stop-color="#b8243f"/></radialGradient>
+  <radialGradient id="bdFresh" cx=".4" cy=".3" r=".9"><stop offset="0" stop-color="#d0655a"/><stop offset="1" stop-color="#8a2f28"/></radialGradient>
+  <radialGradient id="bdRec" cx=".4" cy=".3" r=".9"><stop offset="0" stop-color="#ffb066"/><stop offset="1" stop-color="#d9651a"/></radialGradient>
+  <radialGradient id="bdHot" cx=".4" cy=".3" r=".9"><stop offset="0" stop-color="#fff0a0"/><stop offset="1" stop-color="#e6b422"/></radialGradient>
 </defs>`;
 // Whole-body outline (both sides): head, neck, trapezius slope, arms hanging slightly out, legs.
 const BD_SIL = 'M100 12 C112 12 120 21 120 34 C120 46 113 56 106 58 L106 64 C118 68 134 72 144 78 C152 82 154 92 153 104 C152 124 154 146 156 166 C160 196 165 216 166 236 C168 250 164 262 158 262 C152 262 150 250 151 238 C150 220 144 196 140 176 C138 158 140 140 138 124 C136 150 134 170 134 190 C136 200 138 210 138 222 C140 262 136 296 128 318 C126 330 124 350 122 372 C120 386 120 396 124 404 C126 412 118 416 108 414 C104 414 104 406 106 396 C108 376 106 350 104 330 C102 300 102 262 100 236 C98 262 98 300 96 330 C94 350 92 376 94 396 C96 406 96 414 92 414 C82 416 74 412 76 404 C80 396 80 386 78 372 C76 350 74 330 72 318 C64 296 60 262 62 222 C62 210 64 200 66 190 C66 170 64 150 62 124 C60 140 62 158 60 176 C56 196 50 220 49 238 C50 250 48 262 42 262 C36 262 32 250 34 236 C35 216 40 196 44 166 C46 146 48 124 47 104 C46 92 48 82 56 78 C66 72 82 68 94 64 L94 58 C87 56 80 46 80 34 C80 21 88 12 100 12 Z';
@@ -309,120 +309,44 @@ function bdSetAngle(a, drag) { bdAngle = a; const f = $('bdFlip'); if (!f) retur
 function bdTurn() { if (BD3.ready) bd3Spin((Math.round(BD3.yaw / Math.PI) + 1) * Math.PI); else bdSetAngle(Math.round(bdAngle / 180) * 180 + 180); if (navigator.vibrate) navigator.vibrate(8); }
 function bdModeSet(m) { bdMode = m; document.querySelectorAll('.bd-modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('bdFlip').classList.toggle('bd-bones', m === 'bones'); if (BD3.ready) BD3.xray(m === 'bones'); }
 
-// ---------- The 3D body. A real 3D model (the CC0 Mesh2Motion mannequin) drawn with three.js: lit from fixed lights so the form reads as you
-// spin it. Every point on its surface is assigned to a muscle from the bones that move it, where it sits and which way it faces; muscles are
-// then coloured by recovery. The flat drawing above stays as the fallback while this loads or if the phone can't run WebGL. ----------
+// ---------- The 3D body: a real anatomical model. Skeleton and muscles come from BodyParts3D (CC BY 4.0), regrouped into this app's muscle
+// keys by tools/anatomy/build_body.py; each muscle group is its own mesh, so colouring by recovery is one colour per mesh and a tap finds
+// the muscle under the finger. The flat drawing stays as the fallback while this loads or if the phone can't run WebGL. ----------
 const BD3 = { ready: false, loading: false, failed: false, yaw: 0 };
-const BD3_COL = { base: 0x2b323d, fresh: 0x3fb3ae, rec: 0xf0aa3c, hot: 0xf2546b, bone: 0xe8dfc8 };
+const BD3_COL = { fresh: 0xb4433a, rec: 0xff8a2a, hot: 0xffdf5e, bone: 0xe6dcc6, tendon: 0xefe9da, deep: 0x8f3b33 };   // heat scale: muscle red, then orange, then glowing yellow
 async function bd3Init() {
   if (BD3.loading || BD3.ready || BD3.failed) return; BD3.loading = true;
   try {
     const CDN = 'https://cdn.jsdelivr.net/';
     const [T, G] = await Promise.all([import(CDN + 'npm/three@0.160.0/+esm'), import(CDN + 'npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js/+esm')]);
-    const gltf = await new G.GLTFLoader().loadAsync(CDN + 'gh/aminkhazri/health-os@fe025674fa73cdba93dc640ffec45df556ff22d7/models/athlete.glb');
+    const gltf = await new G.GLTFLoader().loadAsync(CDN + 'gh/aminkhazri/health-os@ba0aafef54bb8f848687bc6c58439b35e55736c0/models/body.glb');
     const renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
     const scene = new T.Scene(), cam = new T.PerspectiveCamera(28, 1, 0.1, 20), pivot = new T.Group();
-    cam.position.set(0, 0.95, 3.75); cam.lookAt(0, 0.87, 0);
+    cam.position.set(0, 0.95, 4.15); cam.lookAt(0, 0.87, 0);
     scene.add(pivot); pivot.add(gltf.scene);
-    scene.add(new T.HemisphereLight(0xcfe0ff, 0x0b0e14, 0.85));
-    const key = new T.DirectionalLight(0xffffff, 2.4); key.position.set(1.6, 2.6, 3); scene.add(key);
-    const rim = new T.DirectionalLight(0x2dd4bf, 2.6); rim.position.set(-2.2, 1.6, -3); scene.add(rim);
-    const rim2 = new T.DirectionalLight(0xb8f23e, 1.1); rim2.position.set(2.6, 0.6, -2.2); scene.add(rim2);
-    gltf.scene.updateMatrixWorld(true);
-    const meshes = []; gltf.scene.traverse(o => { if (o.isSkinnedMesh) meshes.push(o); });
-    const bone = n => gltf.scene.getObjectByName(n), wp = n => bone(n).getWorldPosition(new T.Vector3());
-    const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-    const keys = Object.keys(BD_MUSCLES);
-    // Fibre stripes: which way each muscle's stripes repeat (x across the body, y up, z front to back) and the stripe width in metres.
-    const FIB = { quads: [1, 0, 0, .013], hams: [1, 0, 0, .013], glute_max: [.7, .7, 0, .014], glute_med: [.7, -.7, 0, .012], adductors: [0, 0, 1, .012], calves: [1, 0, 0, .011], tibialis: [1, 0, 0, .01],
-      abs: [0, 1, 0, .055], obliques: [.7, .7, 0, .013], erectors: [1, 0, 0, .013], pecs: [.25, 1, 0, .013], serratus: [.5, 1, 0, .022], lats: [.6, .8, 0, .014], traps_mid: [0, 1, 0, .013], traps_up: [.7, .7, 0, .012],
-      cuff: [.4, 1, 0, .012], delt_a: [0, 1, 0, .011], delt_l: [0, 0, 1, .011], delt_p: [0, 1, 0, .011], biceps: [0, 1, 0, .01], triceps: [0, 1, 0, .01], forearms: [0, .7, .7, .009], neck: [1, 0, 0, .01] };
-    // Assign every surface point to a muscle (done once, in the model's arms-out rest pose).
-    const hipY = wp('LeftUpLeg').y, shY = wp('LeftArm').y, shX = Math.abs(wp('LeftArm').x), armL = wp('LeftArm').distanceTo(wp('LeftForeArm')) || 0.3;
-    meshes.forEach(m => {
-      const g = m.geometry, pos = g.attributes.position, nor = g.attributes.normal, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, N = pos.count;
-      const names = m.skeleton.bones.map(b => b.name.replace(/^(mixamorig:?)?(Left|Right)?/, ''));
-      const mid = new Int8Array(N).fill(-1), amt = new Float32Array(N), fib = new Float32Array(N), w = {};
-      for (let i = 0; i < N; i++) {
-        for (const k in w) delete w[k];
-        for (let k = 0; k < 4; k++) { const nm = names[si.getComponent(i, k)]; w[nm] = (w[nm] || 0) + sw.getComponent(i, k); }
-        const W = n => w[n] || 0, x = pos.getX(i), y = pos.getY(i), ax = Math.abs(x), sgn = x >= 0 ? 1 : -1, nx = nor.getX(i) * sgn, ny = nor.getY(i), nz = nor.getZ(i);
-        const front = sm(-0.15, 0.45, nz), back = sm(-0.15, 0.45, -nz), outer = sm(0.1, 0.6, nx), inner = sm(0.1, 0.6, -nx), top = sm(0.2, 0.7, ny);
-        const leg = W('UpLeg'), shin = W('Leg'), trunk = W('Spine') + W('Spine1'), chest = W('Spine2'), arm = W('Arm'), along = (ax - shX) / armL, hips = W('Hips');
-        const delt = W('Shoulder') * sm(shX - 0.07, shX - 0.02, ax) + arm * (1 - sm(0.28, 0.45, along));
-        const belowPit = 1 - sm(shY - 0.12, shY - 0.06, y);
-        // Back layout, checked against an anatomy atlas: the trapezius is a long diamond that narrows to a point on the spine near the bottom of the ribs;
-        // the rotator cuff sits on the shoulder blade beside it; the lats sweep from under the arm down to the lower back; the erectors run beside the spine.
-        const triW = 0.02 + 0.075 * sm(shY - 0.30, shY - 0.08, y), inTri = 1 - sm(triW - 0.015, triW + 0.015, ax), torso = chest + trunk;
-        const v = {
-          quads: leg * Math.max(front, outer * 0.7) * (1 - inner * 0.6),
-          hams: leg * back * (1 - sm(hipY - 0.16, hipY - 0.10, y)),
-          glute_max: (hips + leg) * back * sm(hipY - 0.15, hipY - 0.09, y) * (1 - sm(hipY + 0.07, hipY + 0.12, y)),
-          glute_med: (hips + leg * 0.6) * outer * (1 - front * 0.7) * sm(hipY - 0.04, hipY + 0.02, y) * (1 - sm(hipY + 0.11, hipY + 0.17, y)) * 1.1,
-          adductors: leg * inner * sm(hipY - 0.34, hipY - 0.26, y),
-          calves: shin * back, tibialis: shin * front * (1 - inner * 0.5),
-          abs: (trunk + hips * sm(hipY + 0.02, hipY + 0.08, y)) * front * (1 - sm(0.07, 0.11, ax)),
-          obliques: trunk * sm(0.07, 0.11, ax) * (1 - back),
-          erectors: trunk * back * (1 - sm(0.04, 0.06, ax)) * (1 - sm(shY - 0.34, shY - 0.30, y)),
-          pecs: (chest + W('Shoulder') * 0.6) * front * (1 - sm(shY - 0.01, shY + 0.03, y)) * sm(shY - 0.2, shY - 0.14, y),
-          serratus: chest * outer * (1 - back) * (1 - front * 0.5) * belowPit * 1.2 + chest * front * (1 - sm(shY - 0.2, shY - 0.14, y)) * sm(0.08, 0.13, ax),
-          lats: torso * Math.min(1, back * 0.9 + outer * 0.4) * (1 - inTri) * (1 - sm(shY - 0.2, shY - 0.15, y)) * sm(0.04, 0.06, ax) * sm(hipY + 0.06, hipY + 0.12, y),
-          traps_mid: torso * back * inTri * sm(shY - 0.34, shY - 0.30, y) * (1 - sm(shY - 0.05, shY - 0.01, y)) * 1.05,
-          cuff: chest * back * (1 - inTri) * sm(shY - 0.2, shY - 0.15, y) * (1 - sm(shY - 0.05, shY - 0.01, y)) * (1 - sm(shX - 0.05, shX, ax)),
-          traps_up: W('Neck') * back + W('Shoulder') * top + chest * back * sm(shY - 0.05, shY - 0.01, y) * inTri,
-          delt_a: delt * front, delt_p: delt * back, delt_l: delt * top * 1.15,
-          biceps: arm * front * sm(0.28, 0.45, along), triceps: arm * back * sm(0.2, 0.4, along),
-          forearms: W('ForeArm'), neck: W('Neck') * (1 - back * 0.7),
-        };
-        let best = -1, bv = 0.22; keys.forEach((k, j) => { if (v[k] > bv) { bv = v[k]; best = j; } });
-        mid[i] = best; amt[i] = best < 0 ? 0 : sm(0.26, 0.7, bv);
-        if (best >= 0) { const f = FIB[keys[best]]; fib[i] = (ax * f[0] + y * f[1] + pos.getZ(i) * f[2]) / f[3]; }
-      }
-      m.userData.mid = mid; m.userData.amt = amt;
-      g.setAttribute('color', new T.BufferAttribute(new Float32Array(N * 3), 3));
-      g.setAttribute('aMus', new T.BufferAttribute(amt, 1)); g.setAttribute('aFib', new T.BufferAttribute(fib, 1));
-      m.material = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.48, metalness: 0.12 });
-      m.material.onBeforeCompile = sh => {   // draw fine fibre stripes inside each muscle, fading out toward its edges
-        sh.vertexShader = 'attribute float aMus; attribute float aFib; varying float vMus; varying float vFib;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMus = aMus; vFib = aFib;');
-        sh.fragmentShader = 'varying float vMus; varying float vFib;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n float st = 0.5 + 0.5 * sin(vFib * 6.2832); diffuseColor.rgb *= mix(1.0, 0.66 + 0.34 * smoothstep(0.1, 0.55, st), vMus * vMus);');
-      };
-      m.frustumCulled = false;
+    scene.add(new T.HemisphereLight(0xfff1e6, 0x1a1210, 0.9));
+    const key = new T.DirectionalLight(0xffffff, 2.3); key.position.set(1.6, 2.6, 3); scene.add(key);
+    const fill = new T.DirectionalLight(0xffe2cf, 0.9); fill.position.set(-2.5, 1, 2); scene.add(fill);
+    const rim = new T.DirectionalLight(0x9fd8ff, 1.8); rim.position.set(-2.2, 1.8, -3); scene.add(rim);
+    const fibres = sh => {   // fine fibre lines across each muscle, from the per-point fibre number baked into the model
+      sh.vertexShader = 'attribute float _fib; varying float vFib;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vFib = _fib;');
+      sh.fragmentShader = 'varying float vFib;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n float st = 0.5 + 0.5 * sin(vFib * 6.2832); diffuseColor.rgb *= 0.74 + 0.26 * smoothstep(0.08, 0.6, st);');
+    };
+    const muscles = {}, soft = [], all = [];
+    gltf.scene.traverse(o => { if (!o.isMesh) return; all.push(o); const k = o.name;
+      if (k === 'bone' || k === 'tendon') o.material = new T.MeshStandardMaterial({ color: BD3_COL[k], roughness: 0.62, metalness: 0, side: T.DoubleSide });
+      else { o.material = new T.MeshStandardMaterial({ color: BD3_COL.deep, roughness: 0.5, metalness: 0.04, side: T.DoubleSide }); o.material.onBeforeCompile = fibres; o.material.customProgramCacheKey = () => 'bdfib'; soft.push(o); if (BD_MUSCLES[k]) muscles[k] = o; }
     });
-    // Bring the arms down from the T-pose so the body stands naturally.
-    ['LeftArm', 'RightArm'].forEach(n => { const b = bone(n); if (!b) return; const pq = b.parent.getWorldQuaternion(new T.Quaternion());
-      const r = new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 0, 1), wp(n).x > 0 ? -1.08 : 1.08);
-      b.quaternion.premultiply(pq.clone().invert().multiply(r).multiply(pq)); });
-    gltf.scene.updateMatrixWorld(true);
-    meshes.forEach(m => { m.skeleton.update(); m.computeBoundingBox(); m.computeBoundingSphere(); });
-    // A simple skeleton built along the model's own joints, for "Show bones".
-    const bones = new T.Group(), bmat = new T.MeshStandardMaterial({ color: BD3_COL.bone, roughness: 0.55 }), UP = new T.Vector3(0, 1, 0);
-    const stick = (a, b, r) => { const A = wp(a), B = wp(b), d = B.clone().sub(A), len = d.length(); if (!len) return;
-      const c = new T.Mesh(new T.CapsuleGeometry(r, len, 4, 10), bmat); c.position.copy(A).addScaledVector(d, 0.5); c.quaternion.setFromUnitVectors(UP, d.normalize()); bones.add(c); };
-    [['Hips', 'Spine'], ['Spine', 'Spine1'], ['Spine1', 'Spine2'], ['Spine2', 'Neck'], ['Neck', 'Head']].forEach(p => stick(p[0], p[1], 0.02));
-    ['Left', 'Right'].forEach(S => { [['Shoulder', 'Arm', 0.012], ['Arm', 'ForeArm', 0.02], ['ForeArm', 'Hand', 0.016], ['UpLeg', 'Leg', 0.026], ['Leg', 'Foot', 0.022], ['Foot', 'ToeBase', 0.016]].forEach(p => stick(S + p[0], S + p[1], p[2]));
-      stick('Hips', S + 'UpLeg', 0.02); stick('Spine2', S + 'Shoulder', 0.012); });
-    const skull = new T.Mesh(new T.SphereGeometry(0.095, 20, 16), bmat); skull.position.copy(wp('Head')).add(new T.Vector3(0, 0.09, 0.01)); skull.scale.set(0.85, 1.1, 1); bones.add(skull);
-    const ring = (y, r, tube, z) => { const t = new T.Mesh(new T.TorusGeometry(r, tube, 6, 28), bmat); t.rotation.x = Math.PI / 2; t.position.set(0, y, z || 0); t.scale.set(1, 0.68, 1); bones.add(t); };
-    const s1 = wp('Spine1').y, s2 = wp('Spine2').y, nk = wp('Neck').y;
-    for (let i = 0; i < 5; i++) ring(s1 + (nk - 0.05 - s1) * (i / 4), 0.115 + 0.022 * Math.sin((i + 0.6) / 4.6 * Math.PI), 0.007, 0.01);
-    ring(wp('Hips').y + 0.03, 0.125, 0.02);
-    bones.visible = false; pivot.add(bones);
-
-    const col = k => new T.Color(BD3_COL[k]), CB = col('base'), CS = { fresh: col('fresh'), rec: col('rec'), hot: col('hot') }, WHITE = new T.Color(0xffffff), tmp = new T.Color(), tone = new T.Color();
     BD3.canvas = renderer.domElement;
     BD3.draw = () => { pivot.rotation.y = BD3.yaw; renderer.render(scene, cam); const s = $('bdSide'); if (s) s.textContent = Math.cos(BD3.yaw) < 0 ? 'Back' : 'Front'; };
     BD3.size = () => { const st = $('bdStage'); if (!st) return; const w = st.clientWidth, h = st.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); };
-    BD3.paint = M => { meshes.forEach(m => { const c = m.geometry.attributes.color, mid = m.userData.mid, amt = m.userData.amt;
-        for (let i = 0; i < mid.length; i++) { const k = mid[i] < 0 ? null : keys[mid[i]]; tmp.copy(CB);
-          if (k) { tmp.lerp(tone.copy(CS[bdState(M.fresh[k])]).multiplyScalar([1, 0.8, 1.15][mid[i] % 3]), amt[i]); if (k === bdSel) tmp.lerp(WHITE, 0.5 * amt[i]); }   // neighbours get slightly different tones so each muscle reads
-          c.setXYZ(i, tmp.r, tmp.g, tmp.b); }
-        c.needsUpdate = true; }); BD3.draw(); };
-    BD3.xray = on => { bones.visible = on; meshes.forEach(m => { m.material.transparent = on; m.material.opacity = on ? 0.3 : 1; m.material.depthWrite = !on; m.material.needsUpdate = true; }); BD3.draw(); };
+    BD3.paint = M => { Object.keys(muscles).forEach(k => { const m = muscles[k].material, st = bdState(M.fresh[k]);
+        m.color.setHex(BD3_COL[st]); m.emissive.setHex(k === bdSel ? 0xffffff : st === 'hot' ? 0xff9a2a : 0x000000); m.emissiveIntensity = k === bdSel ? 0.38 : st === 'hot' ? 0.35 : 0; }); BD3.draw(); };
+    BD3.xray = on => { soft.forEach(m => { m.material.transparent = on; m.material.opacity = on ? 0.16 : 1; m.material.depthWrite = !on; m.material.needsUpdate = true; }); BD3.draw(); };
     const ray = new T.Raycaster(), ndc = new T.Vector2();
     BD3.pick = e => { const r = BD3.canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, cam);
-      const hit = ray.intersectObjects(meshes, false)[0]; if (!hit || !hit.face) return null; const mid = hit.object.userData.mid;
-      const j = [hit.face.a, hit.face.b, hit.face.c].map(i => mid[i]).find(x => x >= 0); return j == null ? null : keys[j]; };
+      const hit = ray.intersectObjects(bdMode === 'bones' ? Object.values(muscles) : all, false)[0]; return hit && muscles[hit.object.name] ? hit.object.name : null; };
     BD3.ready = true; BD3.loading = false;
     BD3.yaw = -2.4; bd3Attach(BD3.M); bd3Spin(0, 1400);
   } catch (e) { BD3.failed = true; BD3.loading = false; console.warn('3D body unavailable, keeping the drawing: ' + (e && e.message || e)); }
@@ -446,7 +370,7 @@ window.addEventListener('resize', () => { if (BD3.ready && $('bdStage')) { BD3.s
 /** The detail panel for one muscle: what it does, recovery, this week's sets, strength, and your exercises for it. */
 function bdDetail(k, M) {
   const m = BD_MUSCLES[k], f = M.fresh[k], st = bdState(f), days = bdDaysToFresh(f);
-  const col = { fresh: '#5fa3a3', rec: '#f0aa3c', hot: '#f2546b' }[st];
+  const col = { fresh: '#c9564b', rec: '#ff8a2a', hot: '#ffdf5e' }[st];
   const lib = Object.keys(BD_EX).filter(ex => BD_EX[ex].p.includes(k)), helps = Object.keys(BD_EX).filter(ex => BD_EX[ex].s.includes(k));
   const sess = ex => { const L = Object.keys(D.workouts || {}).find(l => D.workouts[l].includes(ex)); if (L) return 'Workout ' + L; const P = Object.values(D.projects || {}).find(p => p.ex.includes(ex)); return P ? P.name : ''; };
   const exRow = (ex, i) => `<div><span>${esc(ex)}<small>${sess(ex)}</small></span>${(D.videos || {})[ex] ? `<button onclick="bdDemo(${i})">▶ Demo</button>` : ''}</div>`;
@@ -504,7 +428,7 @@ function renderBody() {
       <div class="bd-modes"><button data-m="rec" class="${bdMode === 'rec' ? 'on' : ''}" onclick="bdModeSet('rec')">Recovery</button><button data-m="bones" class="${bdMode === 'bones' ? 'on' : ''}" onclick="bdModeSet('bones')">Show bones</button></div>
       <div class="bd-stage" id="bdStage"><div class="bd-floor"></div><div class="bd-flip ${bdMode === 'bones' ? 'bd-bones' : ''}" id="bdFlip"><div class="bd-face f">${bdFigure('front')}</div><div class="bd-face b">${bdFigure('back')}</div></div>
         <button class="bd-turn" onclick="bdTurn()" aria-label="Turn the figure around">⟲</button><div class="bd-side" id="bdSide">Front</div></div>
-      <div class="bd-legend"><span><i style="background:#3d7e80"></i>Fresh</span><span><i style="background:#e3a33b"></i>Recovering</span><span><i style="background:#f2546b"></i>Worked</span></div>
+      <div class="bd-legend"><span><i style="background:#b4433a"></i>Fresh</span><span><i style="background:#ff8a2a"></i>Recovering</span><span><i style="background:#ffdf5e"></i>Worked</span></div>
       <div class="bd-info" id="bdInfo">Tap any muscle for what it does, how recovered it is and which of your exercises train it. Drag sideways to spin the body.</div>
     </div>
     <div class="card"><h2>This week's sets</h2>
@@ -515,7 +439,7 @@ function renderBody() {
       <div class="bd-top"><div class="bd-big bd-cu" data-to="${M.overall ?? ''}">${M.overall ?? '—'}</div><div class="bd-meter" id="bdMeter">${Array.from({ length: 10 }, () => '<i></i>').join('')}</div></div>
       <div class="muted" style="margin-top:6px">Overall strength, 0–100 · 60 is a solid intermediate for your bodyweight (${Math.round(M.bw)} lb)</div>
       ${groups}
-      <p class="bd-note">Scores come from your best set of each exercise: weight and reps turn into an estimated one-rep max, compared with your bodyweight. Bodyweight moves use reps, holds use seconds. Recovery is an estimate: each set adds fatigue to the muscles it works (helpers count half), and it fades over about two to three days. Both are guides for your own progress, not medical or lab measures.</p></div>`;
+      <p class="bd-note">Scores come from your best set of each exercise: weight and reps turn into an estimated one-rep max, compared with your bodyweight. Bodyweight moves use reps, holds use seconds. Recovery is an estimate: each set adds fatigue to the muscles it works (helpers count half), and it fades over about two to three days. Both are guides for your own progress, not medical or lab measures.<br>Anatomy model: BodyParts3D, © The Database Center for Life Science, CC BY 4.0, simplified and regrouped. The lats and abs are approximated from the body surface.</p></div>`;
   $('bodyApp').dataset.ready = 1;
   bdSetAngle(bdAngle);
 
