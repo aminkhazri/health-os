@@ -18,6 +18,7 @@ If you reuse or change the model, keep this credit and share your version under 
 - muscles, a few tendon sheets and the skeleton kept; fascia layers, bursae, organs, vessels and nerves left out
 - parts regrouped by muscle; very dense parts simplified; coarse muscles subdivided and smoothed
 - the tendon sheet of the external oblique is cut away where it covers the rectus abdominis, so the abs show
+- muscle bellies are pushed outward a few millimetres (up to about 1 cm on the thickest) to give the figure a more muscular build; this is a stylised change, not the source anatomy
 - the head, hands and feet are replaced by plain smooth shapes (no skull, face, fingers bones or toes)
 - numbers baked into every point for the app's shader: a fibre number, an occlusion shade, how tendon-like the point is (muscles fade to pale tendon at their ends) and a small per-muscle tint
 - Z-Anatomy's "ascending" and "descending" trapezius labels are swapped in its file; the parts are sorted by height here

@@ -196,6 +196,22 @@ def add(key, pos, idx, fib, ao=None, tend=None, tint=0.5):
 FLAT = ('pecs', 'lats', 'traps_mid', 'traps_up', 'glute_max', 'glute_med', 'obliques', 'serratus', 'abs', 'erectors', 'neck', 'cuff')
 
 
+def bulk_up(pos, idx, key, bone_tree, bone_pts):
+    """Give a muscle more mass: its belly is pushed outward, away from the bone it lies on, most at its thickest part and not at all at
+    its ends, so the attachments stay where they are. Only the side facing away from the bone moves, so the muscle grows outward
+    instead of sinking into its neighbours. Thick muscles gain the most; broad flat ones get a gentler, even swell."""
+    c = pos.mean(0); w, v = np.linalg.eigh(np.cov((pos - c).T)); t = (pos - c) @ v[:, 2]; lo, hi = t.min(), t.max()
+    if hi - lo < 0.06: return pos
+    u = (t - lo) / (hi - lo); r = np.linalg.norm((pos - c) - np.outer(t, v[:, 2]), axis=1); mid = sm(0.04, 0.3, np.minimum(u, 1 - u))
+    if key in FLAT: amount = (0.009 if key in ('glute_max', 'pecs') else 0.005) * mid
+    else:
+        NB = 24; bi = np.minimum((u * NB).astype(int), NB - 1); rb = np.array([np.percentile(r[bi == k], 80) if (bi == k).sum() > 2 else np.nan for k in range(NB)])
+        ok = ~np.isnan(rb); rb = np.interp(np.arange(NB), np.arange(NB)[ok], rb[ok]); rb = np.convolve(np.pad(rb, 1, mode='edge'), np.ones(3) / 3, 'valid')
+        girth = np.interp(u * NB - 0.5, np.arange(NB), rb) / rb.max(); amount = np.clip(0.30 * rb.max(), 0.002, 0.0115) * sm(0.3, 0.95, girth) * mid
+    n = normals(pos, idx); out = pos - bone_pts[bone_tree.query(pos)[1]]; out /= np.linalg.norm(out, axis=1, keepdims=True) + 1e-9
+    return pos + n * (amount * np.clip((n * out).sum(1), 0, 1))[:, None]
+
+
 def tendon_ends(pos, flat=False):
     """How tendon-like each point of a muscle is, 0 (red belly) to 1 (pale tendon). A muscle turns to tendon toward its two ends, and
     most of all where it narrows into a cord; a broad flat muscle only gets a faint pale band along its attachments."""
@@ -217,6 +233,7 @@ COVERED = ('erectors', 'deep', 'neck')   # groups of many small or mostly covere
 BURIED = (r'tibialis posterior|flexor digitorum longus|flexor hallucis longus|popliteus|vastus intermedius|adductor (brevis|minimus)|obturator|gemellus|quadratus femoris|piriformis'
           r'|gluteus minimus|subscapularis|supinator|pronator quadratus|digitorum profundus|flexor pollicis longus|multifidus|rotator|interspinal|intertransvers|levatores|psoas|iliacus')
 head_pts, hand_bones, foot_bones = [], {}, {}
+_bones = np.vstack([q for nm, pth, q, _ in PARTS if classify(nm, pth, q) == 'bone']); _bone_tree = cKDTree(_bones)
 for name, path, pos, idx in PARTS:
     key = classify(name, path, pos)
     if key in ('headbone', 'headmuscle'): head_pts.append(pos); continue
@@ -239,6 +256,7 @@ for name, path, pos, idx in PARTS:
     elif soft and key not in COVERED and not re.search(BURIED, name.lower()):
         while edge_len(pos, idx) > COARSE and len(idx) < 60000: pos, idx = loop_subdivide(pos, idx)
     if len(idx) < 8: continue
+    if soft and key not in COVERED and not re.search(BURIED, name.lower()): pos = bulk_up(pos, idx, key, _bone_tree, _bones)
     fib = fibre(pos) if soft else np.zeros(len(pos))
     tint = (int.from_bytes(re.sub(r'\.[lr]$', '', name).encode()[-6:], 'little') * 2654435761 % 1000) / 1000   # the same on both sides of the body
     add(key, pos, idx, fib, cavity(pos, idx) if len(idx) > 20 else None, tendon_ends(pos, key in FLAT) if soft and key != 'deep' else None, tint)
@@ -299,7 +317,13 @@ for key, g in groups.items():
             nb = tree.query_ball_point(q[s:s + 20000], R); lens = np.array([len(x) for x in nb]); flat_i = np.concatenate(nb).astype(np.int64) if lens.sum() else np.zeros(0, np.int64)
             own = np.repeat(np.arange(len(lens)), lens); facing = ((q[s:s + 20000][own] - S_P[flat_i]) * S_N[flat_i]).sum(1) > 0
             seen[s:s + 20000] = np.bincount(own[facing], minlength=len(lens))
-        g['ao'][i] = g['ao'][i] * (1 - 0.72 * sm(1.25, 3.4, seen / flat))
+        occ = 1 - 0.72 * sm(1.25, 3.4, seen / flat)
+        # even the shade out over each point's neighbours, so one stray sample (where two muscles touch) does not leave a dark fleck
+        f = g['idx'][i] - sum(len(q) for q in g['pos'][:i]); e = np.concatenate([f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]]]); e = np.concatenate([e, e[:, ::-1]])
+        deg = np.bincount(e[:, 0], minlength=len(occ)).astype(float); deg[deg == 0] = 1
+        for _ in range(4):
+            acc = np.zeros(len(occ)); np.add.at(acc, e[:, 0], occ[e[:, 1]]); occ = 0.4 * occ + 0.6 * acc / deg
+        g['ao'][i] = g['ao'][i] * occ
 
 # ---------- write the GLB ----------
 bin_ = bytearray(); views = []; accs = []; meshes = []; nodes = []
