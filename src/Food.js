@@ -189,7 +189,7 @@ function addFoods(dateKey, items) {
   SpreadsheetApp.flush();
   autoMarkDay_(ss, dateKey, tz);
   } finally { lock.releaseLock(); }
-  return getAppData(dateKey);
+  return freshAppData_(dateKey);
 }
 
 /** Back-compat single add (used by older app versions). */
@@ -206,7 +206,7 @@ function deleteFood(row, dateKey) {
   SpreadsheetApp.flush();
   untickMealIfEmpty_(ss, dateKey, tz, String(meal));
   } finally { lock.releaseLock(); }
-  return getAppData(dateKey);
+  return freshAppData_(dateKey);
 }
 
 function dailyRow_(ss, dateKey, tz) {

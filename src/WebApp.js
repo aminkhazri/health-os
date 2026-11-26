@@ -74,8 +74,51 @@ function ss_() { return SpreadsheetApp.openById(CONFIG.SHEET_ID); }
 function key_(d, tz) { return Utilities.formatDate(d, tz, 'yyyy-MM-dd'); }
 function num_(v) { return (v === '' || v === null || isNaN(v)) ? null : Number(v); }
 
+// ---------- Speed: a server-side copy of the page data ----------
+// Reading eight Sheet tabs takes about 3 seconds, so the result is kept in Apps Script's free cache for up to 6 hours.
+// Every save in the app starts a new "generation", so the next read rebuilds from the Sheet. The 15-minute nudge trigger
+// also rebuilds it, which keeps it warm and picks up edits made straight in the Sheet. Steps and heart rate come from a
+// separate inbox project, so that one part is always read fresh.
+const CACHE_TTL = 21600;            // seconds (6 hours, the most CacheService allows)
+const CACHE_CHUNK = 30000;          // characters per cache entry; entries are capped at 100 KB
+function cache_() { return CacheService.getScriptCache(); }
+function bumpCache_() { cache_().put('gen', String(Date.now()), CACHE_TTL); }
+function cacheGet_(key) {
+  const c = cache_(), n = Number(c.get(key + '#n'));
+  if (!n) return null;
+  const keys = Array.from({ length: n }, (_, i) => key + '#' + i), got = c.getAll(keys);
+  if (keys.some(k => got[k] == null)) return null;
+  try { return JSON.parse(keys.map(k => got[k]).join('')); } catch (e) { return null; }
+}
+function cachePut_(key, obj) {
+  const s = JSON.stringify(obj), parts = {}, n = Math.ceil(s.length / CACHE_CHUNK);
+  for (let i = 0; i < n; i++) parts[key + '#' + i] = s.slice(i * CACHE_CHUNK, (i + 1) * CACHE_CHUNK);
+  parts[key + '#n'] = String(n);
+  try { cache_().putAll(parts, CACHE_TTL); } catch (e) { console.warn('cache put skipped: ' + e); }
+}
+
 /** Everything the page needs in one round trip. dateKey = 'yyyy-MM-dd' (defaults to today). */
 function getAppData(dateKey) {
+  const t0 = Date.now(), today = Utilities.formatDate(new Date(), CONFIG.TZ || Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  dateKey = dateKey || today;
+  const key = ['app', cache_().get('gen') || '0', today, dateKey].join('|');
+  const hit = cacheGet_(key);
+  if (hit) {
+    const ss = ss_();
+    hit.activity = getActivityData_(ss, dateKey, ss.getSpreadsheetTimeZone());   // steps arrive from outside the app, so always fresh
+    console.log('getAppData: cache hit, ' + (Date.now() - t0) + ' ms');
+    return hit;
+  }
+  const d = buildAppData_(dateKey);
+  cachePut_(key, d);
+  return d;
+}
+/** After a save: start a new cache generation, then rebuild from the Sheet. */
+function freshAppData_(dateKey) { bumpCache_(); return getAppData(dateKey); }
+/** Called by the 15-minute trigger so the next app open is fast and reflects edits made in the Sheet. */
+function warmCache_() { bumpCache_(); getAppData(null); }
+
+function buildAppData_(dateKey) {
   const t0 = Date.now(), lap = [], mark = n => lap.push(n + ' ' + (Date.now() - t0));   // timing, shown in Executions logs
   const ss = ss_(), tz = ss.getSpreadsheetTimeZone(); mark('open');
   const today = key_(new Date(), tz);
@@ -122,7 +165,7 @@ function getAppData(dateKey) {
   const food = getFoodData_(ss, dateKey, tz); mark('food');
   const activity = getActivityData_(ss, dateKey, tz); mark('activity');
   const chores = getChores_(ss, today); mark('chores');
-  console.log('getAppData ms: ' + lap.join(', '));
+  console.log('getAppData: built from the Sheet, ms: ' + lap.join(', '));
   return { today, dateKey, entry, series: series.slice(-120), weekly, targets, last,
     next: nextWorkout_(Number(Utilities.formatDate(new Date(), tz, 'u')), lastLetter), workoutInfo: WORKOUT_INFO, lastLetter, lastWorkoutDate: lastDate, lastSession, workouts: WORKOUTS, projects: PROJECTS, calCheck: cal, food, activity, chores, stretches: STRETCHES, routines: STRETCH_ROUTINES, videos: VIDEOS, name: CONFIG.NAME || '' };
 }
@@ -143,7 +186,7 @@ function saveDaily(o) {
   const hr = num_(o.hr);
   sh.getRange(row, 17).setValue(hr !== null && hr >= 30 && hr <= 220 ? Math.round(hr) : '');
   SpreadsheetApp.flush();
-  return getAppData(o.date);
+  return freshAppData_(o.date);
 }
 
 /** Add (or with a negative number, remove) mindful minutes for a day. Stored in Daily Log column R. */
@@ -167,7 +210,7 @@ function addMinutes_(dateKey, minutes, colNo, header) {
     cell.setValue(total || '');
     SpreadsheetApp.flush();
   } finally { lock.releaseLock(); }
-  return getAppData(dateKey);
+  return freshAppData_(dateKey);
 }
 
 /** Append one workout session (one row per exercise) to the Workout Log. */
@@ -189,7 +232,7 @@ function saveWorkout(o) {
   if (PROJECTS[o.letter]) sh.getRange(r, 8, o.items.length, 1).setValue(0);
   else sh.getRange(r, 8, o.items.length, 1).setFormulaR1C1('=IF(R[0]C1="","",IF(OR(R[0]C1<>R[-1]C1,R[0]C2<>R[-1]C2),1,0))');
   SpreadsheetApp.flush();
-  return getAppData(o.date);
+  return freshAppData_(o.date);
 }
 
 /** One-time: make Weekly Summary workout counts use whole columns so the log can grow past row 401. */
@@ -265,7 +308,7 @@ function toggleChore(name, on, dateKey) {
     if (!on) hits.reverse().forEach(r => log.deleteRow(r));   // bottom-up so row numbers stay valid
     SpreadsheetApp.flush();
   } finally { lock.releaseLock(); }
-  return getAppData(dateKey);
+  return freshAppData_(dateKey);
 }
 /** Add a chore to the list, or remove one. Removing it keeps its past weeks in the log. */
 function editChore(name, add, dateKey) {
@@ -278,7 +321,7 @@ function editChore(name, add, dateKey) {
     if (!add && at >= 0) list.deleteRow(at + 2);
     SpreadsheetApp.flush();
   } finally { lock.releaseLock(); }
-  return getAppData(dateKey);
+  return freshAppData_(dateKey);
 }
 
 if (typeof module !== 'undefined') module.exports = { nextWorkout_, WORKOUTS, WORKOUT_INFO, PROJECTS, weekOf_ }; // Node tests only

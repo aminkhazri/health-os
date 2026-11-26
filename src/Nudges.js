@@ -41,8 +41,13 @@ function nudgeFor_(cp, waterOz, calmMin) {
   return { title, desc: parts.join('<br><br>') };
 }
 
-/** Trigger target. Safe to run any time: does nothing unless a checkpoint just passed. */
+/** Trigger target (every 15 min). Sends a nudge if a checkpoint just passed, then refreshes the app's data cache. */
 function checkNudges() {
+  const result = checkNudgesOnly_();
+  try { warmCache_(); } catch (e) { console.warn('cache warm failed: ' + e); }
+  return result;
+}
+function checkNudgesOnly_() {
   const tz = CONFIG.TZ, now = new Date();
   const today = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
   const dow = Number(Utilities.formatDate(now, tz, 'u'));
